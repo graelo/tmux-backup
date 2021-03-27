@@ -1,4 +1,4 @@
-//! This module provides types and functions to use Tmux.
+//! This module provides a few types and functions to handle Tmux Panes.
 //!
 //! The main use cases are running Tmux commands & parsing Tmux panes
 //! information.
@@ -56,7 +56,7 @@ impl FromStr for Pane {
     /// This status line is obtained with
     ///
     /// ```text
-    /// tmux list-panes -F "#{pane_id}:#{pane_index}:#{?pane_active,true,false}:#{pane_width}:#{pane_height}:#{pane_left}:#{pane_right}:#{pane_top}:#{pane_bottom}:#{pane_title}:#{pane_current_path}:#{pane_current_command}"`.
+    /// tmux list-panes -F "#{pane_id}:#{pane_index}:#{?pane_active,true,false}:#{pane_width}:#{pane_height}:#{pane_left}:#{pane_right}:#{pane_top}:#{pane_bottom}:#{pane_title}:#{pane_current_path}:#{pane_current_command}"
     /// ```
     ///
     /// For definitions, look at `Pane` type and the tmux man page for
@@ -129,7 +129,7 @@ impl Pane {
     /// scrolled up by 3 lines. It is necessarily in copy mode. Its start line
     /// index is `-3`. The index of the last line is `(40-1) - 3 = 36`.
     ///
-    pub fn capture_pane(&self) -> Result<String, ParseError> {
+    pub fn capture(&self) -> Result<String, ParseError> {
         let args = vec![
             "capture-pane",
             "-t",
@@ -153,13 +153,12 @@ pub struct PaneId(String);
 impl FromStr for PaneId {
     type Err = ParseError;
 
-    /// Parse into PaneId. The `&str` must be start with '%'
-    /// followed by a `u32`.
+    /// Parse into PaneId. The `&str` must start with '%' followed by a `u32`.
     fn from_str(src: &str) -> Result<Self, Self::Err> {
         if !src.starts_with('%') {
-            return Err(ParseError::ExpectedPaneIdMarker);
+            return Err(ParseError::ExpectedIdMarker('$'));
         }
-        let id = src[1..].parse::<u32>()?;
+        let id = src[1..].parse::<u16>()?;
         let id = format!("%{}", id);
         Ok(PaneId(id))
     }
@@ -177,19 +176,20 @@ impl fmt::Display for PaneId {
     }
 }
 
-/// Returns a list of `Pane` from the current tmux session.
-pub fn list_panes() -> Result<Vec<Pane>, ParseError> {
+/// Returns a list of all `Pane` from all sessions.
+pub fn available_panes() -> Result<Vec<Pane>, ParseError> {
     let args = vec![
         "list-panes",
+        "-a",
         "-F",
-        "#{pane_id}:\
-            #{pane_index}\
-            :#{?pane_active,true,false}\
-            :#{pane_width}:#{pane_height}\
-            :#{pane_left}:#{pane_right}:#{pane_top}:#{pane_bottom}\
-            :#{pane_title}\
-            :#{pane_current_path}\
-            :#{pane_current_command}",
+        "#{pane_id}\
+        :#{pane_index}\
+        :#{?pane_active,true,false}\
+        :#{pane_width}:#{pane_height}\
+        :#{pane_left}:#{pane_right}:#{pane_top}:#{pane_bottom}\
+        :#{pane_title}\
+        :#{pane_current_path}\
+        :#{pane_current_command}",
     ];
 
     let output = duct::cmd("tmux", &args).read()?;

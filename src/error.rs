@@ -1,21 +1,26 @@
+use std::error::Error;
 use std::fmt;
 
 #[derive(Debug)]
 pub enum ParseError {
-    ExpectedPaneIdMarker,
+    ExpectedIdMarker(char),
     ExpectedInt(std::num::ParseIntError),
     ExpectedBool(std::str::ParseBoolError),
-    ExpectedString(String),
     ProcessFailure(String),
+}
+
+impl Error for ParseError {
+    fn description(&self) -> &str {
+        "ParseError"
+    }
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ParseError::ExpectedPaneIdMarker => write!(f, "Expected pane id marker"),
+            ParseError::ExpectedIdMarker(ch) => write!(f, "Expected id marker `{}`", ch),
             ParseError::ExpectedInt(msg) => write!(f, "Expected an int: {}", msg),
             ParseError::ExpectedBool(msg) => write!(f, "Expected a bool: {}", msg),
-            ParseError::ExpectedString(msg) => write!(f, "Expected {}", msg),
             ParseError::ProcessFailure(msg) => write!(f, "{}", msg),
         }
     }
