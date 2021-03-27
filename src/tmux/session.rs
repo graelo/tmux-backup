@@ -3,9 +3,9 @@
 //! The main use cases are running Tmux commands & parsing Tmux session
 //! information.
 
-use std::fmt;
 use std::str::FromStr;
 
+use super::session_id::SessionId;
 use crate::error::ParseError;
 
 #[derive(Debug, PartialEq)]
@@ -14,36 +14,6 @@ pub struct Session {
     pub id: SessionId,
     /// Name of the session.
     pub name: String,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct SessionId(String);
-
-impl FromStr for SessionId {
-    type Err = ParseError;
-
-    /// Parse into SessionId. The `&str` must start with '$' followed by a
-    /// `u16`.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
-        if !src.starts_with('$') {
-            return Err(ParseError::ExpectedIdMarker('$'));
-        }
-        let id = src[1..].parse::<u16>()?;
-        let id = format!("${}", id);
-        Ok(SessionId(id))
-    }
-}
-
-impl SessionId {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl fmt::Display for SessionId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
 }
 
 impl FromStr for Session {

@@ -3,9 +3,9 @@
 //! The main use cases are running Tmux commands & parsing Tmux window
 //! information.
 
-use std::fmt;
 use std::str::FromStr;
 
+use super::window_id::WindowId;
 use crate::error::ParseError;
 
 #[derive(Debug, PartialEq)]
@@ -22,36 +22,6 @@ pub struct Window {
     pub name: String,
     /// Name of Sessions to which this Window is attached.
     pub sessions: Vec<String>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct WindowId(String);
-
-impl FromStr for WindowId {
-    type Err = ParseError;
-
-    /// Parse into WindowId. The `&str` must start with '@' followed by a
-    /// `u16`.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
-        if !src.starts_with('@') {
-            return Err(ParseError::ExpectedIdMarker('@'));
-        }
-        let id = src[1..].parse::<u16>()?;
-        let id = format!("@{}", id);
-        Ok(WindowId(id))
-    }
-}
-
-impl WindowId {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl fmt::Display for WindowId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
 }
 
 impl FromStr for Window {
@@ -116,6 +86,33 @@ impl FromStr for Window {
             sessions,
         })
     }
+}
+
+/// Returns a list of all `Window` from all sessions.
+pub fn available_windows() -> Result<Vec<Window>, ParseError> {
+    let args = vec![
+        "list-windows",
+        "-a",
+        "-F",
+        "#{window_id}\
+        :#{window_index}\
+        :#{?window_active,true,false}\
+        :#{window_layout}\
+        :#{window_name}\
+        :#{window_linked_sessions_list}",
+    ];
+
+    let output = duct::cmd("tmux", &args).read()?;
+
+    // Each call to `Window::parse` returns a `Result<Window, _>`. All results
+    // are collected into a Result<Vec<Window>, _>, thanks to `collect()`.
+    let result: Result<Vec<Window>, ParseError> = output
+        .trim_end() // trim last '\n' as it would create an empty line
+        .split('\n')
+        .map(|line| Window::from_str(line))
+        .collect();
+
+    result
 }
 
 #[cfg(test)]

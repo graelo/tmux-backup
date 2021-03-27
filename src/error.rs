@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt;
+use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -40,6 +41,12 @@ impl From<std::str::ParseBoolError> for ParseError {
 
 impl From<std::io::Error> for ParseError {
     fn from(error: std::io::Error) -> Self {
+        ParseError::ProcessFailure(error.to_string())
+    }
+}
+
+impl From<FromUtf8Error> for ParseError {
+    fn from(error: std::string::FromUtf8Error) -> Self {
         ParseError::ProcessFailure(error.to_string())
     }
 }

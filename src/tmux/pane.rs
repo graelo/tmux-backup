@@ -3,11 +3,13 @@
 //! The main use cases are running Tmux commands & parsing Tmux panes
 //! information.
 
-use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use crate::error::ParseError;
+use tokio::process;
+
+use super::pane_id::PaneId;
+use crate::error;
 
 #[derive(Debug, PartialEq)]
 pub struct Pane {
@@ -38,7 +40,7 @@ pub struct Pane {
 }
 
 impl FromStr for Pane {
-    type Err = ParseError;
+    type Err = error::ParseError;
 
     /// Parse a string containing tmux panes status into a new `Pane`.
     ///
@@ -129,7 +131,7 @@ impl Pane {
     /// scrolled up by 3 lines. It is necessarily in copy mode. Its start line
     /// index is `-3`. The index of the last line is `(40-1) - 3 = 36`.
     ///
-    pub fn capture(&self) -> Result<String, ParseError> {
+    pub async fn capture(&self) -> Result<Vec<u8>, error::ParseError> {
         let args = vec![
             "capture-pane",
             "-t",
@@ -142,42 +144,14 @@ impl Pane {
             "-",
         ];
 
-        let output = duct::cmd("tmux", &args).read()?;
-        Ok(output)
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct PaneId(String);
-
-impl FromStr for PaneId {
-    type Err = ParseError;
-
-    /// Parse into PaneId. The `&str` must start with '%' followed by a `u32`.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
-        if !src.starts_with('%') {
-            return Err(ParseError::ExpectedIdMarker('$'));
-        }
-        let id = src[1..].parse::<u16>()?;
-        let id = format!("%{}", id);
-        Ok(PaneId(id))
-    }
-}
-
-impl PaneId {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl fmt::Display for PaneId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        let output = process::Command::new("tmux").args(&args).output().await?;
+        // let text = String::from_utf8(output.stdout)?;
+        Ok(output.stdout)
     }
 }
 
 /// Returns a list of all `Pane` from all sessions.
-pub fn available_panes() -> Result<Vec<Pane>, ParseError> {
+pub fn available_panes() -> Result<Vec<Pane>, error::ParseError> {
     let args = vec![
         "list-panes",
         "-a",
@@ -196,7 +170,7 @@ pub fn available_panes() -> Result<Vec<Pane>, ParseError> {
 
     // Each call to `Pane::parse` returns a `Result<Pane, _>`. All results
     // are collected into a Result<Vec<Pane>, _>, thanks to `collect()`.
-    let result: Result<Vec<Pane>, ParseError> = output
+    let result: Result<Vec<Pane>, error::ParseError> = output
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
         .map(|line| Pane::from_str(line))
