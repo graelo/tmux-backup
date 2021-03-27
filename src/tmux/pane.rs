@@ -109,6 +109,44 @@ impl FromStr for Pane {
     }
 }
 
+impl Pane {
+    /// Returns the entire Pane content as a `String`.
+    ///
+    /// The provided `region` specifies if the visible area is captured, or the
+    /// entire history.
+    ///
+    /// # Note
+    ///
+    /// In Tmux, the start line is the line at the top of the pane. The end line
+    /// is the last line at the bottom of the pane.
+    ///
+    /// - In normal mode, the index of the start line is always 0. The index of
+    /// the end line is always the pane's height minus one. These do not need to
+    /// be specified when capturing the pane's content.
+    ///
+    /// - If navigating history in copy mode, the index of the start line is the
+    /// opposite of the pane's scroll position. For instance a pane of 40 lines,
+    /// scrolled up by 3 lines. It is necessarily in copy mode. Its start line
+    /// index is `-3`. The index of the last line is `(40-1) - 3 = 36`.
+    ///
+    pub fn capture_pane(&self) -> Result<String, ParseError> {
+        let args = vec![
+            "capture-pane",
+            "-t",
+            self.id.as_str(),
+            "-J",
+            "-p",
+            "-S",
+            "-",
+            "-E",
+            "-",
+        ];
+
+        let output = duct::cmd("tmux", &args).read()?;
+        Ok(output)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct PaneId(String);
 
@@ -167,42 +205,6 @@ pub fn list_panes() -> Result<Vec<Pane>, ParseError> {
     result
 }
 
-/// Returns the entire Pane content as a `String`.
-///
-/// The provided `region` specifies if the visible area is captured, or the
-/// entire history.
-///
-/// # Note
-///
-/// In Tmux, the start line is the line at the top of the pane. The end line
-/// is the last line at the bottom of the pane.
-///
-/// - In normal mode, the index of the start line is always 0. The index of
-/// the end line is always the pane's height minus one. These do not need to
-/// be specified when capturing the pane's content.
-///
-/// - If navigating history in copy mode, the index of the start line is the
-/// opposite of the pane's scroll position. For instance a pane of 40 lines,
-/// scrolled up by 3 lines. It is necessarily in copy mode. Its start line
-/// index is `-3`. The index of the last line is `(40-1) - 3 = 36`.
-///
-pub fn capture_pane(pane: &Pane) -> Result<String, ParseError> {
-    let args = vec![
-        "capture-pane",
-        "-t",
-        pane.id.as_str(),
-        "-J",
-        "-p",
-        "-S",
-        "-",
-        "-E",
-        "-",
-    ];
-
-    let output = duct::cmd("tmux", &args).read()?;
-    Ok(output)
-}
-
 #[cfg(test)]
 mod tests {
     use super::Pane;
@@ -212,7 +214,7 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn test_parse_pass() {
+    fn parse_list_panes() {
         let output = vec![
             "%20:0:false:175:85:0:174:0:84:rmbp:/Users/graelo/Travail/code/rust/tmux-revive:nvim",
             "%21:1:true:158:42:176:333:0:41:rmbp:/Users/graelo/Travail/code/rust/tmux-revive:tmux",
