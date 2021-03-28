@@ -89,7 +89,7 @@ impl FromStr for Window {
 }
 
 /// Returns a list of all `Window` from all sessions.
-pub fn available_windows() -> Result<Vec<Window>, ParseError> {
+pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
     let args = vec![
         "list-windows",
         "-a",
@@ -102,11 +102,15 @@ pub fn available_windows() -> Result<Vec<Window>, ParseError> {
         :#{window_linked_sessions_list}",
     ];
 
-    let output = duct::cmd("tmux", &args).read()?;
+    let output = tokio::process::Command::new("tmux")
+        .args(&args)
+        .output()
+        .await?;
+    let buffer = String::from_utf8(output.stdout)?;
 
     // Each call to `Window::parse` returns a `Result<Window, _>`. All results
     // are collected into a Result<Vec<Window>, _>, thanks to `collect()`.
-    let result: Result<Vec<Window>, ParseError> = output
+    let result: Result<Vec<Window>, ParseError> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
         .map(|line| Window::from_str(line))

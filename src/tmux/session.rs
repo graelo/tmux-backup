@@ -58,14 +58,18 @@ impl FromStr for Session {
 }
 
 /// Returns a list of all `Session` from the current tmux session.
-pub fn available_sessions() -> Result<Vec<Session>, ParseError> {
+pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
     let args = vec!["list-sessions", "-F", "#{session_id}:#{session_name}"];
 
-    let output = duct::cmd("tmux", &args).read()?;
+    let output = tokio::process::Command::new("tmux")
+        .args(&args)
+        .output()
+        .await?;
+    let buffer = String::from_utf8(output.stdout)?;
 
     // Each call to `Session::parse` returns a `Result<Session, _>`. All results
     // are collected into a Result<Vec<Session>, _>, thanks to `collect()`.
-    let result: Result<Vec<Session>, ParseError> = output
+    let result: Result<Vec<Session>, ParseError> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
         .map(|line| Session::from_str(line))
