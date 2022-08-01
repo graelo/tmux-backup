@@ -1,9 +1,11 @@
 mod error;
 mod tmux;
 
+use async_std::fs;
+use async_std::task;
 use futures::future::join_all;
 use std::env;
-use tokio::fs;
+// use tokio::fs;
 
 // Just a generic Result type to ease error handling for us. Errors in multithreaded
 // async contexts needs some extra restrictions
@@ -16,7 +18,7 @@ async fn app() -> Result<()> {
 
     let mut handles = Vec::new();
 
-    let handle = tokio::spawn(async move {
+    let handle = task::spawn(async move {
         println!("---- sessions ----");
         let sessions = tmux::session::available_sessions().await.unwrap();
         for session in sessions {
@@ -26,7 +28,7 @@ async fn app() -> Result<()> {
     });
     handles.push(handle);
 
-    let handle = tokio::spawn(async move {
+    let handle = task::spawn(async move {
         println!("---- windows ----");
         let windows = tmux::window::available_windows().await.unwrap();
         for window in windows {
@@ -39,6 +41,7 @@ async fn app() -> Result<()> {
     println!("---- panes ----");
     let panes_output_dir = output_dir.join("panes");
     fs::create_dir_all(&panes_output_dir).await?;
+
     let panes = tmux::pane::available_panes().await?;
     save_panes_content(panes, panes_output_dir).await?;
 
@@ -53,7 +56,7 @@ async fn save_panes_content(
 
     for pane in panes {
         let tmp_dir = panes_output_dir.clone();
-        let handle = tokio::spawn(async move {
+        let handle = task::spawn(async move {
             let output = pane.capture().await.unwrap();
 
             let filename = format!("pane-{}.txt", pane.id);
@@ -68,9 +71,9 @@ async fn save_panes_content(
 }
 
 fn main() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    // let rt = async_std::runtime::Runtime::new().unwrap();
 
-    match rt.block_on(app()) {
+    match task::block_on(app()) {
         Ok(_) => println!("✅ sessions persisted."),
         Err(e) => println!("An error ocurred: {}", e),
     };

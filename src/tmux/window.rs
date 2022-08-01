@@ -3,6 +3,7 @@
 //! The main use cases are running Tmux commands & parsing Tmux window
 //! information.
 
+use async_std::process::Command;
 use std::str::FromStr;
 
 use super::window_id::WindowId;
@@ -102,10 +103,7 @@ pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
         :#{window_linked_sessions_list}",
     ];
 
-    let output = tokio::process::Command::new("tmux")
-        .args(&args)
-        .output()
-        .await?;
+    let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
     // Each call to `Window::parse` returns a `Result<Window, _>`. All results

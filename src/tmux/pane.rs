@@ -3,6 +3,7 @@
 //! The main use cases are running Tmux commands & parsing Tmux panes
 //! information.
 
+use async_std::process::Command;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -142,10 +143,7 @@ impl Pane {
             "-",
         ];
 
-        let output = tokio::process::Command::new("tmux")
-            .args(&args)
-            .output()
-            .await?;
+        let output = Command::new("tmux").args(&args).output().await?;
 
         Ok(output.stdout)
     }
@@ -167,10 +165,7 @@ pub async fn available_panes() -> Result<Vec<Pane>, error::ParseError> {
         :#{pane_current_command}",
     ];
 
-    let output = tokio::process::Command::new("tmux")
-        .args(&args)
-        .output()
-        .await?;
+    let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
     // Each call to `Pane::parse` returns a `Result<Pane, _>`. All results

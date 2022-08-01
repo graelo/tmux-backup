@@ -3,6 +3,7 @@
 //! The main use cases are running Tmux commands & parsing Tmux session
 //! information.
 
+use async_std::process::Command;
 use std::str::FromStr;
 
 use super::session_id::SessionId;
@@ -61,10 +62,7 @@ impl FromStr for Session {
 pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
     let args = vec!["list-sessions", "-F", "#{session_id}:#{session_name}"];
 
-    let output = tokio::process::Command::new("tmux")
-        .args(&args)
-        .output()
-        .await?;
+    let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
     // Each call to `Session::parse` returns a `Result<Session, _>`. All results
