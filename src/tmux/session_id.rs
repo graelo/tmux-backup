@@ -21,11 +21,11 @@ impl FromStr for SessionId {
     }
 }
 
-impl SessionId {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
+// impl SessionId {
+//     pub fn as_str(&self) -> &str {
+//         &self.0
+//     }
+// }
 
 impl fmt::Display for SessionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
