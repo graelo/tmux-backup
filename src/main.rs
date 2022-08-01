@@ -2,7 +2,7 @@ mod error;
 mod tmux;
 
 use futures::future::join_all;
-use std::path::PathBuf;
+use std::env;
 use tokio::fs;
 
 // Just a generic Result type to ease error handling for us. Errors in multithreaded
@@ -10,6 +10,10 @@ use tokio::fs;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 async fn app() -> Result<()> {
+    let output_dir = env::temp_dir().join("tmux-revive");
+    println!("{:?}", output_dir);
+    fs::create_dir_all(&output_dir).await?;
+
     let mut handles = Vec::new();
 
     let handle = tokio::spawn(async move {
@@ -18,7 +22,7 @@ async fn app() -> Result<()> {
         for session in sessions {
             println!("{:?}", session);
         }
-        Ok(())
+        // Ok(())
     });
     handles.push(handle);
 
@@ -28,20 +32,32 @@ async fn app() -> Result<()> {
         for window in windows {
             println!("{:?}", window);
         }
-        Ok(())
+        // Ok(())
     });
     handles.push(handle);
 
     println!("---- panes ----");
+    let panes_output_dir = output_dir.join("panes");
+    fs::create_dir_all(&panes_output_dir).await?;
     let panes = tmux::pane::available_panes().await?;
+    save_panes_content(panes, panes_output_dir).await?;
+
+    Ok(())
+}
+
+async fn save_panes_content(
+    panes: Vec<tmux::pane::Pane>,
+    panes_output_dir: std::path::PathBuf,
+) -> Result<()> {
+    let mut handles = Vec::new();
 
     for pane in panes {
+        let tmp_dir = panes_output_dir.clone();
         let handle = tokio::spawn(async move {
             let output = pane.capture().await.unwrap();
 
-            let mut filepath = PathBuf::from("/tmp/");
             let filename = format!("pane-{}.txt", pane.id);
-            filepath.push(filename);
+            let filepath = tmp_dir.join(filename);
             fs::write(filepath, output).await
         });
         handles.push(handle);
