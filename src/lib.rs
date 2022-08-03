@@ -3,9 +3,11 @@
 //! # tmux-revive
 //!
 
+pub mod config;
 mod error;
 pub mod save;
 mod tmux;
+pub use tmux::display::display_message;
 
 // Just a generic Result type to ease error handling for us. Errors in multithreaded
 // async contexts needs some extra restrictions

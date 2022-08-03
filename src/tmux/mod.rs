@@ -1,3 +1,4 @@
+pub mod display;
 pub mod pane;
 pub mod pane_id;
 pub mod session;
