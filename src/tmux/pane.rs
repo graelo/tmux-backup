@@ -9,8 +9,9 @@ use std::str::FromStr;
 
 use super::pane_id::PaneId;
 use crate::error;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Pane {
     /// Pane identifier, e.g. `%37`.
     pub id: PaneId,

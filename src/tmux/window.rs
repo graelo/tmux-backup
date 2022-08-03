@@ -6,10 +6,12 @@
 use async_std::process::Command;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use super::window_id::WindowId;
 use crate::error::ParseError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Window {
     /// Window identifier, e.g. `@3`.
     pub id: WindowId,
@@ -40,7 +42,7 @@ impl FromStr for Window {
     /// @2:1:false:4438,334x85,0,0[334x41,0,0{167x41,0,0,4,166x41,168,0,5},334x43,0,42{167x43,0,42,6,166x43,168,42,7}]:dates-attn:pytorch
     /// @3:2:false:9e8b,334x85,0,0{167x85,0,0,8,166x85,168,0,9}:th-bits:pytorch
     /// @4:3:false:64ef,334x85,0,0,10:docker-pytorch:pytorch
-    /// @5:0:true:64f0,334x85,0,0,11:ben-williamson:rust
+    /// @5:0:true:64f0,334x85,0,0,11:ben:rust
     /// @6:1:false:64f1,334x85,0,0,12:pyo3:rust
     /// @7:2:false:64f2,334x85,0,0,13:mdns-repeater:rust
     /// @8:0:true:64f3,334x85,0,0,14:combine:swift

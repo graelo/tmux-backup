@@ -6,10 +6,12 @@
 use async_std::process::Command;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use super::session_id::SessionId;
 use crate::error::ParseError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Session {
     /// Session identifier, e.g. `$3`.
     pub id: SessionId,

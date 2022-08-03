@@ -2,8 +2,9 @@ use std::fmt;
 use std::str::FromStr;
 
 use crate::error;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct PaneId(pub String);
 
 impl FromStr for PaneId {
