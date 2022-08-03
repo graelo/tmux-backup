@@ -3,7 +3,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use clap::{ArgEnum, Parser};
+use clap::{ArgAction, ArgEnum, Parser};
 
 /// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) an archive.
 #[derive(Debug, Clone, ArgEnum)]
@@ -24,6 +24,10 @@ pub struct Config {
     /// In that path, the archive name is expected to be `archive-20220531T123456.tar.zst`.
     #[clap(short = 'd', long = "dirpath", default_value_os_t = default_archive_dirpath())]
     pub archive_dirpath: PathBuf,
+
+    /// Print the report (num. sessions, windows & panes) on stdout, otherwise send to Tmux.
+    #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
+    pub stdout: bool,
 
     /// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) an archive.
     #[clap(value_parser, arg_enum)]

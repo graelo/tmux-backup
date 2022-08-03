@@ -8,13 +8,13 @@ use chrono::Local;
 use futures::future::join_all;
 
 use crate::tmux;
-use crate::{Catalog, Result, CATALOG_FILENAME, PANES_DIR_NAME};
+use crate::{Catalog, Report, Result, CATALOG_FILENAME, PANES_DIR_NAME};
 
 /// Save the tmux sessions, windows and panes into an archive at `archive_dirpath`.
 ///
 /// The provided directory will be created if necessary. Archives have a name similar to
 /// `archive-20220731T222948.tar.zst`.
-pub async fn save(archive_dirpath: &Path) -> Result<()> {
+pub async fn save(archive_dirpath: &Path) -> Result<Report> {
     fs::create_dir_all(&archive_dirpath).await?;
 
     let archive_filepath = {
@@ -27,33 +27,36 @@ pub async fn save(archive_dirpath: &Path) -> Result<()> {
     let temp_dirpath = env::temp_dir().join("tmux-revive");
     fs::create_dir_all(&temp_dirpath).await?;
 
-    let catalog_task: task::JoinHandle<Result<PathBuf>> = {
+    let catalog_task: task::JoinHandle<Result<(PathBuf, u16, u16)>> = {
         let temp_dirpath = temp_dirpath.clone();
 
         task::spawn(async move {
             let sessions = tmux::session::available_sessions().await?;
             let windows = tmux::window::available_windows().await?;
-            let catalog = Catalog { sessions, windows };
+            let num_sessions = sessions.len() as u16;
+            let num_windows = windows.len() as u16;
 
+            let catalog = Catalog { sessions, windows };
             let yaml = serde_yaml::to_string(&catalog)?;
 
             let temp_catalog_filepath = temp_dirpath.join(CATALOG_FILENAME);
             fs::write(temp_catalog_filepath.as_path(), yaml).await?;
 
-            Ok(temp_catalog_filepath)
+            Ok((temp_catalog_filepath, num_sessions, num_windows))
         })
     };
 
-    let temp_panes_content_dir = {
+    let (temp_panes_content_dir, num_panes) = {
         let temp_panes_content_dir = temp_dirpath.join(PANES_DIR_NAME);
         fs::create_dir_all(&temp_panes_content_dir).await?;
 
         let panes = tmux::pane::available_panes().await?;
+        let num_panes = panes.len() as u16;
         save_panes_content(panes, &temp_panes_content_dir).await?;
 
-        temp_panes_content_dir
+        (temp_panes_content_dir, num_panes)
     };
-    let temp_catalog_filepath = catalog_task.await?;
+    let (temp_catalog_filepath, num_sessions, num_windows) = catalog_task.await?;
 
     create_archive(
         &archive_filepath,
@@ -64,7 +67,13 @@ pub async fn save(archive_dirpath: &Path) -> Result<()> {
     // fs::remove_dir_all(temp_panes_content_dir).await?;
     fs::remove_dir_all(temp_dirpath).await?;
 
-    Ok(())
+    let report = Report {
+        num_sessions,
+        num_windows,
+        num_panes,
+    };
+
+    Ok(report)
 }
 
 /// For each provided pane, retrieve the content and save it into `destination_dir`.
