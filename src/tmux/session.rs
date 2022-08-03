@@ -72,7 +72,7 @@ pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
     let result: Result<Vec<Session>, ParseError> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
-        .map(|line| Session::from_str(line))
+        .map(Session::from_str)
         .collect();
 
     result

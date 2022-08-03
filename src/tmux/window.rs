@@ -113,7 +113,7 @@ pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
     let result: Result<Vec<Window>, ParseError> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
-        .map(|line| Window::from_str(line))
+        .map(Window::from_str)
         .collect();
 
     result

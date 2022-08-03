@@ -174,7 +174,7 @@ pub async fn available_panes() -> Result<Vec<Pane>, error::ParseError> {
     let result: Result<Vec<Pane>, error::ParseError> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
-        .map(|line| Pane::from_str(line))
+        .map(Pane::from_str)
         .collect();
 
     result

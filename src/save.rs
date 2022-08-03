@@ -1,7 +1,7 @@
 //! Retrieve session information and panes content save to an archive.
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use async_std::{fs, task};
 use chrono::Local;
@@ -68,11 +68,11 @@ pub async fn save(archive_dirpath: &PathBuf) -> Result<()> {
 }
 
 /// For each provided pane, retrieve the content and save it into `destination_dir`.
-async fn save_panes_content(panes: Vec<tmux::pane::Pane>, destination_dir: &PathBuf) -> Result<()> {
+async fn save_panes_content(panes: Vec<tmux::pane::Pane>, destination_dir: &Path) -> Result<()> {
     let mut handles = Vec::new();
 
     for pane in panes {
-        let dest_dir = destination_dir.clone();
+        let dest_dir = destination_dir.to_path_buf();
         let handle = task::spawn(async move {
             let output = pane.capture().await.unwrap();
 
