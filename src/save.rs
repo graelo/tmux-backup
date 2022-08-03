@@ -14,7 +14,7 @@ use crate::{Catalog, Result, CATALOG_FILENAME, PANES_DIR_NAME};
 ///
 /// The provided directory will be created if necessary. Archives have a name similar to
 /// `archive-20220731T222948.tar.zst`.
-pub async fn save(archive_dirpath: &PathBuf) -> Result<()> {
+pub async fn save(archive_dirpath: &Path) -> Result<()> {
     fs::create_dir_all(&archive_dirpath).await?;
 
     let archive_filepath = {
@@ -88,9 +88,9 @@ async fn save_panes_content(panes: Vec<tmux::pane::Pane>, destination_dir: &Path
 }
 
 fn create_archive(
-    archive_filepath: &PathBuf,
-    catalog_filepath: &PathBuf,
-    panes_content_dir: &PathBuf,
+    archive_filepath: &Path,
+    catalog_filepath: &Path,
+    panes_content_dir: &Path,
 ) -> Result<()> {
     // println!("compressing content of {:?}", panes_content_dir);
     let archive = std::fs::File::create(archive_filepath)?;
