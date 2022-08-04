@@ -7,26 +7,33 @@ fn main() {
     let config = Config::parse();
 
     match config.command {
-        Command::Save => {
-            match task::block_on(save::save(&config.archive_dirpath)) {
+        Command::Save {
+            stdout,
+            num_archives,
+        } => {
+            match task::block_on(save::save(&config.archive_dirpath, num_archives)) {
                 Ok(report) => {
                     let message = format!(
-                        "✅ {} sessions ({} windows, {} panes) persisted to {}",
-                        report.num_sessions,
-                        report.num_windows,
-                        report.num_panes,
-                        config.archive_dirpath.to_str().unwrap_or("???")
+                        "{report}, persisted to {}",
+                        config.archive_dirpath.to_string_lossy()
                     );
-                    if config.stdout {
+                    if stdout {
                         println!("{message}");
                     } else {
-                        display_message(&message)
-                            .expect("Cannot communicate with Tmux for displaying message")
+                        display_message(&message);
                     }
                 }
-                Err(e) => println!("An error ocurred: {}", e),
+                Err(e) => {
+                    let message = format!("🛑 Could not save sessions: {}", e);
+                    if stdout {
+                        eprintln!("{message}");
+                        std::process::exit(1);
+                    } else {
+                        display_message(&message);
+                    }
+                }
             };
         }
-        Command::Restore => unimplemented!(),
+        Command::Restore { .. } => unimplemented!(),
     }
 }

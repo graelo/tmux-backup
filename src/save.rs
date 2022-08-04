@@ -15,7 +15,9 @@ use crate::{Catalog, Report, CATALOG_FILENAME, PANES_DIR_NAME};
 ///
 /// The provided directory will be created if necessary. Archives have a name similar to
 /// `archive-20220731T222948.tar.zst`.
-pub async fn save(archive_dirpath: &Path) -> Result<Report> {
+///
+/// The n-most recent archives are kept.
+pub async fn save(archive_dirpath: &Path, num_archives: u16) -> Result<Report> {
     fs::create_dir_all(&archive_dirpath).await?;
 
     let archive_filepath = {

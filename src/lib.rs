@@ -6,6 +6,10 @@
 
 pub mod config;
 mod error;
+
+mod report;
+pub use report::Report;
+
 pub mod save;
 mod tmux;
 pub use tmux::display::display_message;
@@ -27,18 +31,3 @@ const PANES_DIR_NAME: &str = "panes-content";
 ///
 /// This name is also used in the temporary directory when storing the catalog.
 const CATALOG_FILENAME: &str = "catalog.yaml";
-
-/// Report the number of sessions, windows and panes.
-///
-/// This report is displayed after the commands `save`, `restore`, or `describe`.
-#[derive(Debug)]
-pub struct Report {
-    /// Number of sessions in an archive.
-    pub num_sessions: u16,
-
-    /// Number of windows in an archive.
-    pub num_windows: u16,
-
-    /// Number of panes in an archive.
-    pub num_panes: u16,
-}
