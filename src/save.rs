@@ -3,12 +3,13 @@
 use std::env;
 use std::path::{Path, PathBuf};
 
+use anyhow::Result;
 use async_std::{fs, task};
 use chrono::Local;
 use futures::future::join_all;
 
 use crate::tmux;
-use crate::{Catalog, Report, Result, CATALOG_FILENAME, PANES_DIR_NAME};
+use crate::{Catalog, Report, CATALOG_FILENAME, PANES_DIR_NAME};
 
 /// Save the tmux sessions, windows and panes into an archive at `archive_dirpath`.
 ///
