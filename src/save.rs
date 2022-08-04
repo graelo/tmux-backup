@@ -9,7 +9,7 @@ use chrono::Local;
 use futures::future::join_all;
 
 use crate::tmux;
-use crate::{Catalog, Report, CATALOG_FILENAME, PANES_DIR_NAME};
+use crate::{Report, Summary, PANES_DIR_NAME, SUMMARY_FILENAME};
 
 /// Save the tmux sessions, windows and panes into an archive at `archive_dirpath`.
 ///
@@ -30,7 +30,7 @@ pub async fn save(archive_dirpath: &Path, num_archives: u16) -> Result<Report> {
     let temp_dirpath = env::temp_dir().join("tmux-revive");
     fs::create_dir_all(&temp_dirpath).await?;
 
-    let catalog_task: task::JoinHandle<Result<(PathBuf, u16, u16)>> = {
+    let summary_task: task::JoinHandle<Result<(PathBuf, u16, u16)>> = {
         let temp_dirpath = temp_dirpath.clone();
 
         task::spawn(async move {
@@ -39,13 +39,13 @@ pub async fn save(archive_dirpath: &Path, num_archives: u16) -> Result<Report> {
             let num_sessions = sessions.len() as u16;
             let num_windows = windows.len() as u16;
 
-            let catalog = Catalog { sessions, windows };
-            let yaml = serde_yaml::to_string(&catalog)?;
+            let summary = Summary { sessions, windows };
+            let yaml = serde_yaml::to_string(&summary)?;
 
-            let temp_catalog_filepath = temp_dirpath.join(CATALOG_FILENAME);
-            fs::write(temp_catalog_filepath.as_path(), yaml).await?;
+            let temp_summary_filepath = temp_dirpath.join(SUMMARY_FILENAME);
+            fs::write(temp_summary_filepath.as_path(), yaml).await?;
 
-            Ok((temp_catalog_filepath, num_sessions, num_windows))
+            Ok((temp_summary_filepath, num_sessions, num_windows))
         })
     };
 
@@ -59,11 +59,11 @@ pub async fn save(archive_dirpath: &Path, num_archives: u16) -> Result<Report> {
 
         (temp_panes_content_dir, num_panes)
     };
-    let (temp_catalog_filepath, num_sessions, num_windows) = catalog_task.await?;
+    let (temp_summary_filepath, num_sessions, num_windows) = summary_task.await?;
 
     create_archive(
         &archive_filepath,
-        &temp_catalog_filepath,
+        &temp_summary_filepath,
         &temp_panes_content_dir,
     )?;
 
@@ -101,7 +101,7 @@ async fn save_panes_content(panes: Vec<tmux::pane::Pane>, destination_dir: &Path
 
 fn create_archive(
     archive_filepath: &Path,
-    catalog_filepath: &Path,
+    summary_filepath: &Path,
     panes_content_dir: &Path,
 ) -> Result<()> {
     // println!("compressing content of {:?}", panes_content_dir);
@@ -109,8 +109,8 @@ fn create_archive(
     let enc = zstd::stream::write::Encoder::new(archive, 0)?.auto_finish();
     let mut tar = tar::Builder::new(enc);
 
-    // println!("appending {:?}", catalog_filepath);
-    tar.append_path_with_name(catalog_filepath, CATALOG_FILENAME)?;
+    // println!("appending {:?}", summary_filepath);
+    tar.append_path_with_name(summary_filepath, SUMMARY_FILENAME)?;
     // println!("appending {:?}", panes_content_dir);
     tar.append_dir_all(PANES_DIR_NAME, panes_content_dir)?;
     tar.finish()?;

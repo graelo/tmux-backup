@@ -17,7 +17,7 @@ pub use tmux::display::display_message;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Catalog {
+struct Summary {
     sessions: Vec<tmux::session::Session>,
     windows: Vec<tmux::window::Window>,
 }
@@ -30,4 +30,4 @@ const PANES_DIR_NAME: &str = "panes-content";
 /// Name of the file storing the catalog in the archive.
 ///
 /// This name is also used in the temporary directory when storing the catalog.
-const CATALOG_FILENAME: &str = "catalog.yaml";
+const SUMMARY_FILENAME: &str = "catalog.yaml";
