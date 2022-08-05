@@ -5,22 +5,22 @@ use tmux_revive::{
     config::CatalogSubcommand, config::Command, config::Config, save, tmux_display_message, Catalog,
 };
 
-fn main() {
-    let config = Config::parse();
-
+async fn run(config: Config) {
     match config.command {
-        Command::Save { rotate_size } => {
-            match task::block_on(save::save(&config.archive_dirpath, rotate_size)) {
+        Command::Save {
+            rotate_size,
+            stdout,
+        } => {
+            match save::save(&config.archive_dirpath, rotate_size).await {
                 Ok(report) => {
                     let message = format!(
                         "{report}, persisted to {}",
                         config.archive_dirpath.to_string_lossy()
                     );
-                    success_message(&message, config.stdout);
+                    success_message(message, stdout);
                 }
                 Err(e) => {
-                    let message = format!("🛑 Could not save sessions: {}", e);
-                    failure_message(&message, config.stdout);
+                    failure_message(format!("🛑 Could not save sessions: {}", e), stdout);
                 }
             };
         }
@@ -29,7 +29,7 @@ fn main() {
 
         Command::Catalog { command } => match command {
             CatalogSubcommand::List { rotate_size } => {
-                match task::block_on(Catalog::new(&config.archive_dirpath, rotate_size)) {
+                match Catalog::new(&config.archive_dirpath, rotate_size).await {
                     Ok(catalog) => {
                         println!(
                             "Catalog: {} archives in `{}`\n",
@@ -44,8 +44,7 @@ fn main() {
                         }
                     }
                     Err(e) => {
-                        let message = format!("🛑 Could not list archives: {}", e);
-                        failure_message(&message, config.stdout);
+                        failure_message(format!("🛑 Could not list archives: {}", e), false);
                     }
                 }
             }
@@ -53,19 +52,24 @@ fn main() {
     }
 }
 
-fn success_message(message: &str, stdout: bool) {
+fn main() {
+    let config = Config::parse();
+    task::block_on(run(config));
+}
+
+fn success_message(message: String, stdout: bool) {
     if stdout {
         println!("{message}");
     } else {
-        tmux_display_message(message);
+        tmux_display_message(&message);
     }
 }
 
-fn failure_message(message: &str, stdout: bool) {
+fn failure_message(message: String, stdout: bool) {
     if stdout {
         eprintln!("{message}");
         std::process::exit(1);
     } else {
-        tmux_display_message(message);
+        tmux_display_message(&message);
     }
 }

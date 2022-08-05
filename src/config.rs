@@ -8,7 +8,9 @@ use clap::{ArgAction, Parser, Subcommand};
 /// Catalog subcommands.
 #[derive(Debug, Subcommand)]
 pub enum CatalogSubcommand {
-    /// List the archives in the catalog, indicating the outdated archives.
+    /// List all archives in the catalog to stdout.
+    ///
+    /// The list indicates the outdated archives depending on the chosen backup strategy.
     List {
         /// Number of recent sessions.
         #[clap(long = "rotate-size", default_value = "10")]
@@ -36,6 +38,11 @@ pub enum Command {
         /// Indicates how many archive files to keep in `ARCHIVE_DIRPATH`.
         #[clap(long = "rotate-size", default_value = "10")]
         rotate_size: usize,
+
+        /// Print the report (num. sessions, windows & panes) on stdout,
+        /// otherwise send to Tmux.
+        #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
+        stdout: bool,
     },
 
     /// Restore the Tmux sessions.
@@ -47,7 +54,12 @@ pub enum Command {
     /// If you run this command from the terminal, consider using the `--stdout` flag in order to
     /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
     /// one-line report is printed with `tmux display-message`.
-    Restore {},
+    Restore {
+        /// Print the report (num. sessions, windows & panes) on stdout,
+        /// otherwise send to Tmux.
+        #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
+        stdout: bool,
+    },
 
     /// Operations on the catalog of archives.
     Catalog {
@@ -68,11 +80,6 @@ pub struct Config {
     /// `$HOME/.local/state/tmux-revive`.
     #[clap(short = 'd', long = "dirpath", default_value_os_t = default_archive_dirpath())]
     pub archive_dirpath: PathBuf,
-
-    /// Print the report (num. sessions, windows & panes) on stdout,
-    /// otherwise send to Tmux.
-    #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
-    pub stdout: bool,
 
     /// Selection of commands.
     #[clap(subcommand)]
