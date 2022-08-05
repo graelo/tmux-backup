@@ -5,6 +5,17 @@ use std::path::PathBuf;
 
 use clap::{ArgAction, Parser, Subcommand};
 
+/// Catalog subcommands.
+#[derive(Debug, Subcommand)]
+pub enum CatalogSubcommand {
+    /// List the archives in the catalog, indicating the outdated archives.
+    List {
+        /// Number of recent sessions.
+        #[clap(long = "rotate-size", default_value = "10")]
+        rotate_size: usize,
+    },
+}
+
 /// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) an archive.
 #[derive(Debug, Subcommand)]
 pub enum Command {
@@ -20,14 +31,11 @@ pub enum Command {
     /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
     /// one-line report is printed with `tmux display-message`.
     Save {
-        /// Print the report (num. sessions, windows & panes) on stdout,
-        /// otherwise send to Tmux.
-        #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
-        stdout: bool,
-
-        /// How many archive files to keep in `ARCHIVE_DIRPATH`.
-        #[clap(long = "history", default_value = "10")]
-        num_archives: u16,
+        /// Size of the rolling history.
+        ///
+        /// Indicates how many archive files to keep in `ARCHIVE_DIRPATH`.
+        #[clap(long = "rotate-size", default_value = "10")]
+        rotate_size: usize,
     },
 
     /// Restore the Tmux sessions.
@@ -39,11 +47,13 @@ pub enum Command {
     /// If you run this command from the terminal, consider using the `--stdout` flag in order to
     /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
     /// one-line report is printed with `tmux display-message`.
-    Restore {
-        /// Print the report (num. sessions, windows & panes) on stdout,
-        /// otherwise send to Tmux.
-        #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
-        stdout: bool,
+    Restore {},
+
+    /// Operations on the catalog of archives.
+    Catalog {
+        /// List the archives in the catalog, indicating the outdated archives.
+        #[clap(subcommand)]
+        command: CatalogSubcommand,
     },
 }
 
@@ -58,6 +68,11 @@ pub struct Config {
     /// `$HOME/.local/state/tmux-revive`.
     #[clap(short = 'd', long = "dirpath", default_value_os_t = default_archive_dirpath())]
     pub archive_dirpath: PathBuf,
+
+    /// Print the report (num. sessions, windows & panes) on stdout,
+    /// otherwise send to Tmux.
+    #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
+    pub stdout: bool,
 
     /// Selection of commands.
     #[clap(subcommand)]

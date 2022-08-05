@@ -7,12 +7,14 @@
 pub mod config;
 mod error;
 
+mod catalog;
+pub use catalog::Catalog;
 mod report;
 pub use report::Report;
 
 pub mod save;
 mod tmux;
-pub use tmux::display::display_message;
+pub use tmux::tmux_display_message;
 
 use serde::{Deserialize, Serialize};
 

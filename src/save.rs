@@ -17,7 +17,7 @@ use crate::{Report, Summary, PANES_DIR_NAME, SUMMARY_FILENAME};
 /// `archive-20220731T222948.tar.zst`.
 ///
 /// The n-most recent archives are kept.
-pub async fn save(archive_dirpath: &Path, num_archives: u16) -> Result<Report> {
+pub async fn save(archive_dirpath: &Path, rotate_size: usize) -> Result<Report> {
     fs::create_dir_all(&archive_dirpath).await?;
 
     let archive_filepath = {
