@@ -8,9 +8,9 @@ use clap::{ArgAction, Parser, Subcommand};
 /// Catalog subcommands.
 #[derive(Debug, Subcommand)]
 pub enum CatalogSubcommand {
-    /// List all archives in the catalog to stdout.
+    /// List all backups in the catalog to stdout.
     ///
-    /// The list indicates the outdated archives depending on the chosen backup strategy.
+    /// The list indicates the outdated backups depending on the chosen backup strategy.
     List {
         /// Number of recent sessions.
         #[clap(long = "rotate-size", default_value = "10")]
@@ -18,16 +18,16 @@ pub enum CatalogSubcommand {
     },
 }
 
-/// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) an archive.
+/// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) a backup.
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Save the Tmux sessions to an archive.
+    /// Save the Tmux sessions to a backup.
     ///
     /// Sessions, windows, and panes geometry + content are saved in an archive format inside
-    /// `ARCHIVE_DIRPATH`. In that path, the archive name is expected to be similar to
-    /// `archive-20220531T123456.tar.zst`.
+    /// the backup folder. In that folder, the backup name is expected to be similar to
+    /// `backup-20220531T123456.tar.zst`.
     ///
-    /// You can specify the max. number of archives to keep around.
+    /// You can specify the max. number of backups to keep around.
     ///
     /// If you run this command from the terminal, consider using the `--stdout` flag in order to
     /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
@@ -35,7 +35,7 @@ pub enum Command {
     Save {
         /// Size of the rolling history.
         ///
-        /// Indicates how many archive files to keep in `ARCHIVE_DIRPATH`.
+        /// Indicates how many backup files to keep.
         #[clap(long = "rotate-size", default_value = "10")]
         rotate_size: usize,
 
@@ -47,9 +47,9 @@ pub enum Command {
 
     /// Restore the Tmux sessions.
     ///
-    /// Sessions, windows and panes geometry + content are read from the most recent archive inside
-    /// `ARCHIVE_DIRPATH`. In that path, the archive name is expected to be similar to
-    /// `archive-20220531T123456.tar.zst`.
+    /// Sessions, windows and panes geometry + content are read from the most recent backup inside
+    /// the backup folder. In that folder, the backup name is expected to be similar to
+    /// `backup-20220531T123456.tar.zst`.
     ///
     /// If you run this command from the terminal, consider using the `--stdout` flag in order to
     /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
@@ -61,9 +61,9 @@ pub enum Command {
         stdout: bool,
     },
 
-    /// Operations on the catalog of archives.
+    /// Operations on the catalog of backups.
     Catalog {
-        /// List the archives in the catalog, indicating the outdated archives.
+        /// List the backups in the catalog, indicating the outdated ones.
         #[clap(subcommand)]
         command: CatalogSubcommand,
     },
@@ -74,19 +74,19 @@ pub enum Command {
 #[clap(author, about, version)]
 #[clap(propagate_version = true)]
 pub struct Config {
-    /// Location of archives.
+    /// Location of backups.
     ///
     /// If unspecified, it falls back on: `$XDG_STATE_HOME/tmux-revive`, then on
     /// `$HOME/.local/state/tmux-revive`.
-    #[clap(short = 'd', long = "dirpath", default_value_os_t = default_archive_dirpath())]
-    pub archive_dirpath: PathBuf,
+    #[clap(short = 'd', long = "dirpath", default_value_os_t = default_backup_dirpath())]
+    pub backup_dirpath: PathBuf,
 
     /// Selection of commands.
     #[clap(subcommand)]
     pub command: Command,
 }
 
-/// Determine the folder where to save archives.
+/// Determine the folder where to save backups.
 ///
 /// The following is tried:
 ///
@@ -96,7 +96,7 @@ pub struct Config {
 /// # Panics
 ///
 /// This function panics if even `$HOME` cannot be obtained from the environment.
-fn default_archive_dirpath() -> PathBuf {
+fn default_backup_dirpath() -> PathBuf {
     let state_home = match env::var("XDG_STATE_HOME") {
         Ok(v) => PathBuf::from(v),
         Err(_) => match env::var("HOME") {

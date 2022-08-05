@@ -5,13 +5,13 @@ use std::fmt;
 /// This report is displayed after the commands `save`, `restore`, or `describe`.
 #[derive(Debug)]
 pub struct Report {
-    /// Number of sessions in an archive.
+    /// Number of sessions in a backup.
     pub num_sessions: u16,
 
-    /// Number of windows in an archive.
+    /// Number of windows in a backup.
     pub num_windows: u16,
 
-    /// Number of panes in an archive.
+    /// Number of panes in a backup.
     pub num_panes: u16,
 }
 

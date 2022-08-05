@@ -1,4 +1,4 @@
-//! Retrieve session information and panes content save to an archive.
+//! Retrieve session information and panes content save to a backup.
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -11,19 +11,19 @@ use futures::future::join_all;
 use crate::tmux;
 use crate::{Report, Summary, PANES_DIR_NAME, SUMMARY_FILENAME};
 
-/// Save the tmux sessions, windows and panes into an archive at `archive_dirpath`.
+/// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`.
 ///
-/// The provided directory will be created if necessary. Archives have a name similar to
-/// `archive-20220731T222948.tar.zst`.
+/// The provided directory will be created if necessary. Backups have a name similar to
+/// `backup-20220731T222948.tar.zst`.
 ///
-/// The n-most recent archives are kept.
-pub async fn save(archive_dirpath: &Path, rotate_size: usize) -> Result<Report> {
-    fs::create_dir_all(&archive_dirpath).await?;
+/// The n-most recent backups are kept.
+pub async fn save(backup_dirpath: &Path, rotate_size: usize) -> Result<Report> {
+    fs::create_dir_all(&backup_dirpath).await?;
 
-    let archive_filepath = {
+    let new_backup_filepath = {
         let timestamp_frag = Local::now().format("%Y%m%dT%H%M%S").to_string();
-        let archive_filename = format!("archive-{timestamp_frag}.tar.zst");
-        archive_dirpath.join(archive_filename)
+        let backup_filename = format!("backup-{timestamp_frag}.tar.zst");
+        backup_dirpath.join(backup_filename)
     };
 
     // Prepare the temp directory.
@@ -62,7 +62,7 @@ pub async fn save(archive_dirpath: &Path, rotate_size: usize) -> Result<Report> 
     let (temp_summary_filepath, num_sessions, num_windows) = summary_task.await?;
 
     create_archive(
-        &archive_filepath,
+        &new_backup_filepath,
         &temp_summary_filepath,
         &temp_panes_content_dir,
     )?;

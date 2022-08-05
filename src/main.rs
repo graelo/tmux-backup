@@ -11,11 +11,11 @@ async fn run(config: Config) {
             rotate_size,
             stdout,
         } => {
-            match save::save(&config.archive_dirpath, rotate_size).await {
+            match save::save(&config.backup_dirpath, rotate_size).await {
                 Ok(report) => {
                     let message = format!(
                         "{report}, persisted to {}",
-                        config.archive_dirpath.to_string_lossy()
+                        config.backup_dirpath.to_string_lossy()
                     );
                     success_message(message, stdout);
                 }
@@ -29,22 +29,22 @@ async fn run(config: Config) {
 
         Command::Catalog { command } => match command {
             CatalogSubcommand::List { rotate_size } => {
-                match Catalog::new(&config.archive_dirpath, rotate_size).await {
+                match Catalog::new(&config.backup_dirpath, rotate_size).await {
                     Ok(catalog) => {
                         println!(
-                            "Catalog: {} archives in `{}`\n",
+                            "Catalog: {} backups in `{}`\n",
                             &catalog.size(),
                             &catalog.dirpath.to_string_lossy()
                         );
-                        for archive_path in catalog.outdated.iter() {
-                            println!("{} (outdated)", archive_path.to_string_lossy());
+                        for backup_path in catalog.outdated.iter() {
+                            println!("{} (outdated)", backup_path.to_string_lossy());
                         }
-                        for archive_path in catalog.recent.iter() {
-                            println!("{}", archive_path.to_string_lossy());
+                        for backup_path in catalog.recent.iter() {
+                            println!("{}", backup_path.to_string_lossy());
                         }
                     }
                     Err(e) => {
-                        failure_message(format!("🛑 Could not list archives: {}", e), false);
+                        failure_message(format!("🛑 Could not list backups: {}", e), false);
                     }
                 }
             }
