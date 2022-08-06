@@ -31,12 +31,12 @@ impl Strategy {
     /// Determine which backup files should be kept.
     ///
     /// The `backup_files` are assumed to be sorted from oldest to newest.
-    pub fn plan(&self, mut backup_files: Vec<PathBuf>) -> Plan {
+    pub fn plan<'a>(&self, backup_files: &'a [PathBuf]) -> Plan<'a> {
         match self {
             Strategy::KeepMostRecent { k } => {
+                // let backup_files = backup_files.map(|p| *p).collect();
                 let index = std::cmp::max(0, backup_files.len() - k);
-                let recent_backups = backup_files.split_off(index);
-                let outdated_backups = backup_files;
+                let (outdated_backups, recent_backups) = backup_files.split_at(index);
 
                 Plan {
                     to_remove: outdated_backups,
@@ -45,17 +45,18 @@ impl Strategy {
             }
 
             Strategy::Classic => Plan {
-                to_remove: vec![],
-                to_keep: vec![],
+                to_remove: backup_files,
+                to_keep: backup_files,
             },
         }
     }
 }
 
-/// Describes what the Strategy would do.
-pub struct Plan {
+/// Describes what the strategy would do.
+pub struct Plan<'a> {
     /// List of backup files to delete.
-    pub to_remove: Vec<PathBuf>,
+    pub to_remove: &'a [PathBuf],
+
     /// List of backup files to keep.
-    pub to_keep: Vec<PathBuf>,
+    pub to_keep: &'a [PathBuf],
 }

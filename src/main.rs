@@ -4,7 +4,7 @@ use clap::Parser;
 use tmux_revive::{
     actions::save,
     config::{CatalogSubcommand, Command, Config},
-    management::Catalog,
+    management::{Catalog, Plan},
     tmux_display_message,
 };
 
@@ -14,7 +14,7 @@ async fn run(config: Config) {
         Err(e) => {
             failure_message(
                 format!(
-                    "🛑 Could not read `{}`: {}",
+                    "🛑 Catalog error at `{}`: {}",
                     config.backup_dirpath.to_string_lossy(),
                     e
                 ),
@@ -46,10 +46,12 @@ async fn run(config: Config) {
                     &catalog.size(),
                     &catalog.dirpath.to_string_lossy()
                 );
-                for backup_path in catalog.outdated_backups.iter() {
+                let Plan { to_remove, to_keep } = catalog.plan();
+
+                for backup_path in to_remove {
                     println!("{} (outdated)", backup_path.to_string_lossy());
                 }
-                for backup_path in catalog.recent_backups.iter() {
+                for backup_path in to_keep {
                     println!("{}", backup_path.to_string_lossy());
                 }
             }

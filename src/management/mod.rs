@@ -4,4 +4,4 @@ pub mod catalog;
 pub use catalog::Catalog;
 
 pub mod compaction;
-pub use compaction::Strategy;
+pub use compaction::{Plan, Strategy};
