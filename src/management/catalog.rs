@@ -30,8 +30,27 @@ impl Catalog {
     /// - The folder is created if missing.
     /// - The catalog only manages backup files such as `backup-20220804T221153.tar.zst`.
     pub async fn new(dirpath: &Path, strategy: Strategy) -> Result<Catalog> {
-        fs::create_dir_all(&dirpath).await?;
+        fs::create_dir_all(dirpath).await?;
 
+        let backup_files = Self::read_files(dirpath).await?;
+
+        let catalog = Catalog {
+            dirpath: dirpath.to_path_buf(),
+            strategy,
+            backup_files,
+        };
+
+        Ok(catalog)
+    }
+
+    /// Update the catalog's list of backups with current content of `dirpath`.
+    pub async fn refresh(&mut self) -> Result<()> {
+        self.backup_files = Self::read_files(self.dirpath.as_path()).await?;
+        Ok(())
+    }
+
+    /// Update the catalog with the files in `dirpath`.
+    async fn read_files(dirpath: &Path) -> Result<Vec<PathBuf>> {
         let mut backups: Vec<PathBuf> = vec![];
 
         let pattern = r#".*backup-\d{8}T\d{6}\.tar\.zst"#;
@@ -48,11 +67,7 @@ impl Catalog {
 
         backups.sort();
 
-        Ok(Catalog {
-            dirpath: dirpath.to_path_buf(),
-            strategy,
-            backup_files: backups,
-        })
+        Ok(backups)
     }
 
     /// Total number of backups in the catalog.
@@ -77,12 +92,21 @@ impl Catalog {
         self.strategy.plan(&self.backup_files)
     }
 
-    /// Apply the compaction strategy
+    /// Apply the compaction strategy.
     ///
     /// # Important
     ///
     /// This will probably delete files in the `dirpath` folder.
     pub async fn compact(&mut self) -> Result<()> {
+        let Plan {
+            deletable,
+            retainable: _retainable,
+        } = self.plan();
+
+        for path in deletable {
+            fs::remove_file(path).await?;
+        }
+
         Ok(())
     }
 }
