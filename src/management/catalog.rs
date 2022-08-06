@@ -157,11 +157,13 @@ impl Catalog {
             let magenta = "\u{001b}[35m";
             let green = "\u{001b}[32m";
 
+            let n_retainable = retainable.len();
+            let n_deletable = deletable.len();
+
             println!("- deletable:");
-            let iter =
-                RangeInclusive::new(retainable.len() + 1, retainable.len() + deletable.len())
-                    .into_iter()
-                    .rev();
+            let iter = RangeInclusive::new(n_retainable + 1, n_retainable + n_deletable)
+                .into_iter()
+                .rev();
             for (index, backup_path) in std::iter::zip(iter, deletable) {
                 println!(
                     "    {:3}. {magenta}{}{reset}",
@@ -171,7 +173,7 @@ impl Catalog {
             }
 
             println!("- keep:");
-            let iter = RangeInclusive::new(1, retainable.len()).into_iter().rev();
+            let iter = RangeInclusive::new(1, n_retainable).into_iter().rev();
             for (index, backup_path) in std::iter::zip(iter, retainable) {
                 println!(
                     "    {:3}. {green}{}{reset}",
