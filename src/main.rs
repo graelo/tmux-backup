@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use async_std::task;
 use clap::Parser;
 
@@ -69,12 +71,28 @@ async fn run(config: Config) {
                     let green = "\u{001b}[32m";
 
                     println!("- deletable:");
-                    for backup_path in deletable.iter() {
-                        println!("    {magenta}{}{reset}", backup_path.to_string_lossy());
+                    let iter = RangeInclusive::new(
+                        retainable.len() + 1,
+                        retainable.len() + deletable.len(),
+                    )
+                    .into_iter()
+                    .rev();
+                    for (index, backup_path) in std::iter::zip(iter, deletable) {
+                        println!(
+                            "    {:3}. {magenta}{}{reset}",
+                            index,
+                            backup_path.file_name().unwrap().to_string_lossy()
+                        );
                     }
+
                     println!("- keep:");
-                    for backup_path in retainable.iter() {
-                        println!("    {green}{}{reset}", backup_path.to_string_lossy());
+                    let iter = RangeInclusive::new(1, retainable.len()).into_iter().rev();
+                    for (index, backup_path) in std::iter::zip(iter, retainable) {
+                        println!(
+                            "    {:3}. {green}{}{reset}",
+                            index,
+                            backup_path.file_name().unwrap().to_string_lossy()
+                        );
                     }
                     println!(
                         "\n{} backups: {} retainable, {} deletable",
