@@ -1,12 +1,15 @@
 //! Catalog of all backups.
 //!
 
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use async_std::fs;
 use async_std::stream::StreamExt;
 use regex::Regex;
+
+use crate::config::SubList;
 
 use super::compaction::{Plan, Strategy};
 
@@ -108,5 +111,65 @@ impl Catalog {
         }
 
         Ok(())
+    }
+
+    /// List backups.
+    pub fn list(&self, sublist: Option<SubList>) {
+        let Plan {
+            deletable,
+            retainable,
+        } = self.plan();
+
+        if let Some(sublist) = sublist {
+            match sublist {
+                SubList::Deletable => {
+                    for backup_path in deletable.iter() {
+                        println!("{}", backup_path.to_string_lossy());
+                    }
+                }
+                SubList::Retainable => {
+                    for backup_path in retainable.iter() {
+                        println!("{}", backup_path.to_string_lossy());
+                    }
+                }
+            }
+        } else {
+            println!("Catalog");
+            println!("- location: `{}`:", self.location());
+            println!("- strategy: {}", &self.strategy);
+
+            let reset = "\u{001b}[0m";
+            let magenta = "\u{001b}[35m";
+            let green = "\u{001b}[32m";
+
+            println!("- deletable:");
+            let iter =
+                RangeInclusive::new(retainable.len() + 1, retainable.len() + deletable.len())
+                    .into_iter()
+                    .rev();
+            for (index, backup_path) in std::iter::zip(iter, deletable) {
+                println!(
+                    "    {:3}. {magenta}{}{reset}",
+                    index,
+                    backup_path.file_name().unwrap().to_string_lossy()
+                );
+            }
+
+            println!("- keep:");
+            let iter = RangeInclusive::new(1, retainable.len()).into_iter().rev();
+            for (index, backup_path) in std::iter::zip(iter, retainable) {
+                println!(
+                    "    {:3}. {green}{}{reset}",
+                    index,
+                    backup_path.file_name().unwrap().to_string_lossy()
+                );
+            }
+            println!(
+                "\n{} backups: {} retainable, {} deletable",
+                self.size(),
+                retainable.len(),
+                deletable.len(),
+            );
+        }
     }
 }
