@@ -100,17 +100,32 @@ impl Catalog {
     /// # Important
     ///
     /// This will probably delete files in the `dirpath` folder.
-    pub async fn compact(&mut self) -> Result<()> {
+    pub async fn compact(&self) -> Result<usize> {
         let Plan {
             deletable,
             retainable: _retainable,
         } = self.plan();
 
+        let n = deletable.len();
         for path in deletable {
             fs::remove_file(path).await?;
         }
 
-        Ok(())
+        Ok(n)
+    }
+
+    /// Apply the compaction strategy and update the catalog.
+    ///
+    /// # Important
+    ///
+    /// This will probably delete files in the `dirpath` folder.
+    pub async fn compact_mut(&mut self) {
+        self.compact()
+            .await
+            .expect("Error when compacting the catalog");
+        self.refresh()
+            .await
+            .expect("Error when refreshing the catalog");
     }
 
     /// List backups.

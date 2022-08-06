@@ -28,6 +28,8 @@ pub enum CatalogSubcommand {
         #[clap(long = "only", value_enum, value_parser)]
         sublist: Option<SubList>,
     },
+    /// Delete outdated backups by applying the catalog's compaction strategy.
+    Compact,
 }
 
 /// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) a backup.

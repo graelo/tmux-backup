@@ -18,7 +18,7 @@ async fn run(config: Config) {
                     config.backup_dirpath.to_string_lossy(),
                     e
                 ),
-                false,
+                true,
             );
             return;
         }
@@ -41,6 +41,13 @@ async fn run(config: Config) {
 
         Command::Catalog { command } => match command {
             CatalogSubcommand::List { sublist } => catalog.list(sublist),
+            CatalogSubcommand::Compact => match catalog.compact().await {
+                Ok(n) => {
+                    let message = format!("✅ deleted {n} outdated backups");
+                    success_message(message, true)
+                }
+                Err(e) => failure_message(format!("🛑 Could not compact backups: {}", e), true),
+            },
         },
     }
 }
