@@ -13,23 +13,17 @@ use crate::{Report, Summary, PANES_DIR_NAME, SUMMARY_FILENAME};
 
 /// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`.
 ///
-/// The provided directory will be created if necessary. Backups have a name similar to
-/// `backup-20220731T222948.tar.zst`.
+/// # Notes
 ///
-/// The n-most recent backups are kept.
+/// - The `backup_dirpath` folder is assumed to exist (done during catalog initialization).
+/// - Backups have a name similar to `backup-20220731T222948.tar.zst`.
+///
 pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
-    fs::create_dir_all(&backup_dirpath).await?;
-
-    let new_backup_filepath = {
-        let timestamp_frag = Local::now().format("%Y%m%dT%H%M%S").to_string();
-        let backup_filename = format!("backup-{timestamp_frag}.tar.zst");
-        backup_dirpath.join(backup_filename)
-    };
-
     // Prepare the temp directory.
     let temp_dirpath = env::temp_dir().join("tmux-revive");
     fs::create_dir_all(&temp_dirpath).await?;
 
+    // Save sessions & windows into `summary.yaml` in the temp folder.
     let summary_task: task::JoinHandle<Result<(PathBuf, u16, u16)>> = {
         let temp_dirpath = temp_dirpath.clone();
 
@@ -49,6 +43,7 @@ pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
         })
     };
 
+    // Save pane contents in the temp folder.
     let (temp_panes_content_dir, num_panes) = {
         let temp_panes_content_dir = temp_dirpath.join(PANES_DIR_NAME);
         fs::create_dir_all(&temp_panes_content_dir).await?;
@@ -61,13 +56,20 @@ pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
     };
     let (temp_summary_filepath, num_sessions, num_windows) = summary_task.await?;
 
+    // Tar-compress content of temp folder into a new backup file in `backup_dirpath`.
+    let new_backup_filepath = {
+        let timestamp_frag = Local::now().format("%Y%m%dT%H%M%S").to_string();
+        let backup_filename = format!("backup-{timestamp_frag}.tar.zst");
+        backup_dirpath.join(backup_filename)
+    };
+
     create_archive(
         &new_backup_filepath,
         &temp_summary_filepath,
         &temp_panes_content_dir,
     )?;
 
-    // fs::remove_dir_all(temp_panes_content_dir).await?;
+    // Cleanup the entire temp folder.
     fs::remove_dir_all(temp_dirpath).await?;
 
     let report = Report {

@@ -3,7 +3,7 @@ use clap::Parser;
 
 use tmux_revive::{
     actions::save,
-    config::{CatalogSubcommand, Command, Config},
+    config::{CatalogSubcommand, Command, Config, SubList},
     management::{Catalog, Plan},
     tmux_display_message,
 };
@@ -40,19 +40,48 @@ async fn run(config: Config) {
         Command::Restore { .. } => unimplemented!(),
 
         Command::Catalog { command } => match command {
-            CatalogSubcommand::List => {
-                println!(
-                    "Catalog: {} backups in `{}`\n",
-                    &catalog.size(),
-                    &catalog.dirpath.to_string_lossy()
-                );
-                let Plan { to_remove, to_keep } = catalog.plan();
+            CatalogSubcommand::List { sublist } => {
+                let Plan {
+                    deletable,
+                    retainable,
+                } = catalog.plan();
 
-                for backup_path in to_remove {
-                    println!("{} (outdated)", backup_path.to_string_lossy());
-                }
-                for backup_path in to_keep {
-                    println!("{}", backup_path.to_string_lossy());
+                if let Some(sublist) = sublist {
+                    match sublist {
+                        SubList::Deletable => {
+                            for backup_path in deletable.iter() {
+                                println!("{}", backup_path.to_string_lossy());
+                            }
+                        }
+                        SubList::Retainable => {
+                            for backup_path in retainable.iter() {
+                                println!("{}", backup_path.to_string_lossy());
+                            }
+                        }
+                    }
+                } else {
+                    println!("Catalog");
+                    println!("- location: `{}`:", &catalog.location());
+                    println!("- strategy: {}", &catalog.strategy);
+
+                    let reset = "\u{001b}[0m";
+                    let magenta = "\u{001b}[35m";
+                    let green = "\u{001b}[32m";
+
+                    println!("- deletable:");
+                    for backup_path in deletable.iter() {
+                        println!("    {magenta}{}{reset}", backup_path.to_string_lossy());
+                    }
+                    println!("- keep:");
+                    for backup_path in retainable.iter() {
+                        println!("    {green}{}{reset}", backup_path.to_string_lossy());
+                    }
+                    println!(
+                        "\n{} backups: {} retainable, {} deletable",
+                        &catalog.size(),
+                        retainable.len(),
+                        deletable.len(),
+                    );
                 }
             }
         },

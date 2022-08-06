@@ -48,8 +48,6 @@ impl Catalog {
 
         backups.sort();
 
-        // let Plan { to_keep, to_remove } = strategy.plan(backup_files);
-
         Ok(Catalog {
             dirpath: dirpath.to_path_buf(),
             strategy,

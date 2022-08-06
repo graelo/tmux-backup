@@ -1,10 +1,12 @@
 //! Compaction allows to keep the number of backup files under control.
 
+use std::fmt;
 use std::path::PathBuf;
 
 /// Backups compaction strategy.
 ///
 /// Determines if a backup should be kept or deleted.
+#[derive(Debug, Clone)]
 pub enum Strategy {
     /// Keep the `k` most recent backups.
     KeepMostRecent {
@@ -34,20 +36,30 @@ impl Strategy {
     pub fn plan<'a>(&self, backup_files: &'a [PathBuf]) -> Plan<'a> {
         match self {
             Strategy::KeepMostRecent { k } => {
-                // let backup_files = backup_files.map(|p| *p).collect();
                 let index = std::cmp::max(0, backup_files.len() - k);
                 let (outdated_backups, recent_backups) = backup_files.split_at(index);
 
                 Plan {
-                    to_remove: outdated_backups,
-                    to_keep: recent_backups,
+                    deletable: outdated_backups,
+                    retainable: recent_backups,
                 }
             }
 
             Strategy::Classic => Plan {
-                to_remove: backup_files,
-                to_keep: backup_files,
+                deletable: backup_files,
+                retainable: backup_files,
             },
+        }
+    }
+}
+
+impl fmt::Display for Strategy {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Strategy::KeepMostRecent { k } => {
+                write!(f, "KeepMostRecent: {}", k)
+            }
+            Strategy::Classic => write!(f, "Classic"),
         }
     }
 }
@@ -55,8 +67,8 @@ impl Strategy {
 /// Describes what the strategy would do.
 pub struct Plan<'a> {
     /// List of backup files to delete.
-    pub to_remove: &'a [PathBuf],
+    pub deletable: &'a [PathBuf],
 
     /// List of backup files to keep.
-    pub to_keep: &'a [PathBuf],
+    pub retainable: &'a [PathBuf],
 }

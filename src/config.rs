@@ -3,17 +3,31 @@
 use std::env;
 use std::path::PathBuf;
 
-use clap::{ArgAction, ArgGroup, Parser, Subcommand};
+use clap::{ArgAction, ArgGroup, Parser, Subcommand, ValueEnum};
 
 use crate::management::Strategy;
+
+/// Which sublist to print.
+#[derive(Debug, Clone, ValueEnum)]
+pub enum SubList {
+    /// Retainable backups only.
+    Retainable,
+    /// Deletable backups only.
+    Deletable,
+}
 
 /// Catalog subcommands.
 #[derive(Debug, Subcommand)]
 pub enum CatalogSubcommand {
-    /// List all backups in the catalog to stdout.
+    /// List backups in the catalog to stdout.
     ///
-    /// The list indicates the outdated backups depending on the chosen backup strategy.
-    List,
+    /// If `--only deletable` or `--only retainable` are passed, print the corresponding list,
+    /// otherwise print all details in colored output.
+    List {
+        /// Only list deletable backups.
+        #[clap(long = "only", value_enum, value_parser)]
+        sublist: Option<SubList>,
+    },
 }
 
 /// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) a backup.
@@ -39,9 +53,9 @@ pub enum Command {
 
     /// Restore the Tmux sessions.
     ///
-    /// Sessions, windows and panes geometry + content are read from the most recent backup inside
-    /// the backup folder. In that folder, the backup name is expected to be similar to
-    /// `backup-20220531T123456.tar.zst`.
+    /// Sessions, windows and panes geometry + content are read from the backup marked as "current"
+    /// (often the most recent backup) inside the backup folder. In that folder, the backup name is
+    /// expected to be similar to `backup-20220531T123456.tar.zst`.
     ///
     /// If you run this command from the terminal, consider using the `--stdout` flag in order to
     /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
@@ -55,7 +69,7 @@ pub enum Command {
 
     /// Operations on the catalog of backups.
     Catalog {
-        /// List the backups in the catalog, indicating the outdated ones.
+        /// List the backups in the catalog, indicating the deletable ones.
         #[clap(subcommand)]
         command: CatalogSubcommand,
     },
