@@ -3,7 +3,9 @@
 use std::env;
 use std::path::PathBuf;
 
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{ArgAction, ArgGroup, Parser, Subcommand};
+
+use crate::management::Strategy;
 
 /// Catalog subcommands.
 #[derive(Debug, Subcommand)]
@@ -11,11 +13,7 @@ pub enum CatalogSubcommand {
     /// List all backups in the catalog to stdout.
     ///
     /// The list indicates the outdated backups depending on the chosen backup strategy.
-    List {
-        /// Number of recent sessions.
-        #[clap(long = "rotate-size", default_value = "10")]
-        rotate_size: usize,
-    },
+    List,
 }
 
 /// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) a backup.
@@ -33,15 +31,9 @@ pub enum Command {
     /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
     /// one-line report is printed with `tmux display-message`.
     Save {
-        /// Size of the rolling history.
-        ///
-        /// Indicates how many backup files to keep.
-        #[clap(long = "rotate-size", default_value = "10")]
-        rotate_size: usize,
-
         /// Print the report (num. sessions, windows & panes) on stdout,
         /// otherwise send to Tmux.
-        #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
+        #[clap(short = 'c', long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
         stdout: bool,
     },
 
@@ -57,7 +49,7 @@ pub enum Command {
     Restore {
         /// Print the report (num. sessions, windows & panes) on stdout,
         /// otherwise send to Tmux.
-        #[clap(long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
+        #[clap(short = 'c', long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
         stdout: bool,
     },
 
@@ -73,6 +65,11 @@ pub enum Command {
 #[derive(Debug, Parser)]
 #[clap(author, about, version)]
 #[clap(propagate_version = true)]
+#[clap(group(
+            ArgGroup::new("strategy")
+                .required(true)
+                // .args(&["set-ver", "major", "minor", "patch"]),
+        ))]
 pub struct Config {
     /// Location of backups.
     ///
@@ -81,17 +78,47 @@ pub struct Config {
     #[clap(short = 'd', long = "dirpath", default_value_os_t = default_backup_dirpath())]
     pub backup_dirpath: PathBuf,
 
+    /// Number of recent backups to keep, for instance 10.
+    #[clap(group="strategy",
+        short = 'k',
+        long="strategy-most-recent",
+        value_name = "NUMBER",
+        value_parser = clap::value_parser!(u16).range(1..)
+    )]
+    strategy_most_recent: Option<u16>,
+
+    /// Apply a classic backup strategy (keep last hour, then last day, then last week, then last month).
+    #[clap(
+        group = "strategy",
+        short = 'l',
+        long = "strategy-classic",
+        value_parser
+    )]
+    strategy_classic: bool,
+
     /// Selection of commands.
     #[clap(subcommand)]
     pub command: Command,
 }
 
+//
+// Helpers
+//
+
+impl Config {
+    /// Compaction Strategy corresponding to the CLI arguments.
+    pub fn strategy(&self) -> Strategy {
+        if let Some(k) = self.strategy_most_recent {
+            Strategy::most_recent(k as usize)
+        } else {
+            Strategy::Classic
+        }
+    }
+}
 /// Determine the folder where to save backups.
 ///
-/// The following is tried:
-///
-/// - `$XDG_STATE_HOME`
-/// - `$HOME/.local/state`
+/// If `$XDG_STATE_HOME` is defined, the function returns `$XDG_STATE_HOME/tmux-revive`,
+/// otherwise, it returns `$HOME/.local/state/tmux-revive`.
 ///
 /// # Panics
 ///

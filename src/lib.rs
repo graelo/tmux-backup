@@ -7,12 +7,13 @@
 pub mod config;
 mod error;
 
-mod catalog;
-pub use catalog::Catalog;
+pub mod management;
+
 mod report;
 pub use report::Report;
 
-pub mod save;
+pub mod actions;
+
 mod tmux;
 pub use tmux::tmux_display_message;
 

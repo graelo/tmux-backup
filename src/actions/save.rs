@@ -17,7 +17,7 @@ use crate::{Report, Summary, PANES_DIR_NAME, SUMMARY_FILENAME};
 /// `backup-20220731T222948.tar.zst`.
 ///
 /// The n-most recent backups are kept.
-pub async fn save(backup_dirpath: &Path, rotate_size: usize) -> Result<Report> {
+pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
     fs::create_dir_all(&backup_dirpath).await?;
 
     let new_backup_filepath = {
@@ -76,7 +76,7 @@ pub async fn save(backup_dirpath: &Path, rotate_size: usize) -> Result<Report> {
         num_panes,
     };
 
-    Ok(report)
+    Ok((new_backup_filepath, report))
 }
 
 /// For each provided pane, retrieve the content and save it into `destination_dir`.
