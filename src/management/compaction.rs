@@ -1,7 +1,8 @@
 //! Compaction allows to keep the number of backup files under control.
 
 use std::fmt;
-use std::path::PathBuf;
+
+use super::catalog::Backup;
 
 /// Backups compaction strategy.
 ///
@@ -33,7 +34,7 @@ impl Strategy {
     /// Determine which backup files should be kept.
     ///
     /// The `backup_files` are assumed to be sorted from oldest to newest.
-    pub fn plan<'a>(&self, backup_files: &'a [PathBuf]) -> Plan<'a> {
+    pub fn plan<'a>(&self, backup_files: &'a [Backup]) -> Plan<'a> {
         match self {
             Strategy::KeepMostRecent { k } => {
                 let index = std::cmp::max(0, backup_files.len() - k);
@@ -67,8 +68,8 @@ impl fmt::Display for Strategy {
 /// Describes what the strategy would do.
 pub struct Plan<'a> {
     /// List of backup files to delete.
-    pub deletable: &'a [PathBuf],
+    pub deletable: &'a [Backup],
 
     /// List of backup files to keep.
-    pub retainable: &'a [PathBuf],
+    pub retainable: &'a [Backup],
 }

@@ -13,7 +13,16 @@ use crate::config::SubList;
 
 use super::compaction::{Plan, Strategy};
 
-/// Catalag of all backups.
+/// Useful backup metadata.
+pub struct Backup {
+    /// Path to the backup file.
+    pub filepath: PathBuf,
+
+    /// Backup date.
+    pub creation_date: NaiveDateTime,
+}
+
+/// Catalog of all backups.
 pub struct Catalog {
     /// Location of the catalog.
     pub dirpath: PathBuf,
@@ -21,31 +30,8 @@ pub struct Catalog {
     /// Compaction strategy.
     pub strategy: Strategy,
 
-    /// Sorted list of all backup files (oldest to newest).
-    pub backup_files: Vec<PathBuf>,
-}
-
-impl Catalog {
-    /// Update the catalog with the files in `dirpath`.
-    async fn read_files(dirpath: &Path) -> Result<Vec<PathBuf>> {
-        let mut backups: Vec<PathBuf> = vec![];
-
-        let pattern = r#".*backup-\d{8}T\d{6}\.tar\.zst"#;
-        let matcher = Regex::new(pattern).unwrap();
-
-        let mut entries = fs::read_dir(dirpath).await?;
-        while let Some(entry) = entries.next().await {
-            let entry = entry?;
-            let path = entry.path();
-            if matcher.captures(&path.to_string_lossy()).is_some() {
-                backups.push(path.into());
-            }
-        }
-
-        backups.sort();
-
-        Ok(backups)
-    }
+    /// Sorted list of all backups (oldest to newest).
+    pub backups: Vec<Backup>,
 }
 
 // Public API
@@ -65,7 +51,7 @@ impl Catalog {
         let catalog = Catalog {
             dirpath: dirpath.to_path_buf(),
             strategy,
-            backup_files,
+            backups: backup_files,
         };
 
         Ok(catalog)
@@ -73,16 +59,16 @@ impl Catalog {
 
     /// Update the catalog's list of backups with current content of `dirpath`.
     pub async fn refresh_mut(&mut self) -> Result<()> {
-        self.backup_files = Self::read_files(self.dirpath.as_path()).await?;
+        self.backups = Self::read_files(self.dirpath.as_path()).await?;
         Ok(())
     }
 
     /// Total number of backups in the catalog.
     pub fn size(&self) -> usize {
-        self.backup_files.len()
+        self.backups.len()
     }
 
-    /// The catalog's dirpath as a string, for convenience in error messages.
+    /// Return the catalog's dirpath as a string, for convenience in error messages.
     pub fn location(&self) -> String {
         self.dirpath.to_string_lossy().into()
     }
@@ -90,13 +76,13 @@ impl Catalog {
     /// Filepath of the current backup.
     ///
     /// This is usually the most recent backup.
-    pub fn current(&self) -> Option<&Path> {
-        self.backup_files.last().map(|p| p.as_ref())
+    pub fn current(&self) -> Option<&Backup> {
+        self.backups.last()
     }
 
     /// Simulate the compaction strategy: list the backup files to delete, and the ones to keep.
     pub fn plan(&self) -> Plan {
-        self.strategy.plan(&self.backup_files)
+        self.strategy.plan(&self.backups)
     }
 
     /// Apply the compaction strategy.
@@ -111,8 +97,8 @@ impl Catalog {
         } = self.plan();
 
         let n = deletable.len();
-        for path in deletable {
-            fs::remove_file(path).await?;
+        for backup in deletable {
+            fs::remove_file(&backup.filepath).await?;
         }
 
         Ok(n)
@@ -142,13 +128,13 @@ impl Catalog {
         if let Some(sublist) = sublist {
             match sublist {
                 SubList::Deletable => {
-                    for backup_path in deletable.iter() {
-                        println!("{}", backup_path.to_string_lossy());
+                    for backup in deletable.iter() {
+                        println!("{}", backup.filepath.to_string_lossy());
                     }
                 }
                 SubList::Retainable => {
-                    for backup_path in retainable.iter() {
-                        println!("{}", backup_path.to_string_lossy());
+                    for backup in retainable.iter() {
+                        println!("{}", backup.filepath.to_string_lossy());
                     }
                 }
             }
@@ -165,33 +151,30 @@ impl Catalog {
             let n_deletable = deletable.len();
 
             let now = Local::now().naive_local();
-            let pattern = r#".*backup-(\d{8}T\d{6})\.tar\.zst"#;
-            let matcher = Regex::new(pattern).unwrap();
-            println!("now: {}", now);
 
             println!("- deletable:");
             let iter = RangeInclusive::new(n_retainable + 1, n_retainable + n_deletable)
                 .into_iter()
                 .rev();
-            for (index, backup_path) in std::iter::zip(iter, deletable) {
-                let filename = backup_path.file_name().unwrap().to_string_lossy();
+            for (index, backup) in std::iter::zip(iter, deletable) {
+                let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 println!(
                     "    {:3}. {yellow}{}{reset} ({})",
                     index,
                     filename,
-                    time_ago(now, &filename, &matcher)
+                    Self::time_ago(now, backup.creation_date),
                 );
             }
 
             println!("- keep:");
             let iter = RangeInclusive::new(1, n_retainable).into_iter().rev();
-            for (index, backup_path) in std::iter::zip(iter, retainable) {
-                let filename = backup_path.file_name().unwrap().to_string_lossy();
+            for (index, backup) in std::iter::zip(iter, retainable) {
+                let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 println!(
                     "    {:3}. {green}{}{reset} ({})",
                     index,
                     filename,
-                    time_ago(now, &filename, &matcher),
+                    Self::time_ago(now, backup.creation_date),
                 );
             }
 
@@ -205,63 +188,89 @@ impl Catalog {
     }
 }
 
-/// compute duration since the backup file was created
-///
-// This function can only receive properly formatted files
-fn time_ago(now: NaiveDateTime, filename: &str, matcher: &Regex) -> String {
-    let captures = matcher
-        .captures(filename)
-        .expect("filename should have proper date");
+// Private functions
 
-    let date_str = &captures[1];
-    let backup_timestamp = NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S").unwrap();
-    let duration = now.signed_duration_since(backup_timestamp);
-    let duration_secs = duration.num_seconds();
+impl Catalog {
+    /// Return the list of `Backup` in `dirpath`.
+    async fn read_files(dirpath: &Path) -> Result<Vec<Backup>> {
+        let mut backups: Vec<Backup> = vec![];
 
-    // Month scale -> "n months ago"
-    let month = Duration::weeks(4).num_seconds();
-    if duration_secs >= 2 * month {
-        return format!("{} months ago", duration_secs / month);
-    }
-    if duration_secs >= month {
-        return "1 month ago".into();
-    }
+        let pattern = r#".*backup-(\d{8}T\d{6})\.tar\.zst"#;
+        let matcher = Regex::new(pattern).unwrap();
 
-    // Week scale -> "n weeks ago"
-    let week = Duration::weeks(1).num_seconds();
-    if duration_secs >= 2 * week {
-        return format!("{} weeks ago", duration_secs / week);
-    }
-    if duration_secs >= week {
-        return "1 week ago".into();
-    }
+        let mut entries = fs::read_dir(dirpath).await?;
+        while let Some(entry) = entries.next().await {
+            let entry = entry?;
+            let path = entry.path();
+            if let Some(captures) = matcher.captures(&path.to_string_lossy()) {
+                let date_str = &captures[1];
+                let creation_date =
+                    NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S").unwrap();
+                let backup = Backup {
+                    filepath: path.into(),
+                    creation_date,
+                };
+                backups.push(backup);
+            }
+        }
 
-    // Day scale -> "n days ago"
-    let day = Duration::days(1).num_seconds();
-    if duration_secs >= 2 * day {
-        return format!("{} days ago", duration_secs / day);
-    }
-    if duration_secs >= day {
-        return "1 day ago".into();
+        backups.sort_unstable_by_key(|b| b.creation_date);
+
+        Ok(backups)
     }
 
-    // Hour scale -> "n hours ago"
-    let hour = Duration::hours(1).num_seconds();
-    if duration_secs >= 2 * hour {
-        return format!("{} hours ago", duration_secs / hour);
-    }
-    if duration_secs >= hour {
-        return "1 hour ago".into();
-    }
+    /// Return a string representing the duration since the backup file was created.
+    ///
+    // This function can only receive properly formatted files
+    fn time_ago(now: NaiveDateTime, creation_date: NaiveDateTime) -> String {
+        let duration = now.signed_duration_since(creation_date);
+        let duration_secs = duration.num_seconds();
 
-    // Minute scale -> "n minutes ago"
-    let minute = Duration::minutes(1).num_seconds();
-    if duration_secs >= 2 * minute {
-        return format!("{} minutes ago", duration_secs / minute);
-    }
-    if duration_secs >= minute {
-        return "1 minute ago".into();
-    }
+        // Month scale -> "n months ago"
+        let month = Duration::weeks(4).num_seconds();
+        if duration_secs >= 2 * month {
+            return format!("{} months ago", duration_secs / month);
+        }
+        if duration_secs >= month {
+            return "1 month ago".into();
+        }
 
-    return format!("{} seconds ago", duration_secs);
+        // Week scale -> "n weeks ago"
+        let week = Duration::weeks(1).num_seconds();
+        if duration_secs >= 2 * week {
+            return format!("{} weeks ago", duration_secs / week);
+        }
+        if duration_secs >= week {
+            return "1 week ago".into();
+        }
+
+        // Day scale -> "n days ago"
+        let day = Duration::days(1).num_seconds();
+        if duration_secs >= 2 * day {
+            return format!("{} days ago", duration_secs / day);
+        }
+        if duration_secs >= day {
+            return "1 day ago".into();
+        }
+
+        // Hour scale -> "n hours ago"
+        let hour = Duration::hours(1).num_seconds();
+        if duration_secs >= 2 * hour {
+            return format!("{} hours ago", duration_secs / hour);
+        }
+        if duration_secs >= hour {
+            return "1 hour ago".into();
+        }
+
+        // Minute scale -> "n minutes ago"
+        let minute = Duration::minutes(1).num_seconds();
+        if duration_secs >= 2 * minute {
+            return format!("{} minutes ago", duration_secs / minute);
+        }
+        if duration_secs >= minute {
+            return "1 minute ago".into();
+        }
+
+        return format!("{} seconds ago", duration_secs);
+    }
 }
