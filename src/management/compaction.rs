@@ -41,13 +41,13 @@ impl Strategy {
                 let (outdated_backups, recent_backups) = backup_files.split_at(index);
 
                 Plan {
-                    deletable: outdated_backups,
+                    disposable: outdated_backups,
                     retainable: recent_backups,
                 }
             }
 
             Strategy::Classic => Plan {
-                deletable: backup_files,
+                disposable: backup_files,
                 retainable: backup_files,
             },
         }
@@ -68,7 +68,7 @@ impl fmt::Display for Strategy {
 /// Describes what the strategy would do.
 pub struct Plan<'a> {
     /// List of backup files to delete.
-    pub deletable: &'a [Backup],
+    pub disposable: &'a [Backup],
 
     /// List of backup files to keep.
     pub retainable: &'a [Backup],

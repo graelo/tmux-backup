@@ -12,8 +12,8 @@ use crate::management::Strategy;
 pub enum SubList {
     /// Retainable backups only.
     Retainable,
-    /// Deletable backups only.
-    Deletable,
+    /// Disposable backups only.
+    Disposable,
 }
 
 /// Catalog subcommands.
@@ -21,10 +21,10 @@ pub enum SubList {
 pub enum CatalogSubcommand {
     /// List backups in the catalog to stdout.
     ///
-    /// If `--only deletable` or `--only retainable` are passed, print the corresponding list,
+    /// If `--only disposable` or `--only retainable` are passed, print the corresponding list,
     /// otherwise print all details in colored output.
     List {
-        /// Only list deletable backups.
+        /// Only list disposable backups.
         #[clap(long = "only", value_enum, value_parser)]
         sublist: Option<SubList>,
     },
@@ -71,7 +71,7 @@ pub enum Command {
 
     /// Operations on the catalog of backups.
     Catalog {
-        /// List the backups in the catalog, indicating the deletable ones.
+        /// List the backups in the catalog, indicating the disposable ones.
         #[clap(subcommand)]
         command: CatalogSubcommand,
     },

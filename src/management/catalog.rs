@@ -92,12 +92,12 @@ impl Catalog {
     /// This will probably delete files in the `dirpath` folder.
     pub async fn compact(&self) -> Result<usize> {
         let Plan {
-            deletable,
+            disposable,
             retainable: _retainable,
         } = self.plan();
 
-        let n = deletable.len();
-        for backup in deletable {
+        let n = disposable.len();
+        for backup in disposable {
             fs::remove_file(&backup.filepath).await?;
         }
 
@@ -121,14 +121,14 @@ impl Catalog {
     /// List backups.
     pub fn list(&self, sublist: Option<SubList>) {
         let Plan {
-            deletable,
+            disposable,
             retainable,
         } = self.plan();
 
         if let Some(sublist) = sublist {
             match sublist {
-                SubList::Deletable => {
-                    for backup in deletable.iter() {
+                SubList::Disposable => {
+                    for backup in disposable.iter() {
                         println!("{}", backup.filepath.to_string_lossy());
                     }
                 }
@@ -148,15 +148,15 @@ impl Catalog {
             let green = "\u{001b}[32m";
 
             let n_retainable = retainable.len();
-            let n_deletable = deletable.len();
+            let n_disposable = disposable.len();
 
             let now = Local::now().naive_local();
 
-            println!("- deletable:");
-            let iter = RangeInclusive::new(n_retainable + 1, n_retainable + n_deletable)
+            println!("- disposable:");
+            let iter = RangeInclusive::new(n_retainable + 1, n_retainable + n_disposable)
                 .into_iter()
                 .rev();
-            for (index, backup) in std::iter::zip(iter, deletable) {
+            for (index, backup) in std::iter::zip(iter, disposable) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 println!(
                     "    {:3}. {yellow}{}{reset} ({})",
@@ -179,10 +179,10 @@ impl Catalog {
             }
 
             println!(
-                "\n{} backups: {} retainable, {} deletable",
+                "\n{} backups: {} retainable, {} disposable",
                 self.size(),
                 retainable.len(),
-                deletable.len(),
+                disposable.len(),
             );
         }
     }
