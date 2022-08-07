@@ -16,7 +16,7 @@ categories = ["command-line-utilities"]
 exclude = ["/.github", "/ci", "/.travis.yml", "/appveyor.yml"]
 
 [dependencies]
-clap = { version = "3.2.16", features = ["derive"] }
+clap = { version = "3.2.16", features = ["derive", "env"] }
 
 anyhow = "1"
 thiserror = "1"

@@ -94,16 +94,19 @@ pub struct Config {
         short = 'k',
         long="strategy-most-recent",
         value_name = "NUMBER",
-        value_parser = clap::value_parser!(u16).range(1..)
+        value_parser = clap::value_parser!(u16).range(1..),
+        env = "TMUX_REVIVE_STRATEGY_MOST_RECENT"
     )]
     strategy_most_recent: Option<u16>,
 
-    /// Apply a classic backup strategy (keep last hour, then last day, then last week, then last month).
+    /// Apply a classic backup strategy (keep last hour, then last day, then last week, then last
+    /// month).
     #[clap(
         group = "strategy",
         short = 'l',
         long = "strategy-classic",
-        value_parser
+        value_parser,
+        env = "TMUX_REVIVE_STRATEGY_CLASSIC"
     )]
     strategy_classic: bool,
 
