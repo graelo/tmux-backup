@@ -1,10 +1,19 @@
 [package]
 name = "tmux-revive"
 version = "0.1.0"
-authors = ["graelo <graelo@grael.cc>"]
 edition = "2021"
+description = "A tmux plugin for saving & restoring your Tmux environment."
+readme = "README.md"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+authors = ["graelo <graelo@grael.cc>"]
+repository = "https://github.com/graelo/tmux-revive"
+homepage = "https://github.com/graelo/tmux-revive"
+documentation = "https://docs.rs/tmux-revive"
+
+keywords = ["tmux", "tmux-plugin", "tmux-resurrect", "backup"]
+categories = ["command-line-utilities"]
+exclude = ["/.github", "/ci", "/.travis.yml", "/appveyor.yml"]
 
 [dependencies]
 clap = { version = "3.2.16", features = ["derive"] }

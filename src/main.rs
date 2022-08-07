@@ -1,3 +1,6 @@
+#![warn(missing_docs)]
+//! Main runner
+
 use async_std::task;
 use clap::Parser;
 
