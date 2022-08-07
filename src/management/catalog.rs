@@ -1,5 +1,4 @@
 //! Catalog of all backups.
-//!
 
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
@@ -7,6 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use async_std::fs;
 use async_std::stream::StreamExt;
+use chrono::{Duration, Local, NaiveDateTime};
 use regex::Regex;
 
 use crate::config::SubList;
@@ -24,6 +24,31 @@ pub struct Catalog {
     /// Sorted list of all backup files (oldest to newest).
     pub backup_files: Vec<PathBuf>,
 }
+
+impl Catalog {
+    /// Update the catalog with the files in `dirpath`.
+    async fn read_files(dirpath: &Path) -> Result<Vec<PathBuf>> {
+        let mut backups: Vec<PathBuf> = vec![];
+
+        let pattern = r#".*backup-\d{8}T\d{6}\.tar\.zst"#;
+        let matcher = Regex::new(pattern).unwrap();
+
+        let mut entries = fs::read_dir(dirpath).await?;
+        while let Some(entry) = entries.next().await {
+            let entry = entry?;
+            let path = entry.path();
+            if matcher.captures(&path.to_string_lossy()).is_some() {
+                backups.push(path.into());
+            }
+        }
+
+        backups.sort();
+
+        Ok(backups)
+    }
+}
+
+// Public API
 
 impl Catalog {
     /// Return a new `Catalog` by listing the backups in `dirpath`.
@@ -47,30 +72,9 @@ impl Catalog {
     }
 
     /// Update the catalog's list of backups with current content of `dirpath`.
-    pub async fn refresh(&mut self) -> Result<()> {
+    pub async fn refresh_mut(&mut self) -> Result<()> {
         self.backup_files = Self::read_files(self.dirpath.as_path()).await?;
         Ok(())
-    }
-
-    /// Update the catalog with the files in `dirpath`.
-    async fn read_files(dirpath: &Path) -> Result<Vec<PathBuf>> {
-        let mut backups: Vec<PathBuf> = vec![];
-
-        let pattern = r#".*backup-\d{8}T\d{6}\.tar\.zst"#;
-        let matcher = Regex::new(pattern).unwrap();
-
-        let mut entries = fs::read_dir(dirpath).await?;
-        while let Some(entry) = entries.next().await {
-            let entry = entry?;
-            let path = entry.path();
-            if matcher.captures(&path.to_string_lossy()).is_some() {
-                backups.push(path.into());
-            }
-        }
-
-        backups.sort();
-
-        Ok(backups)
     }
 
     /// Total number of backups in the catalog.
@@ -123,7 +127,7 @@ impl Catalog {
         self.compact()
             .await
             .expect("Error when compacting the catalog");
-        self.refresh()
+        self.refresh_mut()
             .await
             .expect("Error when refreshing the catalog");
     }
@@ -154,33 +158,43 @@ impl Catalog {
             println!("- strategy: {}", &self.strategy);
 
             let reset = "\u{001b}[0m";
-            let magenta = "\u{001b}[35m";
+            let yellow = "\u{001b}[33m";
             let green = "\u{001b}[32m";
 
             let n_retainable = retainable.len();
             let n_deletable = deletable.len();
+
+            let now = Local::now().naive_local();
+            let pattern = r#".*backup-(\d{8}T\d{6})\.tar\.zst"#;
+            let matcher = Regex::new(pattern).unwrap();
+            println!("now: {}", now);
 
             println!("- deletable:");
             let iter = RangeInclusive::new(n_retainable + 1, n_retainable + n_deletable)
                 .into_iter()
                 .rev();
             for (index, backup_path) in std::iter::zip(iter, deletable) {
+                let filename = backup_path.file_name().unwrap().to_string_lossy();
                 println!(
-                    "    {:3}. {magenta}{}{reset}",
+                    "    {:3}. {yellow}{}{reset} ({})",
                     index,
-                    backup_path.file_name().unwrap().to_string_lossy()
+                    filename,
+                    time_ago(now, &filename, &matcher)
                 );
             }
 
             println!("- keep:");
             let iter = RangeInclusive::new(1, n_retainable).into_iter().rev();
             for (index, backup_path) in std::iter::zip(iter, retainable) {
+                let filename = backup_path.file_name().unwrap().to_string_lossy();
                 println!(
-                    "    {:3}. {green}{}{reset}",
+                    "    {:3}. {green}{}{reset} ({})",
                     index,
-                    backup_path.file_name().unwrap().to_string_lossy()
+                    filename,
+                    time_ago(now, &filename, &matcher),
                 );
             }
+
             println!(
                 "\n{} backups: {} retainable, {} deletable",
                 self.size(),
@@ -189,4 +203,65 @@ impl Catalog {
             );
         }
     }
+}
+
+/// compute duration since the backup file was created
+///
+// This function can only receive properly formatted files
+fn time_ago(now: NaiveDateTime, filename: &str, matcher: &Regex) -> String {
+    let captures = matcher
+        .captures(filename)
+        .expect("filename should have proper date");
+
+    let date_str = &captures[1];
+    let backup_timestamp = NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S").unwrap();
+    let duration = now.signed_duration_since(backup_timestamp);
+    let duration_secs = duration.num_seconds();
+
+    // Month scale -> "n months ago"
+    let month = Duration::weeks(4).num_seconds();
+    if duration_secs >= 2 * month {
+        return format!("{} months ago", duration_secs / month);
+    }
+    if duration_secs >= month {
+        return "1 month ago".into();
+    }
+
+    // Week scale -> "n weeks ago"
+    let week = Duration::weeks(1).num_seconds();
+    if duration_secs >= 2 * week {
+        return format!("{} weeks ago", duration_secs / week);
+    }
+    if duration_secs >= week {
+        return "1 week ago".into();
+    }
+
+    // Day scale -> "n days ago"
+    let day = Duration::days(1).num_seconds();
+    if duration_secs >= 2 * day {
+        return format!("{} days ago", duration_secs / day);
+    }
+    if duration_secs >= day {
+        return "1 day ago".into();
+    }
+
+    // Hour scale -> "n hours ago"
+    let hour = Duration::hours(1).num_seconds();
+    if duration_secs >= 2 * hour {
+        return format!("{} hours ago", duration_secs / hour);
+    }
+    if duration_secs >= hour {
+        return "1 hour ago".into();
+    }
+
+    // Minute scale -> "n minutes ago"
+    let minute = Duration::minutes(1).num_seconds();
+    if duration_secs >= 2 * minute {
+        return format!("{} minutes ago", duration_secs / minute);
+    }
+    if duration_secs >= minute {
+        return "1 minute ago".into();
+    }
+
+    return format!("{} seconds ago", duration_secs);
 }
