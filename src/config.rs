@@ -35,38 +35,34 @@ pub enum CatalogSubcommand {
 /// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) a backup.
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Save the Tmux sessions to a backup.
+    /// Save the Tmux sessions to a new backup file.
     ///
     /// Sessions, windows, and panes geometry + content are saved in an archive format inside
     /// the backup folder. In that folder, the backup name is expected to be similar to
     /// `backup-20220531T123456.tar.zst`.
     ///
-    /// You can specify the max. number of backups to keep around.
-    ///
-    /// If you run this command from the terminal, consider using the `--stdout` flag in order to
-    /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
-    /// one-line report is printed with `tmux display-message`.
+    /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to display
+    /// the one-line report in the Tmux status bar. Otherwise, if you run it from the terminal,
+    /// ignore this flag in order to print the report in the terminal.
     Save {
-        /// Print the report (num. sessions, windows & panes) on stdout,
-        /// otherwise send to Tmux.
-        #[clap(short = 'c', long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
-        stdout: bool,
+        /// Send a report (num. sessions, etc.) to the Tmux status bar, otherwise print to stdout.
+        #[clap(long, action = ArgAction::SetTrue)]
+        to_tmux: bool,
     },
 
-    /// Restore the Tmux sessions.
+    /// Restore the Tmux sessions from a backup file.
     ///
     /// Sessions, windows and panes geometry + content are read from the backup marked as "current"
     /// (often the most recent backup) inside the backup folder. In that folder, the backup name is
     /// expected to be similar to `backup-20220531T123456.tar.zst`.
     ///
-    /// If you run this command from the terminal, consider using the `--stdout` flag in order to
-    /// print the report in the terminal. Otherwise, if you run it via a Tmux keybinding, the
-    /// one-line report is printed with `tmux display-message`.
+    /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to display
+    /// the one-line report in the Tmux status bar. Otherwise, if you run it from the terminal,
+    /// ignore this flag in order to print the report in the terminal.
     Restore {
-        /// Print the report (num. sessions, windows & panes) on stdout,
-        /// otherwise send to Tmux.
-        #[clap(short = 'c', long = "stdout", action = ArgAction::SetTrue, default_value = "false")]
-        stdout: bool,
+        /// Send a report (num. sessions, etc.) to the Tmux status bar, otherwise print to stdout.
+        #[clap(long, action = ArgAction::SetTrue)]
+        to_tmux: bool,
     },
 
     /// Operations on the catalog of backups.
@@ -84,7 +80,6 @@ pub enum Command {
 #[clap(group(
             ArgGroup::new("strategy")
                 .required(true)
-                // .args(&["set-ver", "major", "minor", "patch"]),
         ))]
 pub struct Config {
     /// Location of backups.

@@ -36,14 +36,14 @@ async fn run(config: Config) {
             },
         },
 
-        Command::Save { stdout } => {
+        Command::Save { to_tmux } => {
             match save(&catalog.dirpath).await {
                 Ok((backup_filepath, report)) => {
                     let message = format!("✅ {report}, persisted to `{:?}`", backup_filepath);
-                    success_message(message, stdout);
+                    success_message(message, to_tmux);
                 }
                 Err(e) => {
-                    failure_message(format!("🛑 Could not save sessions: {}", e), stdout);
+                    failure_message(format!("🛑 Could not save sessions: {}", e), to_tmux);
                 }
             };
         }
@@ -57,19 +57,19 @@ fn main() {
     task::block_on(run(config));
 }
 
-fn success_message(message: String, stdout: bool) {
-    if stdout {
-        println!("{message}");
-    } else {
+fn success_message(message: String, to_tmux: bool) {
+    if to_tmux {
         tmux_display_message(&message);
+    } else {
+        println!("{message}");
     }
 }
 
-fn failure_message(message: String, stdout: bool) {
-    if stdout {
-        eprintln!("{message}");
-    } else {
+fn failure_message(message: String, to_tmux: bool) {
+    if to_tmux {
         tmux_display_message(&message);
+    } else {
+        eprintln!("{message}");
     }
     std::process::exit(1);
 }
