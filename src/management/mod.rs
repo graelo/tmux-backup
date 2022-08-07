@@ -5,3 +5,5 @@ pub use catalog::Catalog;
 
 pub mod compaction;
 pub use compaction::{Plan, Strategy};
+
+pub mod archive;

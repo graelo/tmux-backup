@@ -5,11 +5,12 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use async_std::{fs, task};
-use chrono::Local;
 use futures::future::join_all;
 
-use crate::tmux;
-use crate::{Report, Summary, PANES_DIR_NAME, SUMMARY_FILENAME};
+use crate::{
+    management::archive::{self, Metadata, Report, METADATA_FILENAME, PANES_DIR_NAME},
+    tmux,
+};
 
 /// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`.
 ///
@@ -23,8 +24,8 @@ pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
     let temp_dirpath = env::temp_dir().join("tmux-revive");
     fs::create_dir_all(&temp_dirpath).await?;
 
-    // Save sessions & windows into `summary.yaml` in the temp folder.
-    let summary_task: task::JoinHandle<Result<(PathBuf, u16, u16)>> = {
+    // Save sessions & windows into `metadata.yaml` in the temp folder.
+    let metadata_task: task::JoinHandle<Result<(PathBuf, u16, u16)>> = {
         let temp_dirpath = temp_dirpath.clone();
 
         task::spawn(async move {
@@ -33,13 +34,13 @@ pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
             let num_sessions = sessions.len() as u16;
             let num_windows = windows.len() as u16;
 
-            let summary = Summary { sessions, windows };
-            let yaml = serde_yaml::to_string(&summary)?;
+            let metadata = Metadata { sessions, windows };
+            let yaml = serde_yaml::to_string(&metadata)?;
 
-            let temp_summary_filepath = temp_dirpath.join(SUMMARY_FILENAME);
-            fs::write(temp_summary_filepath.as_path(), yaml).await?;
+            let temp_metadata_filepath = temp_dirpath.join(METADATA_FILENAME);
+            fs::write(temp_metadata_filepath.as_path(), yaml).await?;
 
-            Ok((temp_summary_filepath, num_sessions, num_windows))
+            Ok((temp_metadata_filepath, num_sessions, num_windows))
         })
     };
 
@@ -54,18 +55,14 @@ pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
 
         (temp_panes_content_dir, num_panes)
     };
-    let (temp_summary_filepath, num_sessions, num_windows) = summary_task.await?;
+    let (temp_metadata_filepath, num_sessions, num_windows) = metadata_task.await?;
 
     // Tar-compress content of temp folder into a new backup file in `backup_dirpath`.
-    let new_backup_filepath = {
-        let timestamp_frag = Local::now().format("%Y%m%dT%H%M%S").to_string();
-        let backup_filename = format!("backup-{timestamp_frag}.tar.zst");
-        backup_dirpath.join(backup_filename)
-    };
+    let new_backup_filepath = archive::new_backup_filepath(backup_dirpath);
 
-    create_archive(
+    archive::create(
         &new_backup_filepath,
-        &temp_summary_filepath,
+        &temp_metadata_filepath,
         &temp_panes_content_dir,
     )?;
 
@@ -98,24 +95,5 @@ async fn save_panes_content(panes: Vec<tmux::pane::Pane>, destination_dir: &Path
     }
 
     join_all(handles).await;
-    Ok(())
-}
-
-fn create_archive(
-    archive_filepath: &Path,
-    summary_filepath: &Path,
-    panes_content_dir: &Path,
-) -> Result<()> {
-    // println!("compressing content of {:?}", panes_content_dir);
-    let archive = std::fs::File::create(archive_filepath)?;
-    let enc = zstd::stream::write::Encoder::new(archive, 0)?.auto_finish();
-    let mut tar = tar::Builder::new(enc);
-
-    // println!("appending {:?}", summary_filepath);
-    tar.append_path_with_name(summary_filepath, SUMMARY_FILENAME)?;
-    // println!("appending {:?}", panes_content_dir);
-    tar.append_dir_all(PANES_DIR_NAME, panes_content_dir)?;
-    tar.finish()?;
-
     Ok(())
 }
