@@ -25,20 +25,6 @@ async fn run(config: Config) {
     };
 
     match config.command {
-        Command::Save { stdout } => {
-            match save(&catalog.dirpath).await {
-                Ok((backup_filepath, report)) => {
-                    let message = format!("{report}, persisted to `{:?}`", backup_filepath);
-                    success_message(message, stdout);
-                }
-                Err(e) => {
-                    failure_message(format!("🛑 Could not save sessions: {}", e), stdout);
-                }
-            };
-        }
-
-        Command::Restore { .. } => unimplemented!(),
-
         Command::Catalog { command } => match command {
             CatalogSubcommand::List { sublist } => catalog.list(sublist),
             CatalogSubcommand::Compact => match catalog.compact().await {
@@ -49,6 +35,20 @@ async fn run(config: Config) {
                 Err(e) => failure_message(format!("🛑 Could not compact backups: {}", e), true),
             },
         },
+
+        Command::Save { stdout } => {
+            match save(&catalog.dirpath).await {
+                Ok((backup_filepath, report)) => {
+                    let message = format!("✅ {report}, persisted to `{:?}`", backup_filepath);
+                    success_message(message, stdout);
+                }
+                Err(e) => {
+                    failure_message(format!("🛑 Could not save sessions: {}", e), stdout);
+                }
+            };
+        }
+
+        Command::Restore { .. } => unimplemented!(),
     }
 }
 
