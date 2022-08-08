@@ -49,6 +49,10 @@ pub enum Command {
         /// Send a report (num. sessions, etc.) to the Tmux status bar, otherwise print to stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
+
+        /// Delete disposable backups after saving.
+        #[clap(long, action = ArgAction::SetTrue)]
+        compact: bool,
     },
 
     /// Restore the Tmux sessions from a backup file.
