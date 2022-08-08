@@ -139,9 +139,8 @@ impl Catalog {
                 }
             }
         } else {
-            println!("Catalog");
-            println!("- location: `{}`:", self.location());
-            println!("- strategy: {}", &self.strategy);
+            println!("Strategy: {}", &self.strategy);
+            println!("Location: `{}`\n", self.location());
 
             let reset = "\u{001b}[0m";
             let yellow = "\u{001b}[33m";
@@ -152,29 +151,31 @@ impl Catalog {
 
             let now = Local::now().naive_local();
 
-            println!("- disposable:");
+            println!("{:4} {:32} {:24} {:6}", "", "NAME", "CREATED", "STATUS");
+
             let iter = RangeInclusive::new(n_retainable + 1, n_retainable + n_disposable)
                 .into_iter()
                 .rev();
             for (index, backup) in std::iter::zip(iter, disposable) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 println!(
-                    "    {:3}. {yellow}{}{reset} ({})",
+                    "{:3}. {yellow}{:32}{reset} {:24} {:6}",
                     index,
                     filename,
                     Self::time_ago(now, backup.creation_date),
+                    "disposable",
                 );
             }
 
-            println!("- keep:");
             let iter = RangeInclusive::new(1, n_retainable).into_iter().rev();
             for (index, backup) in std::iter::zip(iter, retainable) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 println!(
-                    "    {:3}. {green}{}{reset} ({})",
+                    "{:3}. {green}{:32}{reset} {:24} {:6}",
                     index,
                     filename,
                     Self::time_ago(now, backup.creation_date),
+                    "retainable",
                 );
             }
 
