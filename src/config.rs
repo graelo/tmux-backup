@@ -3,7 +3,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use clap::{ArgAction, ArgGroup, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, ArgGroup, Parser, Subcommand, ValueEnum, ValueHint};
 use clap_complete::Shell;
 
 use crate::management::Strategy;
@@ -98,7 +98,7 @@ pub struct Config {
     ///
     /// If unspecified, it falls back on: `$XDG_STATE_HOME/tmux-revive`, then on
     /// `$HOME/.local/state/tmux-revive`.
-    #[clap(short = 'd', long = "dirpath", default_value_os_t = default_backup_dirpath())]
+    #[clap(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath, default_value_os_t = default_backup_dirpath())]
     pub backup_dirpath: PathBuf,
 
     /// Number of recent backups to keep, for instance 10.
