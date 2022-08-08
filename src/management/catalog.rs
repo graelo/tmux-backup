@@ -186,6 +186,16 @@ impl Catalog {
             );
         }
     }
+
+    pub fn describe<P>(&self, backup_filepath: P)
+    where
+        P: AsRef<Path>,
+    {
+        println!(
+            "describing `{}`",
+            backup_filepath.as_ref().to_string_lossy()
+        );
+    }
 }
 
 // Private functions

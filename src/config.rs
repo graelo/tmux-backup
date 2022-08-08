@@ -29,6 +29,12 @@ pub enum CatalogSubcommand {
         #[clap(long = "only", value_enum, value_parser)]
         sublist: Option<SubList>,
     },
+    /// Describe the content of a backup file.
+    Describe {
+        /// Path to the backup file.
+        #[clap(value_parser, value_hint = ValueHint::FilePath)]
+        backup_filepath: PathBuf,
+    },
     /// Delete outdated backups by applying the catalog's compaction strategy.
     Compact,
 }
