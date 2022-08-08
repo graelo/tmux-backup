@@ -2,7 +2,8 @@
 //! Main runner
 
 use async_std::task;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::generate;
 
 use tmux_revive::{
     actions::save,
@@ -52,6 +53,12 @@ async fn run(config: Config) {
         }
 
         Command::Restore { .. } => unimplemented!(),
+
+        Command::Generate { shell } => {
+            let mut app = Config::command();
+            let name = app.get_name().to_string();
+            generate(shell, &mut app, name, &mut std::io::stdout());
+        }
     }
 }
 

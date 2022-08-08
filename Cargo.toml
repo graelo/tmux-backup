@@ -32,6 +32,7 @@ zstd = "0.11.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 chrono = "0.4.19"
+clap_complete = "3.2.3"
 
 [profile.release]
 # Enable link-time optimization (LTO). It’s a kind of whole-program or

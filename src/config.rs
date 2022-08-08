@@ -4,6 +4,7 @@ use std::env;
 use std::path::PathBuf;
 
 use clap::{ArgAction, ArgGroup, Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
 
 use crate::management::Strategy;
 
@@ -70,6 +71,13 @@ pub enum Command {
         /// List the backups in the catalog, indicating the disposable ones.
         #[clap(subcommand)]
         command: CatalogSubcommand,
+    },
+
+    /// Print a shell completion script to stdout.
+    Generate {
+        /// Shell for which you want completion.
+        #[clap(value_parser = clap::value_parser!(Shell))]
+        shell: Shell,
     },
 }
 
