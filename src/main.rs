@@ -8,8 +8,8 @@ use clap_complete::generate;
 use tmux_revive::{
     actions::save,
     config::{CatalogSubcommand, Command, Config},
-    management::Catalog,
-    tmux_display_message,
+    management::catalog::Catalog,
+    tmux,
 };
 
 async fn run(config: Config) {
@@ -30,7 +30,7 @@ async fn run(config: Config) {
 
     match config.command {
         Command::Catalog { command } => match command {
-            CatalogSubcommand::List { sublist } => catalog.list(sublist),
+            CatalogSubcommand::List { backup_status } => catalog.list(backup_status),
             CatalogSubcommand::Describe { backup_filepath } => catalog.describe(backup_filepath),
             CatalogSubcommand::Compact => match catalog.compact().await {
                 Ok(n) => {
@@ -100,22 +100,22 @@ impl From<bool> for Output {
 
 fn success_message<O: Into<Output>>(message: String, output: O) {
     match output.into() {
-        Output::ToTmux => tmux_display_message(&message),
+        Output::ToTmux => tmux::display_message(&message),
         Output::Stdout => println!("{message}"),
         Output::Both => {
             println!("{message}");
-            tmux_display_message(&message)
+            tmux::display_message(&message)
         }
     }
 }
 
 fn failure_message<O: Into<Output>>(message: String, output: O) {
     match output.into() {
-        Output::ToTmux => tmux_display_message(&message),
+        Output::ToTmux => tmux::display_message(&message),
         Output::Stdout => eprintln!("{message}"),
         Output::Both => {
             eprintln!("{message}");
-            tmux_display_message(&message)
+            tmux::display_message(&message)
         }
     };
     std::process::exit(1);

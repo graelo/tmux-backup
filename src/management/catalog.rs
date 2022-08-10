@@ -8,9 +8,9 @@ use anyhow::Result;
 use async_std::fs;
 use async_std::stream::StreamExt;
 use chrono::{Duration, Local, NaiveDateTime};
+use clap::ValueEnum;
 use regex::Regex;
 
-use crate::config::SubList;
 use crate::management::archive::v1;
 
 use super::compaction::{Plan, Strategy};
@@ -22,6 +22,15 @@ pub struct Backup {
 
     /// Backup date.
     pub creation_date: NaiveDateTime,
+}
+
+/// Which subset of backups to print.
+#[derive(Debug, Clone, ValueEnum)]
+pub enum BackupStatus {
+    /// Retainable backups only.
+    Retainable,
+    /// Disposable backups only.
+    Disposable,
 }
 
 /// Describes the number of sessions, windows and panes in a backup.
@@ -146,20 +155,20 @@ impl Catalog {
     }
 
     /// List backups.
-    pub fn list(&self, sublist: Option<SubList>) {
+    pub fn list(&self, status: Option<BackupStatus>) {
         let Plan {
             disposable,
             retainable,
         } = self.plan();
 
-        if let Some(sublist) = sublist {
-            match sublist {
-                SubList::Disposable => {
+        if let Some(status) = status {
+            match status {
+                BackupStatus::Disposable => {
                     for backup in disposable.iter() {
                         println!("{}", backup.filepath.to_string_lossy());
                     }
                 }
-                SubList::Retainable => {
+                BackupStatus::Retainable => {
                     for backup in retainable.iter() {
                         println!("{}", backup.filepath.to_string_lossy());
                     }

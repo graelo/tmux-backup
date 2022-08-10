@@ -3,31 +3,22 @@
 use std::env;
 use std::path::PathBuf;
 
-use clap::{ArgAction, ArgGroup, Parser, Subcommand, ValueEnum, ValueHint};
+use clap::{ArgAction, ArgGroup, Parser, Subcommand, ValueHint};
 use clap_complete::Shell;
 
-use crate::management::Strategy;
-
-/// Which sublist to print.
-#[derive(Debug, Clone, ValueEnum)]
-pub enum SubList {
-    /// Retainable backups only.
-    Retainable,
-    /// Disposable backups only.
-    Disposable,
-}
+use crate::management::{catalog::BackupStatus, compaction::Strategy};
 
 /// Catalog subcommands.
 #[derive(Debug, Subcommand)]
 pub enum CatalogSubcommand {
     /// List backups in the catalog to stdout.
     ///
-    /// If `--only disposable` or `--only retainable` are passed, print the corresponding list,
-    /// otherwise print all details in colored output.
+    /// If `--only disposable` or `--only retainable` are passed, print the
+    /// corresponding list, otherwise print all backups in colored output.
     List {
-        /// Only list disposable backups.
+        /// List only backups in this status.
         #[clap(long = "only", value_enum, value_parser)]
-        sublist: Option<SubList>,
+        backup_status: Option<BackupStatus>,
     },
     /// Describe the content of a backup file.
     Describe {
