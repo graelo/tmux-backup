@@ -94,6 +94,16 @@ impl Catalog {
     }
 
     /// Update the catalog's list of backups with current content of `dirpath`.
+    pub async fn refresh(self) -> Result<Catalog> {
+        let backups = Self::read_files(self.dirpath.as_path()).await?;
+        Ok(Catalog {
+            dirpath: self.dirpath,
+            strategy: self.strategy,
+            backups,
+        })
+    }
+
+    /// Update the catalog's list of backups with current content of `dirpath`.
     pub async fn refresh_mut(&mut self) -> Result<()> {
         self.backups = Self::read_files(self.dirpath.as_path()).await?;
         Ok(())

@@ -51,6 +51,9 @@ async fn run(config: Config) {
                         // In practice this should never fail: write to the catalog already ensures
                         // the catalog's dirpath is writable.
                         catalog
+                            .refresh()
+                            .await
+                            .expect("Success saving but could not refresh")
                             .compact()
                             .await
                             .expect("Success saving but could not compact");
