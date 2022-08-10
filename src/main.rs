@@ -22,7 +22,7 @@ async fn run(config: Config) {
                     config.backup_dirpath.to_string_lossy(),
                     e
                 ),
-                false,
+                Output::Both,
             );
             return;
         }
@@ -35,9 +35,12 @@ async fn run(config: Config) {
             CatalogSubcommand::Compact => match catalog.compact().await {
                 Ok(n) => {
                     let message = format!("✅ deleted {n} outdated backups");
-                    success_message(message, true)
+                    success_message(message, Output::Stdout)
                 }
-                Err(e) => failure_message(format!("🛑 Could not compact backups: {}", e), false),
+                Err(e) => failure_message(
+                    format!("🛑 Could not compact backups: {}", e),
+                    Output::Stdout,
+                ),
             },
         },
 
@@ -76,19 +79,41 @@ fn main() {
     task::block_on(run(config));
 }
 
-fn success_message(message: String, to_tmux: bool) {
-    if to_tmux {
-        tmux_display_message(&message);
-    } else {
-        println!("{message}");
+enum Output {
+    ToTmux,
+    Stdout,
+    Both,
+}
+
+impl From<bool> for Output {
+    fn from(to_tmux: bool) -> Self {
+        if to_tmux {
+            Output::ToTmux
+        } else {
+            Output::Stdout
+        }
     }
 }
 
-fn failure_message(message: String, to_tmux: bool) {
-    if to_tmux {
-        tmux_display_message(&message);
-    } else {
-        eprintln!("{message}");
+fn success_message<O: Into<Output>>(message: String, output: O) {
+    match output.into() {
+        Output::ToTmux => tmux_display_message(&message),
+        Output::Stdout => println!("{message}"),
+        Output::Both => {
+            println!("{message}");
+            tmux_display_message(&message)
+        }
     }
+}
+
+fn failure_message<O: Into<Output>>(message: String, output: O) {
+    match output.into() {
+        Output::ToTmux => tmux_display_message(&message),
+        Output::Stdout => eprintln!("{message}"),
+        Output::Both => {
+            eprintln!("{message}");
+            tmux_display_message(&message)
+        }
+    };
     std::process::exit(1);
 }
