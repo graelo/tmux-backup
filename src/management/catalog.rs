@@ -10,6 +10,7 @@ use chrono::{Duration, Local, NaiveDateTime};
 use regex::Regex;
 
 use crate::config::SubList;
+use crate::management::archive::Metadata;
 
 use super::compaction::{Plan, Strategy};
 
@@ -192,10 +193,13 @@ impl Catalog {
     where
         P: AsRef<Path>,
     {
-        println!(
-            "describing `{}`",
-            backup_filepath.as_ref().to_string_lossy()
-        );
+        match Metadata::read(backup_filepath) {
+            Ok(metadata) => {
+                let report = metadata.get_report();
+                println!("{report}");
+            }
+            Err(e) => eprintln!("{}", e),
+        }
     }
 }
 

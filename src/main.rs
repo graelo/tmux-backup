@@ -22,7 +22,7 @@ async fn run(config: Config) {
                     config.backup_dirpath.to_string_lossy(),
                     e
                 ),
-                true,
+                false,
             );
             return;
         }
@@ -37,7 +37,7 @@ async fn run(config: Config) {
                     let message = format!("✅ deleted {n} outdated backups");
                     success_message(message, true)
                 }
-                Err(e) => failure_message(format!("🛑 Could not compact backups: {}", e), true),
+                Err(e) => failure_message(format!("🛑 Could not compact backups: {}", e), false),
             },
         },
 

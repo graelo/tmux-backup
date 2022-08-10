@@ -1,6 +1,7 @@
 //! Support functions to create and read backup archive files.
 
 use std::fmt;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
@@ -21,7 +22,7 @@ pub const METADATA_FILENAME: &str = "metadata.yaml";
 
 /// Describes the number of sessions, windows and panes in a backup.
 ///
-/// This report is displayed after the commands `save`, `restore`, or `catalog describe`.
+/// This report is displayed after the commands `save`, `restore`, or `catalog list --details`.
 #[derive(Debug)]
 pub struct Report {
     /// Number of sessions in a backup.
@@ -55,9 +56,24 @@ pub struct Metadata {
     pub windows: Vec<tmux::window::Window>,
 }
 
+impl Metadata {
+    pub fn read<P: AsRef<Path>>(backup_filepath: P) -> Result<Metadata> {
+        read_metadata(backup_filepath)
+    }
+
+    pub fn get_report(&self) -> Report {
+        // let panes = self.windows.iter().flat_map(|w| w.)
+        Report {
+            num_sessions: self.sessions.len() as u16,
+            num_windows: self.windows.len() as u16,
+            num_panes: 0,
+        }
+    }
+}
+
 /// Return the filepath for a new backup.
 ///
-/// This is used when the `actions::save::save` method needs a new filepath.
+/// This is used when the method ``actions::save::save`` needs a new filepath.
 pub fn new_backup_filepath<P>(dirpath: P) -> PathBuf
 where
     P: AsRef<Path>,
@@ -65,6 +81,31 @@ where
     let timestamp_frag = Local::now().format("%Y%m%dT%H%M%S").to_string();
     let backup_filename = format!("backup-{timestamp_frag}.tar.zst");
     dirpath.as_ref().join(backup_filename)
+}
+
+/// Read the metadata from a backup file.
+///
+/// This function is used in `catalog list --details` and `catalog describe`.
+pub fn read_metadata<P: AsRef<Path>>(backup_filepath: P) -> Result<Metadata> {
+    let archive = std::fs::File::open(backup_filepath.as_ref())?;
+    let dec = zstd::stream::read::Decoder::new(archive)?;
+    let mut tar = tar::Archive::new(dec);
+
+    let mut bytes = vec![];
+    bytes.reserve(8 * 1024);
+
+    let n_bytes = tar
+        .entries()?
+        .filter_map(|e| e.ok())
+        .find(|entry| entry.path().unwrap().to_string_lossy() == METADATA_FILENAME)
+        .map(|mut entry| entry.read_to_end(&mut bytes));
+
+    if n_bytes.is_none() {
+        return Err(anyhow::anyhow!("Could not read metadata"));
+    }
+
+    let metadata = serde_yaml::from_slice(&bytes)?;
+    Ok(metadata)
 }
 
 /// Create a new backup file in `backup_filepath` with the contents of the metadata file and panes
