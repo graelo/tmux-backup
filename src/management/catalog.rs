@@ -43,13 +43,13 @@ impl Catalog {
     ///
     /// - The folder is created if missing.
     /// - The catalog only manages backup files such as `backup-20220804T221153.tar.zst`.
-    pub async fn new(dirpath: &Path, strategy: Strategy) -> Result<Catalog> {
-        fs::create_dir_all(dirpath).await?;
+    pub async fn new<P: AsRef<Path>>(dirpath: P, strategy: Strategy) -> Result<Catalog> {
+        fs::create_dir_all(dirpath.as_ref()).await?;
 
-        let backup_files = Self::read_files(dirpath).await?;
+        let backup_files = Self::read_files(dirpath.as_ref()).await?;
 
         let catalog = Catalog {
-            dirpath: dirpath.to_path_buf(),
+            dirpath: dirpath.as_ref().to_path_buf(),
             strategy,
             backups: backup_files,
         };
@@ -203,13 +203,13 @@ impl Catalog {
 
 impl Catalog {
     /// Return the list of `Backup` in `dirpath`.
-    async fn read_files(dirpath: &Path) -> Result<Vec<Backup>> {
+    async fn read_files<P: AsRef<Path>>(dirpath: P) -> Result<Vec<Backup>> {
         let mut backups: Vec<Backup> = vec![];
 
         let pattern = r#".*backup-(\d{8}T\d{6})\.tar\.zst"#;
         let matcher = Regex::new(pattern).unwrap();
 
-        let mut entries = fs::read_dir(dirpath).await?;
+        let mut entries = fs::read_dir(dirpath.as_ref()).await?;
         while let Some(entry) = entries.next().await {
             let entry = entry?;
             let path = entry.path();

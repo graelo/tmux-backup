@@ -19,7 +19,7 @@ use crate::{
 /// - The `backup_dirpath` folder is assumed to exist (done during catalog initialization).
 /// - Backups have a name similar to `backup-20220731T222948.tar.zst`.
 ///
-pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
+pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, Report)> {
     // Prepare the temp directory.
     let temp_dirpath = env::temp_dir().join("tmux-revive");
     fs::create_dir_all(&temp_dirpath).await?;
@@ -58,7 +58,7 @@ pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
     let (temp_metadata_filepath, num_sessions, num_windows) = metadata_task.await?;
 
     // Tar-compress content of temp folder into a new backup file in `backup_dirpath`.
-    let new_backup_filepath = archive::new_backup_filepath(backup_dirpath);
+    let new_backup_filepath = archive::new_backup_filepath(backup_dirpath.as_ref());
 
     archive::create(
         &new_backup_filepath,
@@ -79,11 +79,14 @@ pub async fn save(backup_dirpath: &Path) -> Result<(PathBuf, Report)> {
 }
 
 /// For each provided pane, retrieve the content and save it into `destination_dir`.
-async fn save_panes_content(panes: Vec<tmux::pane::Pane>, destination_dir: &Path) -> Result<()> {
+async fn save_panes_content<P: AsRef<Path>>(
+    panes: Vec<tmux::pane::Pane>,
+    destination_dir: P,
+) -> Result<()> {
     let mut handles = Vec::new();
 
     for pane in panes {
-        let dest_dir = destination_dir.to_path_buf();
+        let dest_dir = destination_dir.as_ref().to_path_buf();
         let handle = task::spawn(async move {
             let output = pane.capture().await.unwrap();
 

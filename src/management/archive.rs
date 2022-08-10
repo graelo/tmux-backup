@@ -69,19 +69,19 @@ where
 
 /// Create a new backup file in `backup_filepath` with the contents of the metadata file and panes
 /// content.
-pub fn create(
-    backup_filepath: &Path,
-    metadata_filepath: &Path,
-    panes_content_dir: &Path,
+pub fn create<P: AsRef<Path>>(
+    backup_filepath: P,
+    metadata_filepath: P,
+    panes_content_dir: P,
 ) -> Result<()> {
-    let archive = std::fs::File::create(backup_filepath)?;
+    let archive = std::fs::File::create(backup_filepath.as_ref())?;
     let enc = zstd::stream::write::Encoder::new(archive, 0)?.auto_finish();
     let mut tar = tar::Builder::new(enc);
 
     // println!("appending {:?}", metadata_filepath);
-    tar.append_path_with_name(metadata_filepath, METADATA_FILENAME)?;
+    tar.append_path_with_name(metadata_filepath.as_ref(), METADATA_FILENAME)?;
     // println!("appending {:?}", panes_content_dir);
-    tar.append_dir_all(PANES_DIR_NAME, panes_content_dir)?;
+    tar.append_dir_all(PANES_DIR_NAME, panes_content_dir.as_ref())?;
     tar.finish()?;
 
     Ok(())
