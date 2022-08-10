@@ -31,10 +31,15 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, Report)
         task::spawn(async move {
             let sessions = tmux::session::available_sessions().await?;
             let windows = tmux::window::available_windows().await?;
+            let panes = tmux::pane::available_panes().await?;
             let num_sessions = sessions.len() as u16;
             let num_windows = windows.len() as u16;
 
-            let metadata = Metadata { sessions, windows };
+            let metadata = Metadata {
+                sessions,
+                windows,
+                panes,
+            };
             let yaml = serde_yaml::to_string(&metadata)?;
 
             let temp_metadata_filepath = temp_dirpath.join(METADATA_FILENAME);

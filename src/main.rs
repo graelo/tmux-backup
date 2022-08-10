@@ -55,7 +55,10 @@ async fn run(config: Config) {
                             .await
                             .expect("Success saving but could not compact");
                     }
-                    let message = format!("✅ {report}, persisted to `{:?}`", backup_filepath);
+                    let message = format!(
+                        "✅ {report}, persisted to `{}`",
+                        backup_filepath.to_string_lossy()
+                    );
                     success_message(message, to_tmux);
                 }
                 Err(e) => {

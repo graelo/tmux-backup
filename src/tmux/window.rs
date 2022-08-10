@@ -108,8 +108,9 @@ pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
-    // Each call to `Window::parse` returns a `Result<Window, _>`. All results
-    // are collected into a Result<Vec<Window>, _>, thanks to `collect()`.
+    // Note: each call to the `Window::from_str` returns a `Result<Window, _>`.
+    // All results are then collected into a Result<Vec<Window>, _>, via
+    // `collect()`.
     let result: Result<Vec<Window>, ParseError> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')

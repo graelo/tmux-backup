@@ -54,6 +54,9 @@ pub struct Metadata {
 
     /// Tmux windows metadata.
     pub windows: Vec<tmux::window::Window>,
+
+    /// Tmux panes metadata.
+    pub panes: Vec<tmux::pane::Pane>,
 }
 
 impl Metadata {
@@ -66,7 +69,7 @@ impl Metadata {
         Report {
             num_sessions: self.sessions.len() as u16,
             num_windows: self.windows.len() as u16,
-            num_panes: 0,
+            num_panes: self.panes.len() as u16,
         }
     }
 }
