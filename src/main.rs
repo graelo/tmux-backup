@@ -31,7 +31,9 @@ async fn run(config: Config) {
     match config.command {
         Command::Catalog { command } => match command {
             CatalogSubcommand::List { backup_status } => catalog.list(backup_status),
-            CatalogSubcommand::Describe { backup_filepath } => catalog.describe(backup_filepath),
+            CatalogSubcommand::Describe { backup_filepath } => {
+                catalog.describe(backup_filepath).await.unwrap()
+            }
             CatalogSubcommand::Compact => match catalog.compact().await {
                 Ok(n) => {
                     let message = format!("✅ deleted {n} outdated backups");

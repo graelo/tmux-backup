@@ -39,6 +39,9 @@ pub enum BackupStatus {
 /// `catalog list --details`.
 #[derive(Debug)]
 pub struct BackupOverview {
+    /// Format version of the backup.
+    pub version: String,
+
     /// Number of sessions in a backup.
     pub num_sessions: u16,
 
@@ -82,7 +85,7 @@ impl Catalog {
     pub async fn new<P: AsRef<Path>>(dirpath: P, strategy: Strategy) -> Result<Catalog> {
         fs::create_dir_all(dirpath.as_ref()).await?;
 
-        let backup_files = Self::read_files(dirpath.as_ref()).await?;
+        let backup_files = Self::parse_backup_filenames(dirpath.as_ref()).await?;
 
         let catalog = Catalog {
             dirpath: dirpath.as_ref().to_path_buf(),
@@ -95,7 +98,7 @@ impl Catalog {
 
     /// Update the catalog's list of backups with current content of `dirpath`.
     pub async fn refresh(self) -> Result<Catalog> {
-        let backups = Self::read_files(self.dirpath.as_path()).await?;
+        let backups = Self::parse_backup_filenames(self.dirpath.as_path()).await?;
         Ok(Catalog {
             dirpath: self.dirpath,
             strategy: self.strategy,
@@ -105,18 +108,13 @@ impl Catalog {
 
     /// Update the catalog's list of backups with current content of `dirpath`.
     pub async fn refresh_mut(&mut self) -> Result<()> {
-        self.backups = Self::read_files(self.dirpath.as_path()).await?;
+        self.backups = Self::parse_backup_filenames(self.dirpath.as_path()).await?;
         Ok(())
     }
 
     /// Total number of backups in the catalog.
     pub fn size(&self) -> usize {
         self.backups.len()
-    }
-
-    /// Return the catalog's dirpath as a string, for convenience in error messages.
-    pub fn location(&self) -> String {
-        self.dirpath.to_string_lossy().into()
     }
 
     /// Filepath of the current backup.
@@ -165,6 +163,10 @@ impl Catalog {
     }
 
     /// List backups.
+    ///
+    /// If a specific backup status is passed (`status` is `Some(..)`), then the function prints
+    /// only the absolute paths of the corresponding backups, otherwise it prints a
+    /// Docker/Podman-like table.
     pub fn list(&self, status: Option<BackupStatus>) {
         let Plan {
             disposable,
@@ -186,7 +188,7 @@ impl Catalog {
             }
         } else {
             println!("Strategy: {}", &self.strategy);
-            println!("Location: `{}`\n", self.location());
+            println!("Location: `{}`\n", self.dirpath.to_string_lossy());
 
             let reset = "\u{001b}[0m";
             let yellow = "\u{001b}[33m";
@@ -234,16 +236,13 @@ impl Catalog {
         }
     }
 
-    pub fn describe<P>(&self, backup_filepath: P)
+    pub async fn describe<P>(&self, backup_filepath: P) -> Result<()>
     where
         P: AsRef<Path>,
     {
-        match v1::Metadata::read(backup_filepath) {
-            Ok(metadata) => {
-                println!("{}", metadata.get_overview());
-            }
-            Err(e) => eprintln!("{}", e),
-        }
+        let archive = v1::Archive::read_file(backup_filepath).await?;
+        println!("{}", archive.full_description());
+        Ok(())
     }
 }
 
@@ -251,7 +250,7 @@ impl Catalog {
 
 impl Catalog {
     /// Return the list of `Backup` in `dirpath`.
-    async fn read_files<P: AsRef<Path>>(dirpath: P) -> Result<Vec<Backup>> {
+    async fn parse_backup_filenames<P: AsRef<Path>>(dirpath: P) -> Result<Vec<Backup>> {
         let mut backups: Vec<Backup> = vec![];
 
         let pattern = r#".*backup-(\d{8}T\d{6})\.tar\.zst"#;

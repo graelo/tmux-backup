@@ -41,24 +41,67 @@ pub struct Metadata {
     pub panes: Vec<tmux::pane::Pane>,
 }
 
-impl Metadata {
-    pub fn read<P: AsRef<Path>>(backup_filepath: P) -> Result<Metadata> {
-        read_metadata(backup_filepath)
+pub struct Archive {
+    version: String,
+    metadata: Metadata,
+}
+
+impl Archive {
+    /// Open the archive file then read the version string and tmux metadata.
+    pub async fn read_file<P: AsRef<Path>>(backup_filepath: P) -> Result<Archive> {
+        let archive = std::fs::File::open(backup_filepath.as_ref())?;
+        let dec = zstd::stream::read::Decoder::new(archive)?;
+        let mut tar = tar::Archive::new(dec);
+
+        // Read the version file.
+        let mut version = String::new();
+        version.reserve(4);
+
+        let n_bytes = tar
+            .entries()?
+            .filter_map(|e| e.ok())
+            .find(|entry| entry.path().unwrap().to_string_lossy() == VERSION_FILENAME)
+            .map(|mut entry| entry.read_to_string(&mut version));
+
+        if n_bytes.is_none() {
+            return Err(anyhow::anyhow!("Could not read version"));
+        }
+
+        let mut bytes = vec![];
+        bytes.reserve(8 * 1024);
+
+        let n_bytes = tar
+            .entries()?
+            .filter_map(|e| e.ok())
+            .find(|entry| entry.path().unwrap().to_string_lossy() == METADATA_FILENAME)
+            .map(|mut entry| entry.read_to_end(&mut bytes));
+
+        if n_bytes.is_none() {
+            return Err(anyhow::anyhow!("Could not read metadata"));
+        }
+
+        let metadata = serde_yaml::from_slice(&bytes)?;
+
+        Ok(Archive { version, metadata })
     }
 
-    pub fn get_overview(&self) -> BackupOverview {
-        // let panes = self.windows.iter().flat_map(|w| w.)
+    pub fn overview(&self) -> BackupOverview {
         BackupOverview {
-            num_sessions: self.sessions.len() as u16,
-            num_windows: self.windows.len() as u16,
-            num_panes: self.panes.len() as u16,
+            version: self.version.clone(),
+            num_sessions: self.metadata.sessions.len() as u16,
+            num_windows: self.metadata.windows.len() as u16,
+            num_panes: self.metadata.panes.len() as u16,
         }
+    }
+
+    pub fn full_description(&self) -> String {
+        "full description of the archive with session names".into()
     }
 }
 
 /// Return the filepath for a new backup.
 ///
-/// This is used when the method ``actions::save::save`` needs a new filepath.
+/// This is used when the function ``actions::save`` needs a new filepath.
 pub fn new_backup_filepath<P>(dirpath: P) -> PathBuf
 where
     P: AsRef<Path>,
@@ -68,40 +111,15 @@ where
     dirpath.as_ref().join(backup_filename)
 }
 
-/// Read the metadata from a backup file.
-///
-/// This function is used in `catalog list --details` and `catalog describe`.
-pub fn read_metadata<P: AsRef<Path>>(backup_filepath: P) -> Result<Metadata> {
-    let archive = std::fs::File::open(backup_filepath.as_ref())?;
-    let dec = zstd::stream::read::Decoder::new(archive)?;
-    let mut tar = tar::Archive::new(dec);
-
-    let mut bytes = vec![];
-    bytes.reserve(8 * 1024);
-
-    let n_bytes = tar
-        .entries()?
-        .filter_map(|e| e.ok())
-        .find(|entry| entry.path().unwrap().to_string_lossy() == METADATA_FILENAME)
-        .map(|mut entry| entry.read_to_end(&mut bytes));
-
-    if n_bytes.is_none() {
-        return Err(anyhow::anyhow!("Could not read metadata"));
-    }
-
-    let metadata = serde_yaml::from_slice(&bytes)?;
-    Ok(metadata)
-}
-
-/// Create a new backup file in `backup_filepath` with the contents of the metadata file and panes
+/// Create a new backup file in `dest_filepath` with the contents of the metadata file and panes
 /// content.
-pub fn create<P: AsRef<Path>>(
-    backup_filepath: P,
+pub fn create_from_paths<P: AsRef<Path>>(
+    dest_filepath: P,
     version_filepath: P,
     metadata_filepath: P,
     panes_content_dir: P,
 ) -> Result<()> {
-    let archive = std::fs::File::create(backup_filepath.as_ref())?;
+    let archive = std::fs::File::create(dest_filepath.as_ref())?;
     let enc = zstd::stream::write::Encoder::new(archive, 0)?.auto_finish();
     let mut tar = tar::Builder::new(enc);
 

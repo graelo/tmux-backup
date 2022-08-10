@@ -14,6 +14,9 @@ use crate::{
 
 /// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`.
 ///
+/// After saving, this function returns the path to the backup and an overview of the number of
+/// sessions, windows and panes.
+///
 /// # Notes
 ///
 /// - The `backup_dirpath` folder is assumed to exist (done during catalog initialization).
@@ -74,7 +77,7 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, BackupO
     // Tar-compress content of temp folder into a new backup file in `backup_dirpath`.
     let new_backup_filepath = v1::new_backup_filepath(backup_dirpath.as_ref());
 
-    v1::create(
+    v1::create_from_paths(
         &new_backup_filepath,
         &temp_version_filepath,
         &temp_metadata_filepath,
@@ -85,6 +88,7 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, BackupO
     fs::remove_dir_all(temp_dirpath).await?;
 
     let overview = BackupOverview {
+        version: v1::FORMAT_VERSION.to_string(),
         num_sessions,
         num_windows,
         num_panes,
