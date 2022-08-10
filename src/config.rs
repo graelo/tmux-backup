@@ -35,8 +35,8 @@ pub enum CatalogSubcommand {
 pub enum Command {
     /// Save the Tmux sessions to a new backup file.
     ///
-    /// Sessions, windows, and panes geometry + content are saved in an archive format inside
-    /// the backup folder. In that folder, the backup name is expected to be similar to
+    /// Sessions, windows, and panes geometry + content are saved in an archive format inside the
+    /// backup folder. In that folder, the backup name is expected to be similar to
     /// `backup-20220531T123456.tar.zst`.
     ///
     /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to display
@@ -63,7 +63,8 @@ pub enum Command {
     /// the one-line overview in the Tmux status bar. Otherwise, if you run it from the terminal,
     /// ignore this flag in order to print the overview in the terminal.
     Restore {
-        /// Send an overview (num. sessions, etc.) to the Tmux status bar, otherwise print to stdout.
+        /// Send an overview (num. sessions, etc.) to the Tmux status bar, otherwise print to
+        /// stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
     },
@@ -96,7 +97,8 @@ pub struct Config {
     ///
     /// If unspecified, it falls back on: `$XDG_STATE_HOME/tmux-revive`, then on
     /// `$HOME/.local/state/tmux-revive`.
-    #[clap(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath, default_value_os_t = default_backup_dirpath())]
+    #[clap(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath,
+        default_value_os_t = default_backup_dirpath())]
     pub backup_dirpath: PathBuf,
 
     /// Number of recent backups to keep, for instance 10.
@@ -141,8 +143,8 @@ impl Config {
 }
 /// Determine the folder where to save backups.
 ///
-/// If `$XDG_STATE_HOME` is defined, the function returns `$XDG_STATE_HOME/tmux-revive`,
-/// otherwise, it returns `$HOME/.local/state/tmux-revive`.
+/// If `$XDG_STATE_HOME` is defined, the function returns `$XDG_STATE_HOME/tmux-revive`, otherwise,
+/// it returns `$HOME/.local/state/tmux-revive`.
 ///
 /// # Panics
 ///
