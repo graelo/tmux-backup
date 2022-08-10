@@ -49,10 +49,11 @@ pub enum Command {
     /// `backup-20220531T123456.tar.zst`.
     ///
     /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to display
-    /// the one-line report in the Tmux status bar. Otherwise, if you run it from the terminal,
-    /// ignore this flag in order to print the report in the terminal.
+    /// the one-line overview in the Tmux status bar. Otherwise, if you run it from the terminal,
+    /// ignore this flag in order to print the overview in the terminal.
     Save {
-        /// Send a report (num. sessions, etc.) to the Tmux status bar, otherwise print to stdout.
+        /// Send an overview (num. sessions, etc.) to the Tmux status bar, otherwise print to
+        /// stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
 
@@ -68,10 +69,10 @@ pub enum Command {
     /// expected to be similar to `backup-20220531T123456.tar.zst`.
     ///
     /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to display
-    /// the one-line report in the Tmux status bar. Otherwise, if you run it from the terminal,
-    /// ignore this flag in order to print the report in the terminal.
+    /// the one-line overview in the Tmux status bar. Otherwise, if you run it from the terminal,
+    /// ignore this flag in order to print the overview in the terminal.
     Restore {
-        /// Send a report (num. sessions, etc.) to the Tmux status bar, otherwise print to stdout.
+        /// Send an overview (num. sessions, etc.) to the Tmux status bar, otherwise print to stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
     },

@@ -8,7 +8,10 @@ use async_std::{fs, task};
 use futures::future::join_all;
 
 use crate::{
-    management::archive::{self, Metadata, Report, METADATA_FILENAME, PANES_DIR_NAME},
+    management::{
+        archive::{self, Metadata, METADATA_FILENAME, PANES_DIR_NAME},
+        catalog::BackupOverview,
+    },
     tmux,
 };
 
@@ -19,7 +22,7 @@ use crate::{
 /// - The `backup_dirpath` folder is assumed to exist (done during catalog initialization).
 /// - Backups have a name similar to `backup-20220731T222948.tar.zst`.
 ///
-pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, Report)> {
+pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, BackupOverview)> {
     // Prepare the temp directory.
     let temp_dirpath = env::temp_dir().join("tmux-revive");
     fs::create_dir_all(&temp_dirpath).await?;
@@ -74,13 +77,13 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, Report)
     // Cleanup the entire temp folder.
     fs::remove_dir_all(temp_dirpath).await?;
 
-    let report = Report {
+    let overview = BackupOverview {
         num_sessions,
         num_windows,
         num_panes,
     };
 
-    Ok((new_backup_filepath, report))
+    Ok((new_backup_filepath, overview))
 }
 
 /// For each provided pane, retrieve the content and save it into `destination_dir`.

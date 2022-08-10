@@ -1,5 +1,6 @@
 //! Catalog of all backups.
 
+use std::fmt;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
@@ -21,6 +22,31 @@ pub struct Backup {
 
     /// Backup date.
     pub creation_date: NaiveDateTime,
+}
+
+/// Describes the number of sessions, windows and panes in a backup.
+///
+/// These counts are displayed after the commands such as `save`, `restore`, or
+/// `catalog list --details`.
+#[derive(Debug)]
+pub struct BackupOverview {
+    /// Number of sessions in a backup.
+    pub num_sessions: u16,
+
+    /// Number of windows in a backup.
+    pub num_windows: u16,
+
+    /// Number of panes in a backup.
+    pub num_panes: u16,
+}
+
+impl fmt::Display for BackupOverview {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "{} sessions ({} windows, {} panes)",
+            self.num_sessions, self.num_windows, self.num_panes,
+        ))
+    }
 }
 
 /// Catalog of all backups.
@@ -195,8 +221,7 @@ impl Catalog {
     {
         match Metadata::read(backup_filepath) {
             Ok(metadata) => {
-                let report = metadata.get_report();
-                println!("{report}");
+                println!("{}", metadata.get_overview());
             }
             Err(e) => eprintln!("{}", e),
         }

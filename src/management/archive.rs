@@ -1,6 +1,5 @@
 //! Support functions to create and read backup archive files.
 
-use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -8,6 +7,7 @@ use anyhow::Result;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
+use crate::management::catalog::BackupOverview;
 use crate::tmux;
 
 /// Name of the directory storing the panes content in the backup.
@@ -19,30 +19,6 @@ pub const PANES_DIR_NAME: &str = "panes-content";
 ///
 /// This name is also used in the temporary directory when storing the catalog.
 pub const METADATA_FILENAME: &str = "metadata.yaml";
-
-/// Describes the number of sessions, windows and panes in a backup.
-///
-/// This report is displayed after the commands `save`, `restore`, or `catalog list --details`.
-#[derive(Debug)]
-pub struct Report {
-    /// Number of sessions in a backup.
-    pub num_sessions: u16,
-
-    /// Number of windows in a backup.
-    pub num_windows: u16,
-
-    /// Number of panes in a backup.
-    pub num_panes: u16,
-}
-
-impl fmt::Display for Report {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!(
-            "{} sessions ({} windows, {} panes)",
-            self.num_sessions, self.num_windows, self.num_panes,
-        ))
-    }
-}
 
 /// Describes the Tmux sessions, windows & panes metadata to store in a backup.
 ///
@@ -64,9 +40,9 @@ impl Metadata {
         read_metadata(backup_filepath)
     }
 
-    pub fn get_report(&self) -> Report {
+    pub fn get_overview(&self) -> BackupOverview {
         // let panes = self.windows.iter().flat_map(|w| w.)
-        Report {
+        BackupOverview {
             num_sessions: self.sessions.len() as u16,
             num_windows: self.windows.len() as u16,
             num_panes: self.panes.len() as u16,
