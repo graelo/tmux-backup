@@ -10,6 +10,12 @@ use serde::{Deserialize, Serialize};
 use crate::management::catalog::BackupOverview;
 use crate::tmux;
 
+/// Version of the archive format.
+pub const FORMAT_VERSION: &str = "1.0";
+
+/// Name of the file storing the version of the archive format.
+pub const VERSION_FILENAME: &str = "version";
+
 /// Name of the directory storing the panes content in the backup.
 ///
 /// This name is also used in the temporary directory when retrieving the panes content from Tmux.
@@ -91,6 +97,7 @@ pub fn read_metadata<P: AsRef<Path>>(backup_filepath: P) -> Result<Metadata> {
 /// content.
 pub fn create<P: AsRef<Path>>(
     backup_filepath: P,
+    version_filepath: P,
     metadata_filepath: P,
     panes_content_dir: P,
 ) -> Result<()> {
@@ -98,9 +105,8 @@ pub fn create<P: AsRef<Path>>(
     let enc = zstd::stream::write::Encoder::new(archive, 0)?.auto_finish();
     let mut tar = tar::Builder::new(enc);
 
-    // println!("appending {:?}", metadata_filepath);
+    tar.append_path_with_name(version_filepath, "VERSION_FILENAME")?;
     tar.append_path_with_name(metadata_filepath.as_ref(), METADATA_FILENAME)?;
-    // println!("appending {:?}", panes_content_dir);
     tar.append_dir_all(PANES_DIR_NAME, panes_content_dir.as_ref())?;
     tar.finish()?;
 

@@ -11,7 +11,7 @@ use chrono::{Duration, Local, NaiveDateTime};
 use regex::Regex;
 
 use crate::config::SubList;
-use crate::management::archive::Metadata;
+use crate::management::archive::v1;
 
 use super::compaction::{Plan, Strategy};
 
@@ -219,7 +219,7 @@ impl Catalog {
     where
         P: AsRef<Path>,
     {
-        match Metadata::read(backup_filepath) {
+        match v1::Metadata::read(backup_filepath) {
             Ok(metadata) => {
                 println!("{}", metadata.get_overview());
             }

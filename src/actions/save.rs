@@ -8,10 +8,7 @@ use async_std::{fs, task};
 use futures::future::join_all;
 
 use crate::{
-    management::{
-        archive::{self, Metadata, METADATA_FILENAME, PANES_DIR_NAME},
-        catalog::BackupOverview,
-    },
+    management::{archive::v1, catalog::BackupOverview},
     tmux,
 };
 
@@ -28,33 +25,41 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, BackupO
     fs::create_dir_all(&temp_dirpath).await?;
 
     // Save sessions & windows into `metadata.yaml` in the temp folder.
-    let metadata_task: task::JoinHandle<Result<(PathBuf, u16, u16)>> = {
+    let metadata_task: task::JoinHandle<Result<(PathBuf, PathBuf, u16, u16)>> = {
         let temp_dirpath = temp_dirpath.clone();
 
         task::spawn(async move {
+            let temp_version_filepath = temp_dirpath.join(v1::VERSION_FILENAME);
+            fs::write(&temp_version_filepath, v1::FORMAT_VERSION).await?;
+
             let sessions = tmux::session::available_sessions().await?;
             let windows = tmux::window::available_windows().await?;
             let panes = tmux::pane::available_panes().await?;
             let num_sessions = sessions.len() as u16;
             let num_windows = windows.len() as u16;
 
-            let metadata = Metadata {
+            let metadata = v1::Metadata {
                 sessions,
                 windows,
                 panes,
             };
             let yaml = serde_yaml::to_string(&metadata)?;
 
-            let temp_metadata_filepath = temp_dirpath.join(METADATA_FILENAME);
+            let temp_metadata_filepath = temp_dirpath.join(v1::METADATA_FILENAME);
             fs::write(temp_metadata_filepath.as_path(), yaml).await?;
 
-            Ok((temp_metadata_filepath, num_sessions, num_windows))
+            Ok((
+                temp_version_filepath,
+                temp_metadata_filepath,
+                num_sessions,
+                num_windows,
+            ))
         })
     };
 
     // Save pane contents in the temp folder.
     let (temp_panes_content_dir, num_panes) = {
-        let temp_panes_content_dir = temp_dirpath.join(PANES_DIR_NAME);
+        let temp_panes_content_dir = temp_dirpath.join(v1::PANES_DIR_NAME);
         fs::create_dir_all(&temp_panes_content_dir).await?;
 
         let panes = tmux::pane::available_panes().await?;
@@ -63,13 +68,15 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, BackupO
 
         (temp_panes_content_dir, num_panes)
     };
-    let (temp_metadata_filepath, num_sessions, num_windows) = metadata_task.await?;
+    let (temp_version_filepath, temp_metadata_filepath, num_sessions, num_windows) =
+        metadata_task.await?;
 
     // Tar-compress content of temp folder into a new backup file in `backup_dirpath`.
-    let new_backup_filepath = archive::new_backup_filepath(backup_dirpath.as_ref());
+    let new_backup_filepath = v1::new_backup_filepath(backup_dirpath.as_ref());
 
-    archive::create(
+    v1::create(
         &new_backup_filepath,
+        &temp_version_filepath,
         &temp_metadata_filepath,
         &temp_panes_content_dir,
     )?;
