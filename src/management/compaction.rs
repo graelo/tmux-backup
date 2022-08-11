@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use super::catalog::Backup;
+use super::backup::Backup;
 
 /// Backups compaction strategy.
 ///

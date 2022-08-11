@@ -7,7 +7,7 @@ use anyhow::Result;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-use crate::management::catalog::BackupDetails;
+use crate::management::backup::BackupDetails;
 use crate::tmux;
 
 /// Version of the archive format.

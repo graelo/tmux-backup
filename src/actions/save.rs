@@ -8,7 +8,7 @@ use async_std::{fs, task};
 use futures::future::join_all;
 
 use crate::{
-    management::{archive::v1, catalog::BackupDetails},
+    management::{archive::v1, backup::BackupDetails},
     tmux,
 };
 

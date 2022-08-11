@@ -6,15 +6,15 @@ use std::path::PathBuf;
 use clap::{ArgAction, ArgGroup, Parser, Subcommand, ValueHint};
 use clap_complete::Shell;
 
-use crate::management::{catalog::BackupStatus, compaction::Strategy};
+use crate::management::{backup::BackupStatus, compaction::Strategy};
 
 /// Catalog subcommands.
 #[derive(Debug, Subcommand)]
 pub enum CatalogSubcommand {
     /// List backups in the catalog to stdout.
     ///
-    /// If `--only disposable` or `--only retainable` are passed, print the
-    /// corresponding list, otherwise print all backups in colored output.
+    /// If `--only disposable` or `--only retainable` are passed, print the corresponding list of
+    /// paths, otherwise print all backups in a table format.
     List {
         /// List only backups having this status.
         #[clap(long = "only", value_enum, value_parser)]
