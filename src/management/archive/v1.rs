@@ -26,11 +26,14 @@ pub const PANES_DIR_NAME: &str = "panes-content";
 /// This name is also used in the temporary directory when storing the catalog.
 pub const METADATA_FILENAME: &str = "metadata.yaml";
 
-/// Describes the Tmux sessions, windows & panes metadata to store in a backup.
+/// Describes the Tmux sessions, windows & panes stored in a backup.
 ///
 /// This is enough information to recreate all sessions, windows & panes.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Metadata {
+    /// Version of the archive's format.
+    pub version: String,
+
     /// Tmux sessions metadata.
     pub sessions: Vec<tmux::session::Session>,
 
@@ -63,14 +66,17 @@ impl Archive {
         for mut entry in tar.entries()?.flatten() {
             if entry.path().unwrap().to_string_lossy() == VERSION_FILENAME {
                 entry.read_to_string(&mut version)?;
+                if version.is_empty() {
+                    return Err(anyhow::anyhow!("Could not read the format version"));
+                }
+                if version != FORMAT_VERSION {
+                    return Err(anyhow::anyhow!("Unsupported format version: `{}`", version));
+                }
             } else if entry.path().unwrap().to_string_lossy() == METADATA_FILENAME {
                 entry.read_to_end(&mut bytes)?;
             }
         }
 
-        if version.is_empty() {
-            return Err(anyhow::anyhow!("Could not read the format version"));
-        }
         if bytes.is_empty() {
             return Err(anyhow::anyhow!("Could not read metadata"));
         }

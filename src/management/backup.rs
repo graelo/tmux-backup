@@ -1,14 +1,14 @@
-//! High-level backup metadata useful for catalog operations and reporting.
+//! High-level representation of a backup for catalog operations and reporting.
 
 use std::path::PathBuf;
 
 use chrono::NaiveDateTime;
 use clap::ValueEnum;
 
-/// Quick access, high-level backup metadata.
+/// Quick access, high-level representation of a backup.
 ///
-/// The [`Catalog`](crate::management::catalog::Catalog) only needs this metadata to list backups
-/// and make decisions about the [`BackupStatus`].
+/// This is sufficient for the [`Catalog`](crate::management::catalog::Catalog) to list backups
+/// and decide whether or not a backup should be deleted or kept.
 ///
 /// # Difference between `Backup` and `Archive`
 ///
