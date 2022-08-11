@@ -52,7 +52,7 @@ async fn run(config: Config) {
 
         Command::Save { to_tmux, compact } => {
             match save(&catalog.dirpath).await {
-                Ok((backup_filepath, backup_details)) => {
+                Ok((backup_filepath, archive_overview)) => {
                     if compact {
                         // In practice this should never fail: write to the catalog already ensures
                         // the catalog's dirpath is writable.
@@ -65,7 +65,7 @@ async fn run(config: Config) {
                             .expect("Success saving but could not compact");
                     }
                     let message = format!(
-                        "✅ {backup_details}, persisted to `{}`",
+                        "✅ {archive_overview}, persisted to `{}`",
                         backup_filepath.to_string_lossy()
                     );
                     success_message(message, to_tmux);

@@ -1,5 +1,6 @@
 //! Support functions to create and read backup archive files.
 
+use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -7,7 +8,6 @@ use anyhow::Result;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-use crate::management::backup::BackupDetails;
 use crate::tmux;
 
 /// Version of the archive format.
@@ -80,8 +80,8 @@ impl Archive {
         Ok(Archive { version, metadata })
     }
 
-    pub fn backup_details(&self) -> BackupDetails {
-        BackupDetails {
+    pub fn overview(&self) -> Overview {
+        Overview {
             version: self.version.clone(),
             num_sessions: self.metadata.sessions.len() as u16,
             num_windows: self.metadata.windows.len() as u16,
@@ -94,7 +94,7 @@ impl Archive {
         P: AsRef<Path>,
     {
         let archive = Archive::read_file(backup_filepath).await?;
-        let details = archive.backup_details();
+        let details = archive.overview();
 
         println!("full details {details}");
 
@@ -132,4 +132,32 @@ pub fn create_from_paths<P: AsRef<Path>>(
     tar.finish()?;
 
     Ok(())
+}
+
+/// Overview of the archive's content: number of sessions, windows and panes in the archive.
+///
+/// These counts are displayed after the commands such as `save`, `restore`, or `catalog list
+/// --details`.
+#[derive(Debug)]
+pub struct Overview {
+    /// Format version of the archive.
+    pub version: String,
+
+    /// Number of sessions in the archive.
+    pub num_sessions: u16,
+
+    /// Number of windows in the archive.
+    pub num_windows: u16,
+
+    /// Number of panes in the archive.
+    pub num_panes: u16,
+}
+
+impl fmt::Display for Overview {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "{} sessions ({} windows, {} panes)",
+            self.num_sessions, self.num_windows, self.num_panes,
+        ))
+    }
 }

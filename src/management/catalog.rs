@@ -125,12 +125,13 @@ impl Catalog {
     /// only the absolute paths of the corresponding backups, otherwise it prints a
     /// Docker/Podman-like table.
     ///
-    /// If the `details_flag` is `true`, the function prints additional details:
+    /// If the `details_flag` is `true`, the function prints an overview of the content of the
+    /// archive:
     ///
+    /// - version of the archive's format
     /// - number of sessions
     /// - number of windows
     /// - number of panes
-    /// - version of the archive's format
     ///
     pub async fn list(&self, status: Option<BackupStatus>, details_flag: bool) {
         let Plan {
@@ -182,7 +183,7 @@ impl Catalog {
                     let archive = v1::Archive::read_file(&backup.filepath)
                         .await
                         .expect("Cannot read archive");
-                    let details = archive.backup_details();
+                    let overview = archive.overview();
 
                     println!(
                         "{:3}. {yellow}{:32}{reset} {:20} {yellow}{:12}{reset} {:8} {:8}",
@@ -190,8 +191,8 @@ impl Catalog {
                         filename,
                         Self::time_ago(now, backup.creation_date),
                         "disposable",
-                        details.version,
-                        details,
+                        overview.version,
+                        overview,
                     );
                 } else {
                     println!(
@@ -211,7 +212,7 @@ impl Catalog {
                     let archive = v1::Archive::read_file(&backup.filepath)
                         .await
                         .expect("Cannot read archive");
-                    let details = archive.backup_details();
+                    let overview = archive.overview();
 
                     println!(
                         "{:3}. {green}{:32}{reset} {:20} {green}{:12}{reset} {:8} {:8}",
@@ -219,8 +220,8 @@ impl Catalog {
                         filename,
                         Self::time_ago(now, backup.creation_date),
                         "retainable",
-                        details.version,
-                        details,
+                        overview.version,
+                        overview,
                     );
                 } else {
                     println!(
