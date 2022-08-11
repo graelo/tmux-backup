@@ -47,7 +47,7 @@ async fn run(config: Config) {
         },
 
         Command::Describe { backup_filepath } => {
-            v1::Archive::describe(backup_filepath).await.unwrap()
+            v1::print_description(backup_filepath).await.unwrap()
         }
 
         Command::Save { to_tmux, compact } => {

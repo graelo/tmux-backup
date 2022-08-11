@@ -44,68 +44,92 @@ pub struct Metadata {
     pub panes: Vec<tmux::pane::Pane>,
 }
 
-pub struct Archive {
-    version: String,
-    metadata: Metadata,
-}
-
-impl Archive {
-    /// Open the archive file then read the version string and tmux metadata.
-    pub async fn read_file<P: AsRef<Path>>(backup_filepath: P) -> Result<Archive> {
-        let archive = std::fs::File::open(backup_filepath.as_ref())?;
-        let dec = zstd::stream::read::Decoder::new(archive)?;
-        let mut tar = tar::Archive::new(dec);
-
-        // Read the version file.
-        let mut version = String::new();
-        version.reserve(4);
-
-        let mut bytes = vec![];
-        bytes.reserve(8 * 1024);
-
-        for mut entry in tar.entries()?.flatten() {
-            if entry.path().unwrap().to_string_lossy() == VERSION_FILENAME {
-                entry.read_to_string(&mut version)?;
-                if version.is_empty() {
-                    return Err(anyhow::anyhow!("Could not read the format version"));
-                }
-                if version != FORMAT_VERSION {
-                    return Err(anyhow::anyhow!("Unsupported format version: `{}`", version));
-                }
-            } else if entry.path().unwrap().to_string_lossy() == METADATA_FILENAME {
-                entry.read_to_end(&mut bytes)?;
-            }
-        }
-
-        if bytes.is_empty() {
-            return Err(anyhow::anyhow!("Could not read metadata"));
-        }
-
-        let metadata = serde_yaml::from_slice(&bytes)?;
-
-        Ok(Archive { version, metadata })
-    }
-
+impl Metadata {
     pub fn overview(&self) -> Overview {
         Overview {
             version: self.version.clone(),
-            num_sessions: self.metadata.sessions.len() as u16,
-            num_windows: self.metadata.windows.len() as u16,
-            num_panes: self.metadata.panes.len() as u16,
+            num_sessions: self.sessions.len() as u16,
+            num_windows: self.windows.len() as u16,
+            num_panes: self.panes.len() as u16,
+        }
+    }
+}
+
+/// Overview of the archive's content: number of sessions, windows and panes in the archive.
+///
+/// These counts are displayed after the commands such as `save`, `restore`, or `catalog list
+/// --details`.
+#[derive(Debug)]
+pub struct Overview {
+    /// Format version of the archive.
+    pub version: String,
+
+    /// Number of sessions in the archive.
+    pub num_sessions: u16,
+
+    /// Number of windows in the archive.
+    pub num_windows: u16,
+
+    /// Number of panes in the archive.
+    pub num_panes: u16,
+}
+
+impl fmt::Display for Overview {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "{} sessions ({} windows, {} panes)",
+            self.num_sessions, self.num_windows, self.num_panes,
+        ))
+    }
+}
+
+/// Open the archive file then read the version string and tmux metadata.
+pub async fn read_metadata<P: AsRef<Path>>(backup_filepath: P) -> Result<Metadata> {
+    let archive = std::fs::File::open(backup_filepath.as_ref())?;
+    let dec = zstd::stream::read::Decoder::new(archive)?;
+    let mut tar = tar::Archive::new(dec);
+
+    // Read the version file.
+    let mut version = String::new();
+    version.reserve(4);
+
+    let mut bytes = vec![];
+    bytes.reserve(8 * 1024);
+
+    for mut entry in tar.entries()?.flatten() {
+        if entry.path().unwrap().to_string_lossy() == VERSION_FILENAME {
+            entry.read_to_string(&mut version)?;
+            if version.is_empty() {
+                return Err(anyhow::anyhow!("Could not read the format version"));
+            }
+            if version != FORMAT_VERSION {
+                return Err(anyhow::anyhow!("Unsupported format version: `{}`", version));
+            }
+        } else if entry.path().unwrap().to_string_lossy() == METADATA_FILENAME {
+            entry.read_to_end(&mut bytes)?;
         }
     }
 
-    pub async fn describe<P>(backup_filepath: P) -> Result<()>
-    where
-        P: AsRef<Path>,
-    {
-        let archive = Archive::read_file(backup_filepath).await?;
-        let details = archive.overview();
-
-        println!("full details {details}");
-
-        Ok(())
+    if bytes.is_empty() {
+        return Err(anyhow::anyhow!("Could not read metadata"));
     }
+
+    let metadata = serde_yaml::from_slice(&bytes)?;
+
+    Ok(metadata)
+}
+
+/// Print a full description of the archive.
+pub async fn print_description<P>(backup_filepath: P) -> Result<()>
+where
+    P: AsRef<Path>,
+{
+    let metadata = read_metadata(backup_filepath).await?;
+    let overview = metadata.overview();
+
+    println!("full details {overview}");
+
+    Ok(())
 }
 
 /// Return the filepath for a new backup.
@@ -138,32 +162,4 @@ pub fn create_from_paths<P: AsRef<Path>>(
     tar.finish()?;
 
     Ok(())
-}
-
-/// Overview of the archive's content: number of sessions, windows and panes in the archive.
-///
-/// These counts are displayed after the commands such as `save`, `restore`, or `catalog list
-/// --details`.
-#[derive(Debug)]
-pub struct Overview {
-    /// Format version of the archive.
-    pub version: String,
-
-    /// Number of sessions in the archive.
-    pub num_sessions: u16,
-
-    /// Number of windows in the archive.
-    pub num_windows: u16,
-
-    /// Number of panes in the archive.
-    pub num_panes: u16,
-}
-
-impl fmt::Display for Overview {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!(
-            "{} sessions ({} windows, {} panes)",
-            self.num_sessions, self.num_windows, self.num_panes,
-        ))
-    }
 }

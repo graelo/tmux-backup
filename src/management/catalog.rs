@@ -126,13 +126,14 @@ impl Catalog {
     /// Docker/Podman-like table.
     ///
     /// If the `details_flag` is `true`, the function prints an overview of the content of the
-    /// archive:
+    /// backup:
     ///
     /// - version of the archive's format
     /// - number of sessions
     /// - number of windows
     /// - number of panes
     ///
+    /// but this is slower because it needs to read partially each backup file.
     pub async fn list(&self, status: Option<BackupStatus>, details_flag: bool) {
         let Plan {
             disposable,
@@ -180,10 +181,10 @@ impl Catalog {
             for (index, backup) in std::iter::zip(iter, disposable) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 if details_flag {
-                    let archive = v1::Archive::read_file(&backup.filepath)
+                    let metadata = v1::read_metadata(&backup.filepath)
                         .await
-                        .expect("Cannot read archive");
-                    let overview = archive.overview();
+                        .expect("Cannot read backup");
+                    let overview = metadata.overview();
 
                     println!(
                         "{:3}. {yellow}{:32}{reset} {:20} {yellow}{:12}{reset} {:8} {:8}",
@@ -209,10 +210,10 @@ impl Catalog {
             for (index, backup) in std::iter::zip(iter, retainable) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 if details_flag {
-                    let archive = v1::Archive::read_file(&backup.filepath)
+                    let metadata = v1::read_metadata(&backup.filepath)
                         .await
-                        .expect("Cannot read archive");
-                    let overview = archive.overview();
+                        .expect("Cannot read backup");
+                    let overview = metadata.overview();
 
                     println!(
                         "{:3}. {green}{:32}{reset} {:20} {green}{:12}{reset} {:8} {:8}",
