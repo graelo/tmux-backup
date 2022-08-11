@@ -77,7 +77,7 @@ pub struct Overview {
 impl fmt::Display for Overview {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!(
-            "{} sessions ({} windows, {} panes)",
+            "{} sessions {} windows {} panes",
             self.num_sessions, self.num_windows, self.num_panes,
         ))
     }

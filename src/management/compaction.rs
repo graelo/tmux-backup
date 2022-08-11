@@ -1,12 +1,12 @@
-//! Compaction allows to keep the number of backup files under control.
+//! Allows to keep the number of backup files under control.
 
 use std::fmt;
 
-use super::backup::Backup;
+use super::backup::{Backup, BackupStatus};
 
 /// Backups compaction strategy.
 ///
-/// Determines if a backup should be kept or deleted.
+/// Determines if a backup can be kept (retainable) or deleted (disposable).
 #[derive(Debug, Clone)]
 pub enum Strategy {
     /// Keep the `k` most recent backups.
@@ -40,9 +40,22 @@ impl Strategy {
                 let index = std::cmp::max(0, backup_files.len() - k);
                 let (outdated_backups, recent_backups) = backup_files.split_at(index);
 
+                let mut statuses = vec![];
+                statuses.extend(
+                    outdated_backups
+                        .iter()
+                        .map(|backup| (backup, BackupStatus::Disposable)),
+                );
+                statuses.extend(
+                    recent_backups
+                        .iter()
+                        .map(|backup| (backup, BackupStatus::Retainable)),
+                );
+
                 Plan {
                     disposable: outdated_backups,
                     retainable: recent_backups,
+                    statuses,
                 }
             }
 
@@ -64,9 +77,12 @@ impl fmt::Display for Strategy {
 
 /// Describes what the strategy would do.
 pub struct Plan<'a> {
-    /// List of backup files to delete.
+    /// List of backup files that should be deleted.
     pub disposable: &'a [Backup],
 
-    /// List of backup files to keep.
+    /// List of backup files that should be kept.
     pub retainable: &'a [Backup],
+
+    /// Sorted list of backup files along with their status (disposable/retainable).
+    pub statuses: Vec<(&'a Backup, BackupStatus)>,
 }

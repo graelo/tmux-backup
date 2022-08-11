@@ -95,6 +95,7 @@ impl Catalog {
         let Plan {
             disposable,
             retainable: _retainable,
+            ..
         } = self.plan();
 
         let n = disposable.len();
@@ -135,19 +136,16 @@ impl Catalog {
     ///
     /// but this is slower because it needs to read partially each backup file.
     pub async fn list(&self, status: Option<BackupStatus>, details_flag: bool) {
-        let Plan {
-            disposable,
-            retainable,
-        } = self.plan();
-
         if let Some(status) = status {
             match status {
                 BackupStatus::Disposable => {
+                    let Plan { disposable, .. } = self.plan();
                     for backup in disposable.iter() {
                         println!("{}", backup.filepath.to_string_lossy());
                     }
                 }
                 BackupStatus::Retainable => {
+                    let Plan { retainable, .. } = self.plan();
                     for backup in retainable.iter() {
                         println!("{}", backup.filepath.to_string_lossy());
                     }
@@ -157,80 +155,54 @@ impl Catalog {
             println!("Strategy: {}", &self.strategy);
             println!("Location: `{}`\n", self.dirpath.to_string_lossy());
 
+            let Plan {
+                disposable,
+                retainable,
+                statuses,
+            } = self.plan();
+
+            let now = Local::now().naive_local();
+
             let reset = "\u{001b}[0m";
             let yellow = "\u{001b}[33m";
             let green = "\u{001b}[32m";
 
-            let n_retainable = retainable.len();
-            let n_disposable = disposable.len();
-
-            let now = Local::now().naive_local();
-
             if details_flag {
                 println!(
-                    "{:4} {:32} {:20} {:12} {:8} {:8}",
+                    "{:4} {:32} {:17} {:12} {:8} {:8}",
                     "", "NAME", "CREATED", "STATUS", "VERSION", "CONTENT"
                 );
             } else {
-                println!("{:4} {:32} {:20} {:6}", "", "NAME", "CREATED", "STATUS");
+                println!("{:4} {:32} {:17} {:6}", "", "NAME", "CREATED", "STATUS");
             }
 
-            let iter = RangeInclusive::new(n_retainable + 1, n_retainable + n_disposable)
-                .into_iter()
-                .rev();
-            for (index, backup) in std::iter::zip(iter, disposable) {
+            let iter = RangeInclusive::new(1, statuses.len()).into_iter().rev();
+
+            for (index, (backup, status)) in std::iter::zip(iter, statuses) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
+                let color = match status {
+                    BackupStatus::Disposable => yellow,
+                    BackupStatus::Retainable => green,
+                };
+                let status_str = match status {
+                    BackupStatus::Disposable => "disposable",
+                    BackupStatus::Retainable => "retainable",
+                };
+                let time_ago = Self::time_ago(now, backup.creation_date);
+
                 if details_flag {
                     let metadata = v1::read_metadata(&backup.filepath)
                         .await
                         .expect("Cannot read backup");
                     let overview = metadata.overview();
+                    let version = &metadata.version;
 
                     println!(
-                        "{:3}. {yellow}{:32}{reset} {:20} {yellow}{:12}{reset} {:8} {:8}",
-                        index,
-                        filename,
-                        Self::time_ago(now, backup.creation_date),
-                        "disposable",
-                        overview.version,
-                        overview,
+                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:12}{reset} {version:8} {overview:8}"
                     );
                 } else {
                     println!(
-                        "{:3}. {yellow}{:32}{reset} {:20} {yellow}{:6}{reset}",
-                        index,
-                        filename,
-                        Self::time_ago(now, backup.creation_date),
-                        "disposable",
-                    );
-                }
-            }
-
-            let iter = RangeInclusive::new(1, n_retainable).into_iter().rev();
-            for (index, backup) in std::iter::zip(iter, retainable) {
-                let filename = backup.filepath.file_name().unwrap().to_string_lossy();
-                if details_flag {
-                    let metadata = v1::read_metadata(&backup.filepath)
-                        .await
-                        .expect("Cannot read backup");
-                    let overview = metadata.overview();
-
-                    println!(
-                        "{:3}. {green}{:32}{reset} {:20} {green}{:12}{reset} {:8} {:8}",
-                        index,
-                        filename,
-                        Self::time_ago(now, backup.creation_date),
-                        "retainable",
-                        overview.version,
-                        overview,
-                    );
-                } else {
-                    println!(
-                        "{:3}. {green}{:32}{reset} {:20} {green}{:6}{reset}",
-                        index,
-                        filename,
-                        Self::time_ago(now, backup.creation_date),
-                        "retainable",
+                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:6}{reset}"
                     );
                 }
             }
