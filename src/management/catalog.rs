@@ -121,7 +121,10 @@ impl Catalog {
     ///
     /// This is usually the most recent backup.
     pub fn current(&self) -> Option<&Backup> {
-        self.backups.last()
+        match self.strategy {
+            Strategy::KeepMostRecent { .. } => self.backups.last(),
+            Strategy::Classic => unimplemented!(),
+        }
     }
 
     /// Simulate the compaction strategy: list the backup files to delete, and the ones to keep.

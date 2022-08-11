@@ -46,10 +46,7 @@ impl Strategy {
                 }
             }
 
-            Strategy::Classic => Plan {
-                disposable: backup_files,
-                retainable: backup_files,
-            },
+            Strategy::Classic => unimplemented!(),
         }
     }
 }
