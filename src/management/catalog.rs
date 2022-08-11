@@ -33,12 +33,12 @@ pub enum BackupStatus {
     Disposable,
 }
 
-/// Describes the number of sessions, windows and panes in a backup.
+/// Details such as the number of sessions, windows and panes in a backup.
 ///
 /// These counts are displayed after the commands such as `save`, `restore`, or
 /// `catalog list --details`.
 #[derive(Debug)]
-pub struct BackupOverview {
+pub struct BackupDetails {
     /// Format version of the backup.
     pub version: String,
 
@@ -52,7 +52,7 @@ pub struct BackupOverview {
     pub num_panes: u16,
 }
 
-impl fmt::Display for BackupOverview {
+impl fmt::Display for BackupDetails {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!(
             "{} sessions ({} windows, {} panes)",
@@ -225,20 +225,20 @@ impl Catalog {
                     let archive = v1::Archive::read_file(&backup.filepath)
                         .await
                         .expect("Cannot read archive");
-                    let overview = archive.overview();
+                    let details = archive.backup_details();
 
                     println!(
-                        "{:3}. {yellow}{:32}{reset} {:20} {:12} {:8} {:8}",
+                        "{:3}. {yellow}{:32}{reset} {:20} {yellow}{:12}{reset} {:8} {:8}",
                         index,
                         filename,
                         Self::time_ago(now, backup.creation_date),
                         "disposable",
-                        overview.version,
-                        overview,
+                        details.version,
+                        details,
                     );
                 } else {
                     println!(
-                        "{:3}. {yellow}{:32}{reset} {:20} {:6}",
+                        "{:3}. {yellow}{:32}{reset} {:20} {yellow}{:6}{reset}",
                         index,
                         filename,
                         Self::time_ago(now, backup.creation_date),
@@ -254,20 +254,20 @@ impl Catalog {
                     let archive = v1::Archive::read_file(&backup.filepath)
                         .await
                         .expect("Cannot read archive");
-                    let overview = archive.overview();
+                    let details = archive.backup_details();
 
                     println!(
-                        "{:3}. {green}{:32}{reset} {:20} {:12} {:8} {:8}",
+                        "{:3}. {green}{:32}{reset} {:20} {green}{:12}{reset} {:8} {:8}",
                         index,
                         filename,
                         Self::time_ago(now, backup.creation_date),
                         "retainable",
-                        overview.version,
-                        overview,
+                        details.version,
+                        details,
                     );
                 } else {
                     println!(
-                        "{:3}. {green}{:32}{reset} {:20} {:6}",
+                        "{:3}. {green}{:32}{reset} {:20} {green}{:6}{reset}",
                         index,
                         filename,
                         Self::time_ago(now, backup.creation_date),
@@ -283,15 +283,6 @@ impl Catalog {
                 disposable.len(),
             );
         }
-    }
-
-    pub async fn describe<P>(&self, backup_filepath: P) -> Result<()>
-    where
-        P: AsRef<Path>,
-    {
-        let archive = v1::Archive::read_file(backup_filepath).await?;
-        println!("{}", archive.full_description());
-        Ok(())
     }
 }
 

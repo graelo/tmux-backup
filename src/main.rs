@@ -8,7 +8,7 @@ use clap_complete::generate;
 use tmux_revive::{
     actions::save,
     config::{CatalogSubcommand, Command, Config},
-    management::catalog::Catalog,
+    management::{archive::v1, catalog::Catalog},
     tmux,
 };
 
@@ -34,9 +34,6 @@ async fn run(config: Config) {
                 backup_status,
                 details_flag,
             } => catalog.list(backup_status, details_flag).await,
-            CatalogSubcommand::Describe { backup_filepath } => {
-                catalog.describe(backup_filepath).await.unwrap()
-            }
             CatalogSubcommand::Compact => match catalog.compact().await {
                 Ok(n) => {
                     let message = format!("✅ deleted {n} outdated backups");
@@ -49,9 +46,13 @@ async fn run(config: Config) {
             },
         },
 
+        Command::Describe { backup_filepath } => {
+            v1::Archive::describe(backup_filepath).await.unwrap()
+        }
+
         Command::Save { to_tmux, compact } => {
             match save(&catalog.dirpath).await {
-                Ok((backup_filepath, backup_overview)) => {
+                Ok((backup_filepath, backup_details)) => {
                     if compact {
                         // In practice this should never fail: write to the catalog already ensures
                         // the catalog's dirpath is writable.
@@ -64,7 +65,7 @@ async fn run(config: Config) {
                             .expect("Success saving but could not compact");
                     }
                     let message = format!(
-                        "✅ {backup_overview}, persisted to `{}`",
+                        "✅ {backup_details}, persisted to `{}`",
                         backup_filepath.to_string_lossy()
                     );
                     success_message(message, to_tmux);

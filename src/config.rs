@@ -16,7 +16,7 @@ pub enum CatalogSubcommand {
     /// If `--only disposable` or `--only retainable` are passed, print the
     /// corresponding list, otherwise print all backups in colored output.
     List {
-        /// List only backups in this status.
+        /// List only backups having this status.
         #[clap(long = "only", value_enum, value_parser)]
         backup_status: Option<BackupStatus>,
 
@@ -27,13 +27,7 @@ pub enum CatalogSubcommand {
         #[clap(long = "details", action = ArgAction::SetTrue)]
         details_flag: bool,
     },
-    /// Describe the content of a backup file.
-    Describe {
-        /// Path to the backup file.
-        #[clap(value_parser, value_hint = ValueHint::FilePath)]
-        backup_filepath: PathBuf,
-    },
-    /// Delete outdated backups by applying the catalog's compaction strategy.
+    /// Delete disposable backups by applying the catalog's compaction strategy.
     Compact,
 }
 
@@ -46,12 +40,11 @@ pub enum Command {
     /// backup folder. In that folder, the backup name is expected to be similar to
     /// `backup-20220531T123456.tar.zst`.
     ///
-    /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to display
-    /// the one-line overview in the Tmux status bar. Otherwise, if you run it from the terminal,
-    /// ignore this flag in order to print the overview in the terminal.
+    /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to send a
+    /// one-line report to the Tmux status bar. If you run this command from the terminal, ignore
+    /// this flag in order to print the one-line report in the terminal.
     Save {
-        /// Send an overview (num. sessions, etc.) to the Tmux status bar, otherwise print to
-        /// stdout.
+        /// Print a one-line report in the Tmux status bar, otherwise print to stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
 
@@ -66,21 +59,27 @@ pub enum Command {
     /// (often the most recent backup) inside the backup folder. In that folder, the backup name is
     /// expected to be similar to `backup-20220531T123456.tar.zst`.
     ///
-    /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to display
-    /// the one-line overview in the Tmux status bar. Otherwise, if you run it from the terminal,
-    /// ignore this flag in order to print the overview in the terminal.
+    /// If you run this command via a Tmux keybinding, use the `--to-tmux` flag in order to send a
+    /// one-line report to the Tmux status bar. If you run this command from the terminal, ignore
+    /// this flag in order to print the one-line report in the terminal.
     Restore {
-        /// Send an overview (num. sessions, etc.) to the Tmux status bar, otherwise print to
-        /// stdout.
+        /// Print a one-line report in the Tmux status bar, otherwise print to stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
     },
 
-    /// Operations on the catalog of backups.
+    /// Catalog commands.
     Catalog {
-        /// List the backups in the catalog, indicating the disposable ones.
+        /// Catalog commands.
         #[clap(subcommand)]
         command: CatalogSubcommand,
+    },
+
+    /// Describe the content of a backup file.
+    Describe {
+        /// Path to the backup file.
+        #[clap(value_parser, value_hint = ValueHint::FilePath)]
+        backup_filepath: PathBuf,
     },
 
     /// Print a shell completion script to stdout.

@@ -7,7 +7,7 @@ use anyhow::Result;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-use crate::management::catalog::BackupOverview;
+use crate::management::catalog::BackupDetails;
 use crate::tmux;
 
 /// Version of the archive format.
@@ -80,8 +80,8 @@ impl Archive {
         Ok(Archive { version, metadata })
     }
 
-    pub fn overview(&self) -> BackupOverview {
-        BackupOverview {
+    pub fn backup_details(&self) -> BackupDetails {
+        BackupDetails {
             version: self.version.clone(),
             num_sessions: self.metadata.sessions.len() as u16,
             num_windows: self.metadata.windows.len() as u16,
@@ -89,8 +89,16 @@ impl Archive {
         }
     }
 
-    pub fn full_description(&self) -> String {
-        "full description of the archive with session names".into()
+    pub async fn describe<P>(backup_filepath: P) -> Result<()>
+    where
+        P: AsRef<Path>,
+    {
+        let archive = Archive::read_file(backup_filepath).await?;
+        let details = archive.backup_details();
+
+        println!("full details {details}");
+
+        Ok(())
     }
 }
 
