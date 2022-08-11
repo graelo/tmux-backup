@@ -19,6 +19,13 @@ pub enum CatalogSubcommand {
         /// List only backups in this status.
         #[clap(long = "only", value_enum, value_parser)]
         backup_status: Option<BackupStatus>,
+
+        /// Print additional details (slower)
+        ///
+        /// Print number of sessions, windows and panes in the backup and the backup's format
+        /// version. This requires each backup file to be partially read.
+        #[clap(long = "details", action = ArgAction::SetTrue)]
+        details_flag: bool,
     },
     /// Describe the content of a backup file.
     Describe {

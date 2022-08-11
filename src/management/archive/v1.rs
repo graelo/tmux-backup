@@ -57,26 +57,21 @@ impl Archive {
         let mut version = String::new();
         version.reserve(4);
 
-        let n_bytes = tar
-            .entries()?
-            .filter_map(|e| e.ok())
-            .find(|entry| entry.path().unwrap().to_string_lossy() == VERSION_FILENAME)
-            .map(|mut entry| entry.read_to_string(&mut version));
-
-        if n_bytes.is_none() {
-            return Err(anyhow::anyhow!("Could not read version"));
-        }
-
         let mut bytes = vec![];
         bytes.reserve(8 * 1024);
 
-        let n_bytes = tar
-            .entries()?
-            .filter_map(|e| e.ok())
-            .find(|entry| entry.path().unwrap().to_string_lossy() == METADATA_FILENAME)
-            .map(|mut entry| entry.read_to_end(&mut bytes));
+        for mut entry in tar.entries()?.flatten() {
+            if entry.path().unwrap().to_string_lossy() == VERSION_FILENAME {
+                entry.read_to_string(&mut version)?;
+            } else if entry.path().unwrap().to_string_lossy() == METADATA_FILENAME {
+                entry.read_to_end(&mut bytes)?;
+            }
+        }
 
-        if n_bytes.is_none() {
+        if version.is_empty() {
+            return Err(anyhow::anyhow!("Could not read the format version"));
+        }
+        if bytes.is_empty() {
             return Err(anyhow::anyhow!("Could not read metadata"));
         }
 
@@ -123,7 +118,7 @@ pub fn create_from_paths<P: AsRef<Path>>(
     let enc = zstd::stream::write::Encoder::new(archive, 0)?.auto_finish();
     let mut tar = tar::Builder::new(enc);
 
-    tar.append_path_with_name(version_filepath, "VERSION_FILENAME")?;
+    tar.append_path_with_name(version_filepath, VERSION_FILENAME)?;
     tar.append_path_with_name(metadata_filepath.as_ref(), METADATA_FILENAME)?;
     tar.append_dir_all(PANES_DIR_NAME, panes_content_dir.as_ref())?;
     tar.finish()?;

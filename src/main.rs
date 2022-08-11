@@ -30,7 +30,10 @@ async fn run(config: Config) {
 
     match config.command {
         Command::Catalog { command } => match command {
-            CatalogSubcommand::List { backup_status } => catalog.list(backup_status),
+            CatalogSubcommand::List {
+                backup_status,
+                details_flag,
+            } => catalog.list(backup_status, details_flag).await,
             CatalogSubcommand::Describe { backup_filepath } => {
                 catalog.describe(backup_filepath).await.unwrap()
             }

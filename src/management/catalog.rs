@@ -167,7 +167,15 @@ impl Catalog {
     /// If a specific backup status is passed (`status` is `Some(..)`), then the function prints
     /// only the absolute paths of the corresponding backups, otherwise it prints a
     /// Docker/Podman-like table.
-    pub fn list(&self, status: Option<BackupStatus>) {
+    ///
+    /// If the `details_flag` is `true`, the function prints additional details:
+    ///
+    /// - number of sessions
+    /// - number of windows
+    /// - number of panes
+    /// - version of the archive's format
+    ///
+    pub async fn list(&self, status: Option<BackupStatus>, details_flag: bool) {
         let Plan {
             disposable,
             retainable,
@@ -199,32 +207,73 @@ impl Catalog {
 
             let now = Local::now().naive_local();
 
-            println!("{:4} {:32} {:24} {:6}", "", "NAME", "CREATED", "STATUS");
+            if details_flag {
+                println!(
+                    "{:4} {:32} {:20} {:12} {:8} {:8}",
+                    "", "NAME", "CREATED", "STATUS", "VERSION", "CONTENT"
+                );
+            } else {
+                println!("{:4} {:32} {:20} {:6}", "", "NAME", "CREATED", "STATUS");
+            }
 
             let iter = RangeInclusive::new(n_retainable + 1, n_retainable + n_disposable)
                 .into_iter()
                 .rev();
             for (index, backup) in std::iter::zip(iter, disposable) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
-                println!(
-                    "{:3}. {yellow}{:32}{reset} {:24} {:6}",
-                    index,
-                    filename,
-                    Self::time_ago(now, backup.creation_date),
-                    "disposable",
-                );
+                if details_flag {
+                    let archive = v1::Archive::read_file(&backup.filepath)
+                        .await
+                        .expect("Cannot read archive");
+                    let overview = archive.overview();
+
+                    println!(
+                        "{:3}. {yellow}{:32}{reset} {:20} {:12} {:8} {:8}",
+                        index,
+                        filename,
+                        Self::time_ago(now, backup.creation_date),
+                        "disposable",
+                        overview.version,
+                        overview,
+                    );
+                } else {
+                    println!(
+                        "{:3}. {yellow}{:32}{reset} {:20} {:6}",
+                        index,
+                        filename,
+                        Self::time_ago(now, backup.creation_date),
+                        "disposable",
+                    );
+                }
             }
 
             let iter = RangeInclusive::new(1, n_retainable).into_iter().rev();
             for (index, backup) in std::iter::zip(iter, retainable) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
-                println!(
-                    "{:3}. {green}{:32}{reset} {:24} {:6}",
-                    index,
-                    filename,
-                    Self::time_ago(now, backup.creation_date),
-                    "retainable",
-                );
+                if details_flag {
+                    let archive = v1::Archive::read_file(&backup.filepath)
+                        .await
+                        .expect("Cannot read archive");
+                    let overview = archive.overview();
+
+                    println!(
+                        "{:3}. {green}{:32}{reset} {:20} {:12} {:8} {:8}",
+                        index,
+                        filename,
+                        Self::time_ago(now, backup.creation_date),
+                        "retainable",
+                        overview.version,
+                        overview,
+                    );
+                } else {
+                    println!(
+                        "{:3}. {green}{:32}{reset} {:20} {:6}",
+                        index,
+                        filename,
+                        Self::time_ago(now, backup.creation_date),
+                        "retainable",
+                    );
+                }
             }
 
             println!(
