@@ -11,7 +11,7 @@ use super::pane_id::PaneId;
 use crate::error;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Pane {
     /// Pane identifier, e.g. `%37`.
     pub id: PaneId,

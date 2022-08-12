@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::error;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PaneId(pub String);
 
 impl FromStr for PaneId {

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ParseError;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionId(String);
 
 impl FromStr for SessionId {

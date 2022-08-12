@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use super::window_id::WindowId;
 use crate::error::ParseError;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Window {
     /// Window identifier, e.g. `@3`.
     pub id: WindowId,

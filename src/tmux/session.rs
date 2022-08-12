@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use super::session_id::SessionId;
 use crate::error::ParseError;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Session {
     /// Session identifier, e.g. `$3`.
     pub id: SessionId,
