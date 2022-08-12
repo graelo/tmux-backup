@@ -13,6 +13,7 @@ use clap::ValueEnum;
 ///
 /// This is sufficient for the [`Catalog`](crate::management::catalog::Catalog) to list backups
 /// and decide whether or not a backup should be deleted or kept.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Backup {
     /// Path to the backup file.
     pub filepath: PathBuf,

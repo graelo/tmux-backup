@@ -81,14 +81,11 @@ impl Catalog {
         self.backups.is_empty()
     }
 
-    /// Filepath of the current backup.
+    /// Filepath of the most recent backup.
     ///
-    /// This is usually the most recent backup.
+    /// Because backups are sorted from oldest to most recent, both strategies agree on this.
     pub fn latest(&self) -> Option<&Backup> {
-        match self.strategy {
-            Strategy::KeepMostRecent { .. } => self.backups.last(),
-            Strategy::Classic => unimplemented!(),
-        }
+        self.backups.last()
     }
 
     /// Simulate the compaction strategy: list the backup files to delete, and the ones to keep.
@@ -250,7 +247,7 @@ impl Catalog {
             return "1 minute ago".into();
         }
 
-        return format!("{} seconds ago", duration_secs);
+        format!("{} seconds ago", duration_secs)
     }
 
     async fn full_list(&self, details_flag: bool) {

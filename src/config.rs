@@ -117,8 +117,13 @@ pub struct Config {
     )]
     strategy_most_recent: Option<u16>,
 
-    /// Apply a classic backup strategy (keep last hour, then last day, then last week, then last
-    /// month).
+    /// Apply a classic backup strategy.
+    ///
+    /// Keep
+    /// the lastest per hour for the past 24 hours,
+    /// the lastest per day for the past 7 days,
+    /// the lastest per week of the past 4 weeks,
+    /// the lastest per month of this year.
     #[clap(
         group = "strategy",
         short = 'l',
