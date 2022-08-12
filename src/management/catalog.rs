@@ -1,12 +1,14 @@
 //! Catalog of all backups.
 
+use std::iter;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use async_std::fs;
 use async_std::stream::StreamExt;
+use async_std::{fs, task};
 use chrono::{Duration, Local, NaiveDateTime};
+use futures::future::join_all;
 use regex::Regex;
 
 use crate::management::{
@@ -35,7 +37,8 @@ impl Catalog {
     /// # Notes
     ///
     /// - The folder is created if missing.
-    /// - The catalog only manages backup files such as `backup-20220804T221153.tar.zst`.
+    /// - The catalog only manages backup files such as `backup-20220804T221153.tar.zst`, other
+    /// files are simply ignored (and in principle, should not be present).
     pub async fn new<P: AsRef<Path>>(dirpath: P, strategy: Strategy) -> Result<Catalog> {
         fs::create_dir_all(dirpath.as_ref()).await?;
 
@@ -167,6 +170,7 @@ impl Catalog {
             let yellow = "\u{001b}[33m";
             let green = "\u{001b}[32m";
 
+            // Table header
             if details_flag {
                 println!(
                     "{:4} {:32} {:17} {:12} {:8} {:8}",
@@ -176,31 +180,56 @@ impl Catalog {
                 println!("{:4} {:32} {:17} {:6}", "", "NAME", "CREATED", "STATUS");
             }
 
-            let iter = RangeInclusive::new(1, statuses.len()).into_iter().rev();
+            // 45, 44, ..., 1
+            let indices = RangeInclusive::new(1, statuses.len()).into_iter().rev();
 
-            for (index, (backup, status)) in std::iter::zip(iter, statuses) {
-                let filename = backup.filepath.file_name().unwrap().to_string_lossy();
-                let color = match status {
-                    BackupStatus::Disposable => yellow,
-                    BackupStatus::Retainable => green,
-                };
-                let status_str = match status {
-                    BackupStatus::Disposable => "disposable",
-                    BackupStatus::Retainable => "retainable",
-                };
-                let time_ago = Self::time_ago(now, backup.creation_date);
+            if details_flag {
+                // Read all metadata concurrently
+                let tasks: Vec<_> = statuses
+                    .iter()
+                    .map(|&(backup, _)| {
+                        let backup_filepath = backup.filepath.clone();
+                        task::spawn(async move { v1::read_metadata(backup_filepath).await })
+                    })
+                    .collect();
+                let metadatas: Result<Vec<_>, _> = join_all(tasks).await.into_iter().collect();
+                let metadatas = metadatas.expect("Cannot read metadata files");
 
-                if details_flag {
-                    let metadata = v1::read_metadata(&backup.filepath)
-                        .await
-                        .expect("Cannot read backup");
+                // Build & print table rows
+                for (index, ((backup, status), metadata)) in
+                    iter::zip(indices, iter::zip(statuses, metadatas))
+                {
+                    let filename = backup.filepath.file_name().unwrap().to_string_lossy();
+                    let color = match status {
+                        BackupStatus::Disposable => yellow,
+                        BackupStatus::Retainable => green,
+                    };
+                    let status_str = match status {
+                        BackupStatus::Disposable => "disposable",
+                        BackupStatus::Retainable => "retainable",
+                    };
+                    let time_ago = Self::time_ago(now, backup.creation_date);
+
                     let overview = metadata.overview();
                     let version = &metadata.version;
 
                     println!(
                         "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:12}{reset} {version:8} {overview:8}"
                     );
-                } else {
+                }
+            } else {
+                for (index, (backup, status)) in iter::zip(indices, statuses) {
+                    let filename = backup.filepath.file_name().unwrap().to_string_lossy();
+                    let color = match status {
+                        BackupStatus::Disposable => yellow,
+                        BackupStatus::Retainable => green,
+                    };
+                    let status_str = match status {
+                        BackupStatus::Disposable => "disposable",
+                        BackupStatus::Retainable => "retainable",
+                    };
+                    let time_ago = Self::time_ago(now, backup.creation_date);
+
                     println!(
                         "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:6}{reset}"
                     );
