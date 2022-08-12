@@ -53,7 +53,9 @@ impl Catalog {
         Ok(catalog)
     }
 
-    /// Update the catalog's list of backups with current content of `dirpath`.
+    /// Update the catalog's list of backups with the current content of `dirpath`.
+    ///
+    /// This returns a new catalog with the updated content.
     pub async fn refresh(self) -> Result<Catalog> {
         let backups = Self::parse_backup_filenames(self.dirpath.as_path()).await?;
         Ok(Catalog {
@@ -63,21 +65,26 @@ impl Catalog {
         })
     }
 
-    /// Update the catalog's list of backups with current content of `dirpath`.
+    /// Update the catalog's list of backups with the current content of `dirpath`.
     pub async fn refresh_mut(&mut self) -> Result<()> {
         self.backups = Self::parse_backup_filenames(self.dirpath.as_path()).await?;
         Ok(())
     }
 
     /// Total number of backups in the catalog.
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.backups.len()
+    }
+
+    /// Return `true` if the catalog has no backups.
+    pub fn is_empty(&self) -> bool {
+        self.backups.is_empty()
     }
 
     /// Filepath of the current backup.
     ///
     /// This is usually the most recent backup.
-    pub fn current(&self) -> Option<&Backup> {
+    pub fn latest(&self) -> Option<&Backup> {
         match self.strategy {
             Strategy::KeepMostRecent { .. } => self.backups.last(),
             Strategy::Classic => unimplemented!(),
@@ -330,7 +337,7 @@ impl Catalog {
 
         println!(
             "\n{} backups: {} retainable, {} disposable",
-            self.size(),
+            self.len(),
             retainable.len(),
             disposable.len(),
         );
