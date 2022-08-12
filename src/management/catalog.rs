@@ -129,7 +129,7 @@ impl Catalog {
     /// only the absolute paths of the corresponding backups, otherwise it prints a
     /// Docker/Podman-like table.
     ///
-    /// If the `details_flag` is `true`, the function prints an overview of the content of the
+    /// If `details_flag` is `true`, the function prints an overview of the content of the
     /// backup:
     ///
     /// - version of the archive's format
@@ -155,93 +155,7 @@ impl Catalog {
                 }
             }
         } else {
-            println!("Strategy: {}", &self.strategy);
-            println!("Location: `{}`\n", self.dirpath.to_string_lossy());
-
-            let Plan {
-                disposable,
-                retainable,
-                statuses,
-            } = self.plan();
-
-            let now = Local::now().naive_local();
-
-            let reset = "\u{001b}[0m";
-            let yellow = "\u{001b}[33m";
-            let green = "\u{001b}[32m";
-
-            // Table header
-            if details_flag {
-                println!(
-                    "{:4} {:32} {:17} {:12} {:8} {:8}",
-                    "", "NAME", "CREATED", "STATUS", "VERSION", "CONTENT"
-                );
-            } else {
-                println!("{:4} {:32} {:17} {:6}", "", "NAME", "CREATED", "STATUS");
-            }
-
-            // 45, 44, ..., 1
-            let indices = RangeInclusive::new(1, statuses.len()).into_iter().rev();
-
-            if details_flag {
-                // Read all metadata concurrently
-                let tasks: Vec<_> = statuses
-                    .iter()
-                    .map(|&(backup, _)| {
-                        let backup_filepath = backup.filepath.clone();
-                        task::spawn(async move { v1::read_metadata(backup_filepath).await })
-                    })
-                    .collect();
-                let metadatas: Result<Vec<_>, _> = join_all(tasks).await.into_iter().collect();
-                let metadatas = metadatas.expect("Cannot read metadata files");
-
-                // Build & print table rows
-                for (index, ((backup, status), metadata)) in
-                    iter::zip(indices, iter::zip(statuses, metadatas))
-                {
-                    let filename = backup.filepath.file_name().unwrap().to_string_lossy();
-                    let color = match status {
-                        BackupStatus::Disposable => yellow,
-                        BackupStatus::Retainable => green,
-                    };
-                    let status_str = match status {
-                        BackupStatus::Disposable => "disposable",
-                        BackupStatus::Retainable => "retainable",
-                    };
-                    let time_ago = Self::time_ago(now, backup.creation_date);
-
-                    let overview = metadata.overview();
-                    let version = &metadata.version;
-
-                    println!(
-                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:12}{reset} {version:8} {overview:8}"
-                    );
-                }
-            } else {
-                for (index, (backup, status)) in iter::zip(indices, statuses) {
-                    let filename = backup.filepath.file_name().unwrap().to_string_lossy();
-                    let color = match status {
-                        BackupStatus::Disposable => yellow,
-                        BackupStatus::Retainable => green,
-                    };
-                    let status_str = match status {
-                        BackupStatus::Disposable => "disposable",
-                        BackupStatus::Retainable => "retainable",
-                    };
-                    let time_ago = Self::time_ago(now, backup.creation_date);
-
-                    println!(
-                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:6}{reset}"
-                    );
-                }
-            }
-
-            println!(
-                "\n{} backups: {} retainable, {} disposable",
-                self.size(),
-                retainable.len(),
-                disposable.len(),
-            );
+            self.full_list(details_flag).await;
         }
     }
 }
@@ -330,5 +244,95 @@ impl Catalog {
         }
 
         return format!("{} seconds ago", duration_secs);
+    }
+
+    async fn full_list(&self, details_flag: bool) {
+        println!("Strategy: {}", &self.strategy);
+        println!("Location: `{}`\n", self.dirpath.to_string_lossy());
+
+        let Plan {
+            disposable,
+            retainable,
+            statuses,
+        } = self.plan();
+
+        let now = Local::now().naive_local();
+
+        let reset = "\u{001b}[0m";
+        let green = "\u{001b}[32m";
+        let yellow = "\u{001b}[33m";
+
+        // 45, 44, ..., 1
+        let indices = RangeInclusive::new(1, statuses.len()).into_iter().rev();
+
+        if details_flag {
+            // Table header
+            println!(
+                "{:4} {:32} {:17} {:12} {:8} {:8}",
+                "", "NAME", "CREATED", "STATUS", "VERSION", "CONTENT"
+            );
+
+            // Read all metadata concurrently
+            let tasks: Vec<_> = statuses
+                .iter()
+                .map(|&(backup, _)| {
+                    let backup_filepath = backup.filepath.clone();
+                    task::spawn(async move { v1::read_metadata(backup_filepath).await })
+                })
+                .collect();
+            let metadatas: Result<Vec<_>, _> = join_all(tasks).await.into_iter().collect();
+            let metadatas = metadatas.expect("Cannot read metadata files");
+
+            // Build & print table rows
+            for (index, ((backup, status), metadata)) in
+                iter::zip(indices, iter::zip(statuses, metadatas))
+            {
+                let filename = backup.filepath.file_name().unwrap().to_string_lossy();
+                let color = match status {
+                    BackupStatus::Disposable => yellow,
+                    BackupStatus::Retainable => green,
+                };
+                let status_str = match status {
+                    BackupStatus::Disposable => "disposable",
+                    BackupStatus::Retainable => "retainable",
+                };
+                let time_ago = Self::time_ago(now, backup.creation_date);
+
+                let overview = metadata.overview();
+                let version = &metadata.version;
+
+                println!(
+                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:12}{reset} {version:8} {overview:8}"
+                    );
+            }
+        } else {
+            // Table header
+            println!("{:4} {:32} {:17} {:6}", "", "NAME", "CREATED", "STATUS");
+
+            // Build & print table rows
+            for (index, (backup, status)) in iter::zip(indices, statuses) {
+                let filename = backup.filepath.file_name().unwrap().to_string_lossy();
+                let color = match status {
+                    BackupStatus::Disposable => yellow,
+                    BackupStatus::Retainable => green,
+                };
+                let status_str = match status {
+                    BackupStatus::Disposable => "disposable",
+                    BackupStatus::Retainable => "retainable",
+                };
+                let time_ago = Self::time_ago(now, backup.creation_date);
+
+                println!(
+                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:6}{reset}"
+                    );
+            }
+        }
+
+        println!(
+            "\n{} backups: {} retainable, {} disposable",
+            self.size(),
+            retainable.len(),
+            disposable.len(),
+        );
     }
 }
