@@ -299,17 +299,13 @@ impl Catalog {
                     BackupStatus::Disposable => yellow,
                     BackupStatus::Retainable => green,
                 };
-                let status_str = match status {
-                    BackupStatus::Disposable => "disposable",
-                    BackupStatus::Retainable => "retainable",
-                };
                 let time_ago = Self::time_ago(now, backup.creation_date);
 
                 let overview = metadata.overview();
                 let version = &metadata.version;
 
                 println!(
-                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:12}{reset} {version:8} {overview:8}"
+                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status:12}{reset} {version:8} {overview:8}"
                     );
             }
         } else {
@@ -323,15 +319,11 @@ impl Catalog {
                     BackupStatus::Disposable => yellow,
                     BackupStatus::Retainable => green,
                 };
-                let status_str = match status {
-                    BackupStatus::Disposable => "disposable",
-                    BackupStatus::Retainable => "retainable",
-                };
                 let time_ago = Self::time_ago(now, backup.creation_date);
 
                 println!(
-                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status_str:6}{reset}"
-                    );
+                    "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status:6}{reset}"
+                );
             }
         }
 
