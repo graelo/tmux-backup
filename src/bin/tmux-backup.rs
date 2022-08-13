@@ -5,7 +5,7 @@ use async_std::task;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
-use tmux_revive::{
+use tmux_backup::{
     actions::save,
     config::{CatalogSubcommand, Command, Config},
     management::{archive::v1, catalog::Catalog},

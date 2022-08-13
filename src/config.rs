@@ -112,8 +112,8 @@ pub enum Command {
 pub struct Config {
     /// Location of backups.
     ///
-    /// If unspecified, it falls back on: `$XDG_STATE_HOME/tmux-revive`, then on
-    /// `$HOME/.local/state/tmux-revive`.
+    /// If unspecified, it falls back on: `$XDG_STATE_HOME/tmux-backup`, then on
+    /// `$HOME/.local/state/tmux-backup`.
     #[clap(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath,
         default_value_os_t = default_backup_dirpath())]
     pub backup_dirpath: PathBuf,
@@ -124,7 +124,7 @@ pub struct Config {
         long="strategy-most-recent",
         value_name = "NUMBER",
         value_parser = clap::value_parser!(u16).range(1..),
-        env = "TMUX_REVIVE_STRATEGY_MOST_RECENT"
+        env = "TMUX_BACKUP_STRATEGY_MOST_RECENT"
     )]
     strategy_most_recent: Option<u16>,
 
@@ -140,7 +140,7 @@ pub struct Config {
         short = 'l',
         long = "strategy-classic",
         value_parser,
-        env = "TMUX_REVIVE_STRATEGY_CLASSIC"
+        env = "TMUX_BACKUP_STRATEGY_CLASSIC"
     )]
     strategy_classic: bool,
 
@@ -165,8 +165,8 @@ impl Config {
 }
 /// Determine the folder where to save backups.
 ///
-/// If `$XDG_STATE_HOME` is defined, the function returns `$XDG_STATE_HOME/tmux-revive`, otherwise,
-/// it returns `$HOME/.local/state/tmux-revive`.
+/// If `$XDG_STATE_HOME` is defined, the function returns `$XDG_STATE_HOME/tmux-backup`, otherwise,
+/// it returns `$HOME/.local/state/tmux-backup`.
 ///
 /// # Panics
 ///
@@ -180,5 +180,5 @@ fn default_backup_dirpath() -> PathBuf {
         },
     };
 
-    state_home.join("tmux-revive")
+    state_home.join("tmux-backup")
 }

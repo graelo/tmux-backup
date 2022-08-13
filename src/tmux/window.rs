@@ -48,7 +48,7 @@ impl FromStr for Window {
     /// @8:0:true:64f3,334x85,0,0,14:combine:swift
     /// @9:0:false:64f4,334x85,0,0,15:copyrat:tmux-hacking
     /// @10:1:false:ae3a,334x85,0,0[334x48,0,0,17,334x36,0,49{175x36,0,49,18,158x36,176,49,19}]:mytui-app:tmux-hacking
-    /// @11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:tmux-revive:tmux-hacking
+    /// @11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:tmux-backup:tmux-hacking
     /// ```
     ///
     /// This status line is obtained with
@@ -140,7 +140,7 @@ mod tests {
             "@8:0:true:64f3,334x85,0,0,14:combine:swift",
             "@9:0:false:64f4,334x85,0,0,15:copyrat:tmux-hacking",
             "@10:1:false:ae3a,334x85,0,0[334x48,0,0,17,334x36,0,49{175x36,0,49,18,158x36,176,49,19}]:mytui-app:tmux-hacking",
-            "@11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:tmux-revive:tmux-hacking",
+            "@11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:tmux-backup:tmux-hacking",
         ];
         let sessions: Result<Vec<Window>, error::ParseError> =
             output.iter().map(|&line| Window::from_str(line)).collect();
@@ -254,7 +254,7 @@ mod tests {
                 layout: String::from(
                     "e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}",
                 ),
-                name: String::from("tmux-revive"),
+                name: String::from("tmux-backup"),
                 sessions: vec![String::from("tmux-hacking")],
             },
         ];

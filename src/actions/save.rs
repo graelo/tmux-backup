@@ -21,7 +21,7 @@ use crate::{management::archive::v1, tmux};
 ///
 pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Overview)> {
     // Prepare the temp directory.
-    let temp_dirpath = env::temp_dir().join("tmux-revive");
+    let temp_dirpath = env::temp_dir().join("tmux-backup");
     fs::create_dir_all(&temp_dirpath).await?;
 
     // Save sessions & windows into `metadata.yaml` in the temp folder.

@@ -50,9 +50,9 @@ impl FromStr for Pane {
     /// The expected format of the tmux status is
     ///
     /// ```text
-    /// %20:0:false:175:85:0:174:0:84:rmbp:/Users/graelo/Travail/code/rust/tmux-revive:nvim
-    /// %21:1:true:158:42:176:333:0:41:rmbp:/Users/graelo/Travail/code/rust/tmux-revive:tmux
-    /// %27:2:false:158:42:176:333:43:84:rmbp:/Users/graelo/Travail/code/rust/tmux-revive:man
+    /// %20:0:false:175:85:0:174:0:84:rmbp:/Users/graelo/code/rust/tmux-backup:nvim
+    /// %21:1:true:158:42:176:333:0:41:rmbp:/Users/graelo/code/rust/tmux-backup:tmux
+    /// %27:2:false:158:42:176:333:43:84:rmbp:/Users/graelo/code/rust/tmux-backup:man
     /// ```
     ///
     /// This status line is obtained with
@@ -191,9 +191,9 @@ mod tests {
     #[test]
     fn parse_list_panes() {
         let output = vec![
-            "%20:0:false:175:85:0:174:0:84:rmbp:/Users/graelo/Travail/code/rust/tmux-revive:nvim",
-            "%21:1:true:158:42:176:333:0:41:rmbp:/Users/graelo/Travail/code/rust/tmux-revive:tmux",
-            "%27:2:false:158:42:176:333:43:84:rmbp:/Users/graelo/Travail/code/rust/tmux-revive:man",
+            "%20:0:false:175:85:0:174:0:84:rmbp:/Users/graelo/code/rust/tmux-backup:nvim",
+            "%21:1:true:158:42:176:333:0:41:rmbp:/Users/graelo/code/rust/tmux-backup:tmux",
+            "%27:2:false:158:42:176:333:43:84:rmbp:/Users/graelo/code/rust/tmux-backup:man",
         ];
         let panes: Result<Vec<Pane>, error::ParseError> =
             output.iter().map(|&line| Pane::from_str(line)).collect();
@@ -211,7 +211,7 @@ mod tests {
                 pos_top: 0,
                 pos_bottom: 84,
                 title: String::from("rmbp"),
-                path: PathBuf::from_str("/Users/graelo/Travail/code/rust/tmux-revive").unwrap(),
+                path: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
                 command: String::from("nvim"),
             },
             Pane {
@@ -225,7 +225,7 @@ mod tests {
                 pos_top: 0,
                 pos_bottom: 41,
                 title: String::from("rmbp"),
-                path: PathBuf::from_str("/Users/graelo/Travail/code/rust/tmux-revive").unwrap(),
+                path: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
                 command: String::from("tmux"),
             },
             Pane {
@@ -239,7 +239,7 @@ mod tests {
                 pos_top: 43,
                 pos_bottom: 84,
                 title: String::from("rmbp"),
-                path: PathBuf::from_str("/Users/graelo/Travail/code/rust/tmux-revive").unwrap(),
+                path: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
                 command: String::from("man"),
             },
         ];
