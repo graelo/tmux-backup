@@ -6,7 +6,7 @@ use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
 use tmux_backup::{
-    actions::save,
+    actions::{restore, save},
     config::{CatalogSubcommand, Command, Config},
     management::{archive::v1, catalog::Catalog},
     tmux,
@@ -81,7 +81,23 @@ async fn run(config: Config) {
             };
         }
 
-        Command::Restore { .. } => unimplemented!(),
+        Command::Restore { to_tmux } => match catalog.latest() {
+            Some(backup) => match restore(&backup.filepath).await {
+                Ok(overview) => {
+                    let message = format!(
+                        "✅ restored {overview} from `{}`",
+                        backup.filepath.to_string_lossy()
+                    );
+                    success_message(message, to_tmux)
+                }
+                Err(e) => {
+                    failure_message(format!("🛑 Could not save sessions: {}", e), to_tmux);
+                }
+            },
+            None => {
+                failure_message("🛑 No available backup to restore".to_string(), to_tmux);
+            }
+        },
 
         Command::GenerateCompletion { shell } => {
             let mut app = Config::command();
