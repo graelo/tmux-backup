@@ -94,7 +94,7 @@ pub enum Command {
     },
 
     /// Print a shell completion script to stdout.
-    Generate {
+    GenerateCompletion {
         /// Shell for which you want completion.
         #[clap(value_parser = clap::value_parser!(Shell))]
         shell: Shell,

@@ -83,7 +83,7 @@ async fn run(config: Config) {
 
         Command::Restore { .. } => unimplemented!(),
 
-        Command::Generate { shell } => {
+        Command::GenerateCompletion { shell } => {
             let mut app = Config::command();
             let name = app.get_name().to_string();
             generate(shell, &mut app, name, &mut std::io::stdout());
