@@ -57,6 +57,7 @@ impl Strategy {
     pub fn plan<'a>(&self, backups: &'a [Backup]) -> Plan<'a> {
         match self {
             Strategy::KeepMostRecent { k } => {
+                let k = std::cmp::min(backups.len(), *k);
                 let index = std::cmp::max(0, backups.len() - k);
                 let (outdated_backups, recent_backups) = backups.split_at(index);
 
