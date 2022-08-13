@@ -11,21 +11,32 @@ use crate::management::{backup::BackupStatus, compaction::Strategy};
 /// Catalog subcommands.
 #[derive(Debug, Subcommand)]
 pub enum CatalogSubcommand {
-    /// List backups in the catalog to stdout.
+    /// Print a list of backups to stdout.
     ///
-    /// If `--only disposable` or `--only retainable` are passed, print the corresponding list of
-    /// paths, otherwise print all backups in a table format.
+    /// By default, this prints a table of backups, age and status with colors. The flag `--details`
+    /// prints additional columns.
+    ///
+    /// If the flag `--filepaths` is set, only absolute filepaths are printed. This can be used in
+    /// scripting scenarios.
+    ///
+    /// Options `--only disposable` or `--only retainable` will list only the corresponding backups.
+    /// They will activate the flag `--filepaths` automatically.
     List {
-        /// List only backups having this status.
-        #[clap(long = "only", value_enum, value_parser)]
-        backup_status: Option<BackupStatus>,
-
-        /// Print additional details (slower)
+        /// Add details columns to the table.
         ///
         /// Print number of sessions, windows and panes in the backup and the backup's format
-        /// version. This requires each backup file to be partially read.
+        /// version. This is slightly slower because it requires each backup file to be partially
+        /// read.
         #[clap(long = "details", action = ArgAction::SetTrue)]
         details_flag: bool,
+
+        /// List only backups having this status.
+        #[clap(long = "only", value_enum, value_parser)]
+        only_backup_status: Option<BackupStatus>,
+
+        /// Print filepaths instead of the table format.
+        #[clap(long = "filepaths", action = ArgAction::SetTrue)]
+        filepaths_flag: bool,
     },
     /// Delete disposable backups by applying the catalog's compaction strategy.
     Compact,

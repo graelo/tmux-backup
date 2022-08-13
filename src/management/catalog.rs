@@ -129,37 +129,49 @@ impl Catalog {
 
     /// List backups.
     ///
-    /// If a specific backup status is passed (`status` is `Some(..)`), then the function prints
-    /// only the absolute paths of the corresponding backups, otherwise it prints a
-    /// Docker/Podman-like table.
-    ///
-    /// If `details_flag` is `true`, the function prints an overview of the content of the
-    /// backup:
+    /// By default, this prints a table of backups, age and status with colors. If `details_flag`
+    /// is `true`, the table has additional columns:
     ///
     /// - version of the archive's format
     /// - number of sessions
     /// - number of windows
     /// - number of panes
     ///
-    /// but this is slower because it needs to read partially each backup file.
-    pub async fn list(&self, status: Option<BackupStatus>, details_flag: bool) {
-        if let Some(status) = status {
-            match status {
-                BackupStatus::Disposable => {
+    /// but this requires to read partially each backup file.
+    ///
+    /// If `filepaths_flag` is `true`, only absolute filepaths are printed. This can be used in
+    /// scripting scenarios.
+    ///
+    /// If `only_status` is a `Some(..)`, this lists only the corresponding backup filepaths,
+    /// acting as if `filepaths_flag` is `true`.
+    pub async fn list(
+        &self,
+        details_flag: bool,
+        only_status: Option<BackupStatus>,
+        filepaths_flag: bool,
+    ) {
+        if filepaths_flag || only_status.is_some() {
+            match only_status {
+                Some(BackupStatus::Disposable) => {
                     let Plan { disposable, .. } = self.plan();
-                    for backup in disposable.iter() {
+                    for backup in disposable {
                         println!("{}", backup.filepath.to_string_lossy());
                     }
                 }
-                BackupStatus::Retainable => {
+                Some(BackupStatus::Retainable) => {
                     let Plan { retainable, .. } = self.plan();
-                    for backup in retainable.iter() {
+                    for backup in retainable {
+                        println!("{}", backup.filepath.to_string_lossy());
+                    }
+                }
+                None => {
+                    for backup in self.backups.iter() {
                         println!("{}", backup.filepath.to_string_lossy());
                     }
                 }
             }
         } else {
-            self.full_list(details_flag).await;
+            self.print_table(details_flag).await;
         }
     }
 }
@@ -250,7 +262,7 @@ impl Catalog {
         format!("{} seconds ago", duration_secs)
     }
 
-    async fn full_list(&self, details_flag: bool) {
+    async fn print_table(&self, details_flag: bool) {
         println!("Strategy: {}", &self.strategy);
         println!("Location: `{}`\n", self.dirpath.to_string_lossy());
 
