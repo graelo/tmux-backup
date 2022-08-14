@@ -81,23 +81,34 @@ async fn run(config: Config) {
             };
         }
 
-        Command::Restore { to_tmux } => match catalog.latest() {
-            Some(backup) => match restore(&backup.filepath).await {
+        Command::Restore {
+            to_tmux,
+            backup_filepath,
+        } => {
+            // Either the provided filepath, or catalog.latest(), or failure message
+            let backup_to_restore = {
+                if let Some(ref backup_filepath) = backup_filepath {
+                    backup_filepath.as_path()
+                } else if let Some(backup) = catalog.latest() {
+                    &backup.filepath
+                } else {
+                    failure_message("🛑 No available backup to restore".to_string(), to_tmux);
+                    return;
+                }
+            };
+            match restore(backup_to_restore).await {
                 Ok(overview) => {
                     let message = format!(
                         "✅ restored {overview} from `{}`",
-                        backup.filepath.to_string_lossy()
+                        backup_to_restore.to_string_lossy()
                     );
                     success_message(message, to_tmux)
                 }
                 Err(e) => {
-                    failure_message(format!("🛑 Could not save sessions: {}", e), to_tmux);
+                    failure_message(format!("🛑 Could not restore sessions: {}", e), to_tmux);
                 }
-            },
-            None => {
-                failure_message("🛑 No available backup to restore".to_string(), to_tmux);
             }
-        },
+        }
 
         Command::GenerateCompletion { shell } => {
             let mut app = Config::command();

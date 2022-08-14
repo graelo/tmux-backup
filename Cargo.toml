@@ -27,9 +27,7 @@ anyhow = "1"
 thiserror = "1"
 
 regex = "1.4"
-
-# waiting for https://doc.rust-lang.org/std/primitive.slice.html#method.group_by
-itertools = "0.10.3"
+itertools = "0.10.3" # waiting for https://doc.rust-lang.org/std/primitive.slice.html#method.group_by
 
 futures = "0.3"
 async-std = { version = "1", features = ["unstable"] }

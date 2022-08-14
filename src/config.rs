@@ -77,6 +77,10 @@ pub enum Command {
         /// Print a one-line report in the Tmux status bar, otherwise print to stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
+
+        /// Filepath of the backup to restore, by default, pick latest.
+        #[clap(value_parser)]
+        backup_filepath: Option<PathBuf>,
     },
 
     /// Catalog commands.

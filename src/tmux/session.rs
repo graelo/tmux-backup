@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use super::session_id::SessionId;
 use crate::error::ParseError;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Session {
     /// Session identifier, e.g. `$3`.
     pub id: SessionId,
@@ -48,8 +48,9 @@ impl FromStr for Session {
     /// definitions.
     fn from_str(src: &str) -> Result<Self, Self::Err> {
         let items: Vec<&str> = src.split(':').collect();
-        assert_eq!(items.len(), 3, "tmux should have returned 3 items per line");
-
+        if items.len() != 3 {
+            return Err(ParseError::UnexpectedOutput(src.into()));
+        }
         let mut iter = items.iter();
 
         // SessionId must be start with '%' followed by a `u32`
@@ -84,6 +85,27 @@ pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
         .collect();
 
     result
+}
+
+/// Create a Tmux session from a `Session` struct.
+pub async fn new_session(session: &Session) -> Result<(), ParseError> {
+    let args = vec![
+        "new-session",
+        "-d",
+        "-c",
+        session.dirpath.to_str().unwrap(),
+        "-s",
+        &session.name,
+    ];
+
+    let output = Command::new("tmux").args(&args).output().await?;
+    let buffer = String::from_utf8(output.stdout)?;
+
+    if !buffer.is_empty() {
+        return Err(ParseError::UnexpectedOutput(buffer));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
