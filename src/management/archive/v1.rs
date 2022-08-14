@@ -45,6 +45,7 @@ pub struct Metadata {
 }
 
 impl Metadata {
+    /// Return an overview of the metadata.
     pub fn overview(&self) -> Overview {
         Overview {
             version: self.version.clone(),
@@ -52,6 +53,18 @@ impl Metadata {
             num_windows: self.windows.len() as u16,
             num_panes: self.panes.len() as u16,
         }
+    }
+
+    /// Return the list of windows in the provided session.
+    pub fn windows_related_to(
+        &self,
+        session: &tmux::session::Session,
+    ) -> Vec<tmux::window::Window> {
+        self.windows
+            .iter()
+            .filter(|&w| w.sessions.contains(&session.name))
+            .cloned()
+            .collect()
     }
 }
 

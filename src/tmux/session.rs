@@ -88,7 +88,7 @@ pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
 }
 
 /// Create a Tmux session from a `Session` struct.
-pub async fn new_session(session: &Session) -> Result<(), ParseError> {
+pub async fn new_session(session: &Session, window_name: &str) -> Result<(), ParseError> {
     let args = vec![
         "new-session",
         "-d",
@@ -96,6 +96,8 @@ pub async fn new_session(session: &Session) -> Result<(), ParseError> {
         session.dirpath.to_str().unwrap(),
         "-s",
         &session.name,
+        "-n",
+        window_name,
     ];
 
     let output = Command::new("tmux").args(&args).output().await?;

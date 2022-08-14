@@ -3,19 +3,21 @@
 //! The main use cases are running Tmux commands & parsing Tmux window
 //! information.
 
-use async_std::process::Command;
+use std::path::Path;
 use std::str::FromStr;
+
+use async_std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
 use super::window_id::WindowId;
 use crate::error::ParseError;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Window {
     /// Window identifier, e.g. `@3`.
     pub id: WindowId,
-    /// Index of the Window.
+    /// Index of the Window in the Session.
     pub index: u16,
     /// Describes whether the Window is active.
     pub is_active: bool,
@@ -118,6 +120,34 @@ pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
         .collect();
 
     result
+}
+
+/// Create a Tmux window from a `Window` struct, with `working_dirpath`, in session named
+/// `session_name`.
+pub async fn new_window(
+    window: &Window,
+    working_dirpath: &Path,
+    session_name: &str,
+) -> Result<(), ParseError> {
+    let args = vec![
+        "new-window",
+        "-d",
+        "-c",
+        working_dirpath.to_str().unwrap(),
+        "-n",
+        &window.name,
+        "-t",
+        session_name,
+    ];
+
+    let output = Command::new("tmux").args(&args).output().await?;
+    let buffer = String::from_utf8(output.stdout)?;
+
+    if !buffer.is_empty() {
+        return Err(ParseError::UnexpectedOutput(buffer));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

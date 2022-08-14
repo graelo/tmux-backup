@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WindowId(String);
 
 impl FromStr for WindowId {
