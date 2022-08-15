@@ -11,11 +11,26 @@ use nom::{
 use crate::error::ParseError;
 
 #[derive(Debug, PartialEq, Eq)]
-struct WindowLayout {
+pub struct WindowLayout {
     /// 4-char hex id, such as `9f58`.
     id: u16,
     /// Container.
     container: Container,
+}
+
+impl WindowLayout {
+    /// Return a flat list of pane ids.
+    pub fn pane_ids(&self) -> Vec<u16> {
+        let mut acc: Vec<u16> = vec![];
+        acc.reserve(1);
+        self.walk(&mut acc);
+        acc
+    }
+
+    /// Walk the structure, searching for pane ids.
+    fn walk(&self, acc: &mut Vec<u16>) {
+        self.container.walk(acc);
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -26,6 +41,13 @@ struct Container {
     coordinates: Coordinates,
     /// Either a pane, or a horizontal or vertical split.
     element: Element,
+}
+
+impl Container {
+    /// Walk the structure, searching for pane ids.
+    fn walk(&self, acc: &mut Vec<u16>) {
+        self.element.walk(acc);
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -55,10 +77,31 @@ enum Element {
     Vertical(Split),
 }
 
+impl Element {
+    /// Walk the structure, searching for pane ids.
+    fn walk(&self, acc: &mut Vec<u16>) {
+        match self {
+            Self::Pane { pane_id } => acc.push(*pane_id),
+            Self::Horizontal(split) | Self::Vertical(split) => {
+                split.walk(acc);
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 struct Split {
     /// Embedded containers.
     elements: Vec<Container>,
+}
+
+impl Split {
+    /// Walk the structure, searching for pane ids.
+    fn walk(&self, acc: &mut Vec<u16>) {
+        for element in &self.elements {
+            element.walk(acc);
+        }
+    }
 }
 
 /// Parse the Tmux layout string description and return the pane-ids.
@@ -298,6 +341,16 @@ mod tests {
                 },
             },
         ));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_pane_ids() {
+        let input = "41e9,279x71,0,0[279x40,0,0,71,279x30,0,41{147x30,0,41,72,131x30,148,41,73}]";
+        let (_, layout) = window_layout(input).unwrap();
+
+        let actual = layout.pane_ids();
+        let expected = vec![71, 72, 73];
         assert_eq!(actual, expected);
     }
 }
