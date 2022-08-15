@@ -34,7 +34,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         }
 
         let session = session.clone();
-        let related_windows: Vec<_> = metadata.windows_related_to(&session);
+        let related_windows = metadata.windows_related_to(&session);
 
         let handle = task::spawn(async move { restore_session(session, related_windows).await });
         handles.push(handle);
@@ -47,11 +47,13 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
     Ok(metadata.overview())
 }
 
-/// Create the session and its windows.
+/// Create the session along with its windows and panes.
 ///
-/// The name of the session's first window is taken from the first `Window`. The remainder of
-/// windows are created in sequence, to preserve the order from the backup.
+/// The session is created with the first window in order to give it the right name. The remainder
+/// of windows are created in sequence, to preserve the order from the backup.
 async fn restore_session(session: Session, windows: Vec<Window>) -> Result<(), ParseError> {
+    // 1. Create the session and the windows (each has one empty pane).
+
     // A session is guaranteed to have at least one window.
     let first_window_name = windows.first().unwrap().name.as_str();
     tmux::session::new_session(&session, first_window_name).await?;
@@ -59,6 +61,8 @@ async fn restore_session(session: Session, windows: Vec<Window>) -> Result<(), P
     for window in windows.iter().skip(1) {
         tmux::window::new_window(window, session.dirpath.as_path(), &session.name).await?;
     }
+
+    // 2. Create panes in each window.
 
     Ok(())
 }

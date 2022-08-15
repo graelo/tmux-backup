@@ -4,3 +4,5 @@
 - restore windows
 - restore panes
 - add `restore --attach` to automatically attach if running from the terminal
+- in `restore()` gather the true metadata for displaying the overview, instead
+  of the metadata from the archive
