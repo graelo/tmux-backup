@@ -21,6 +21,12 @@ impl FromStr for PaneId {
     }
 }
 
+impl From<&u16> for PaneId {
+    fn from(value: &u16) -> Self {
+        Self(format!("%{value}"))
+    }
+}
+
 impl PaneId {
     pub fn as_str(&self) -> &str {
         &self.0

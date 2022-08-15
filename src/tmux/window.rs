@@ -11,7 +11,7 @@ use async_std::process::Command;
 use serde::{Deserialize, Serialize};
 
 use super::{pane_id::PaneId, window_id::WindowId};
-use crate::error::ParseError;
+use crate::{error::ParseError, tmux::layout};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Window {
@@ -90,6 +90,13 @@ impl FromStr for Window {
             name,
             sessions,
         })
+    }
+}
+
+impl Window {
+    pub fn pane_ids(&self) -> Vec<PaneId> {
+        let layout = layout::parse_window_layout(&self.layout).unwrap();
+        layout.pane_ids().iter().map(PaneId::from).collect()
     }
 }
 

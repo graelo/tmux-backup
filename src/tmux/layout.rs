@@ -104,14 +104,6 @@ impl Split {
 }
 
 /// Parse the Tmux layout string description and return the pane-ids.
-///
-/// # Example
-///
-/// ```rust
-/// let input = "9f58,479x110,0,0{273x110,0,0,74,205x110,274,0[205x42,274,0,75,205x42,274,43,85,205x24,274,86,84]}"
-/// let actual = parse_window_layout(input);
-/// let expected = Ok(WindowLayout{id: 40792, width: 479, height: 110, });
-/// ```
 pub fn parse_window_layout(input: &str) -> Result<WindowLayout, ParseError> {
     match window_layout(input) {
         Ok((remainder, layout)) => {
