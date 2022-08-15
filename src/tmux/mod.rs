@@ -1,5 +1,6 @@
 pub mod display;
 pub use display::display_message;
+pub mod layout;
 pub mod pane;
 pub mod pane_id;
 pub mod server;

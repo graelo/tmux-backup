@@ -10,7 +10,7 @@ use async_std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
-use super::window_id::WindowId;
+use super::{pane_id::PaneId, window_id::WindowId};
 use crate::error::ParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
