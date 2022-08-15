@@ -94,9 +94,16 @@ impl FromStr for Window {
 }
 
 impl Window {
+    /// Return all `PaneId` in this window.
     pub fn pane_ids(&self) -> Vec<PaneId> {
         let layout = layout::parse_window_layout(&self.layout).unwrap();
         layout.pane_ids().iter().map(PaneId::from).collect()
+    }
+
+    /// Return the number of panes in this window.
+    pub fn num_panes(&self) -> usize {
+        let layout = layout::parse_window_layout(&self.layout).unwrap();
+        layout.pane_ids().len()
     }
 }
 
@@ -129,23 +136,52 @@ pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
     result
 }
 
-/// Create a Tmux window from a `Window` struct, with `working_dirpath`, in session named
-/// `session_name`.
+/// Create a Tmux window.
+///
+/// This function uses the provided `Window` struct as a reference for configuration, uses the
+/// provided `working_dirpath` (`Window` does not have this), and create the new window in the
+/// session exactly named as `session_name`, and return the new window id and pane id.
 pub async fn new_window(
-    window: &Window,
+    reference_window: &Window,
     working_dirpath: &Path,
     session_name: &str,
-) -> Result<(), ParseError> {
+) -> Result<(WindowId, PaneId), ParseError> {
+    let exact_session_name = format!("={}", session_name);
+
     let args = vec![
         "new-window",
         "-d",
         "-c",
         working_dirpath.to_str().unwrap(),
         "-n",
-        &window.name,
+        &reference_window.name,
         "-t",
-        session_name,
+        &exact_session_name,
+        "-P",
+        "-F",
+        "#{window_id}:#{pane_id}",
     ];
+
+    let output = Command::new("tmux").args(&args).output().await?;
+    let buffer = String::from_utf8(output.stdout)?;
+
+    let items: Vec<&str> = buffer.trim_end().split(':').collect();
+    assert_eq!(items.len(), 2);
+
+    let mut iter = items.iter();
+
+    let id_str = iter.next().unwrap();
+    let new_window_id = WindowId::from_str(id_str)?;
+
+    let id_str = iter.next().unwrap();
+    let new_pane_id = PaneId::from_str(id_str)?;
+
+    Ok((new_window_id, new_pane_id))
+}
+
+/// Apply the provided `layout` to the window with `window_id`.
+pub async fn set_layout(layout: &str, window_id: WindowId) -> Result<(), ParseError> {
+    let args = vec!["select-layout", "-t", window_id.as_str(), layout];
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
@@ -153,7 +189,6 @@ pub async fn new_window(
     if !buffer.is_empty() {
         return Err(ParseError::UnexpectedOutput(buffer));
     }
-
     Ok(())
 }
 

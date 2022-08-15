@@ -1,6 +1,6 @@
 //! Restore sessions, windows and panes from the content of a backup.
 
-use std::{collections::HashSet, path::Path};
+use std::{collections::HashSet, iter::zip, path::Path};
 
 use anyhow::Result;
 use async_std::task;
@@ -9,13 +9,11 @@ use futures::future::join_all;
 use crate::{
     error::ParseError,
     management::archive::v1,
-    tmux::{self, session::Session, window::Window},
+    tmux::{self, pane::Pane, session::Session, window::Window},
 };
 
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
     tmux::server::start().await?;
-
-    println!("restoring `{}`", backup_filepath.as_ref().to_string_lossy());
 
     let metadata = v1::read_metadata(backup_filepath).await?;
 
@@ -35,34 +33,114 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
 
         let session = session.clone();
         let related_windows = metadata.windows_related_to(&session);
+        let related_panes: Vec<Vec<Pane>> = related_windows
+            .iter()
+            .map(|w| metadata.panes_related_to(w).into_iter().cloned().collect())
+            .collect();
 
-        let handle = task::spawn(async move { restore_session(session, related_windows).await });
+        let handle =
+            task::spawn(
+                async move { restore_session(session, related_windows, related_panes).await },
+            );
         handles.push(handle);
     }
 
-    join_all(handles).await;
+    if let Err(e) = join_all(handles)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, ParseError>>()
+    {
+        return Err(anyhow::anyhow!("error: {e}"));
+    }
 
     tmux::server::kill_placeholder_session().await?; // created above by server::start()
 
     Ok(metadata.overview())
 }
 
-/// Create the session along with its windows and panes.
+/// Associates a pane from the backup with a new target pane id.
+#[derive(Debug, Clone)]
+struct Pair {
+    /// Pane definition from the backup.
+    source: tmux::pane::Pane,
+    /// Target pane id.
+    target: tmux::pane_id::PaneId,
+}
+
+/// Create a session along with its windows and panes.
 ///
 /// The session is created with the first window in order to give it the right name. The remainder
 /// of windows are created in sequence, to preserve the order from the backup.
-async fn restore_session(session: Session, windows: Vec<Window>) -> Result<(), ParseError> {
-    // 1. Create the session and the windows (each has one empty pane).
+///
+async fn restore_session(
+    session: Session,
+    related_windows: Vec<Window>,
+    related_panes: Vec<Vec<Pane>>,
+) -> Result<(), ParseError> {
+    // 1a. Create the session and the first window (and the first pane as a side-effect).
 
-    // A session is guaranteed to have at least one window.
-    let first_window_name = windows.first().unwrap().name.as_str();
-    tmux::session::new_session(&session, first_window_name).await?;
+    let first_window = related_windows
+        .first()
+        .expect("a session should have at least one window");
+    let first_window_panes = related_panes
+        .first()
+        .expect("a window should have at least one pane");
+    let first_pane = first_window_panes.first().unwrap();
 
-    for window in windows.iter().skip(1) {
-        tmux::window::new_window(window, session.dirpath.as_path(), &session.name).await?;
+    let (new_window_id, new_pane_id) = tmux::session::new_session(
+        &session,
+        first_pane.dirpath.as_path(),
+        first_window.name.as_str(),
+    )
+    .await?;
+
+    let mut pairs: Vec<Pair> = vec![];
+
+    // 1b. Store the association between the original pane and this new pane.
+    pairs.push(Pair {
+        source: first_pane.clone(),
+        target: new_pane_id,
+    });
+
+    // 1c. Create the other panes of the first window, storing their association with the original
+    //     panes for this first window. Each new pane is configured as the original pane.
+    for pane in first_window_panes.iter().skip(1) {
+        let new_pane_id = tmux::pane::new_pane(pane, &new_window_id).await?;
+        pairs.push(Pair {
+            source: pane.clone(),
+            target: new_pane_id,
+        });
     }
 
-    // 2. Create panes in each window.
+    // 1d. Set the layout
+    tmux::window::set_layout(&first_window.layout, new_window_id).await?;
+
+    // 2. Create the other windows (and their first pane as a side-effect).
+    for (window, panes) in zip(&related_windows, &related_panes).skip(1) {
+        let first_pane = panes
+            .first()
+            .expect("a window should have at least one pane");
+        let (new_window_id, new_pane_id) =
+            tmux::window::new_window(window, first_pane.dirpath.as_path(), &session.name).await?;
+
+        // 2b. Store the association between the original pane and this new pane.
+        pairs.push(Pair {
+            source: first_pane.clone(),
+            target: new_pane_id,
+        });
+
+        // 2c. Then add the new panes in each window.
+        for pane in panes.iter().skip(1) {
+            let new_pane_id = tmux::pane::new_pane(pane, &new_window_id).await?;
+            pairs.push(Pair {
+                source: pane.clone(),
+                target: new_pane_id,
+            });
+        }
+
+        // 2d. Set the layout
+        tmux::window::set_layout(&window.layout, new_window_id).await?;
+    }
 
     Ok(())
 }

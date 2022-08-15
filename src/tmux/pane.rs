@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use super::pane_id::PaneId;
+use super::window_id::WindowId;
 use crate::error;
 use serde::{Deserialize, Serialize};
 
@@ -33,8 +34,8 @@ pub struct Pane {
     pub pos_bottom: u16,
     /// Title of the Pane (usually defaults to the hostname)
     pub title: String,
-    /// Current path of the Pane
-    pub path: PathBuf,
+    /// Current dirpath of the Pane
+    pub dirpath: PathBuf,
     /// Current command executed in the Pane
     pub command: String,
 }
@@ -105,7 +106,7 @@ impl FromStr for Pane {
             pos_top,
             pos_bottom,
             title,
-            path,
+            dirpath: path,
             command,
         })
     }
@@ -180,6 +181,32 @@ pub async fn available_panes() -> Result<Vec<Pane>, error::ParseError> {
     result
 }
 
+/// Create a new pane (horizontal split) in the window with `window_id`, and return the new
+/// pane id.
+pub async fn new_pane(
+    reference_pane: &Pane,
+    window_id: &WindowId,
+) -> Result<PaneId, error::ParseError> {
+    let args = vec![
+        "split-window",
+        "-h",
+        "-c",
+        reference_pane.dirpath.to_str().unwrap(),
+        "-t",
+        window_id.as_str(),
+        "-P",
+        "-F",
+        "#{pane_id}",
+    ];
+
+    let output = Command::new("tmux").args(&args).output().await?;
+    let buffer = String::from_utf8(output.stdout)?;
+
+    let new_id = PaneId::from_str(buffer.trim_end())?;
+
+    Ok(new_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::Pane;
@@ -211,7 +238,7 @@ mod tests {
                 pos_top: 0,
                 pos_bottom: 84,
                 title: String::from("rmbp"),
-                path: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
+                dirpath: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
                 command: String::from("nvim"),
             },
             Pane {
@@ -225,7 +252,7 @@ mod tests {
                 pos_top: 0,
                 pos_bottom: 41,
                 title: String::from("rmbp"),
-                path: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
+                dirpath: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
                 command: String::from("tmux"),
             },
             Pane {
@@ -239,7 +266,7 @@ mod tests {
                 pos_top: 43,
                 pos_bottom: 84,
                 title: String::from("rmbp"),
-                path: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
+                dirpath: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
                 command: String::from("man"),
             },
         ];

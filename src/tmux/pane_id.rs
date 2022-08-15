@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::error;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PaneId(pub String);
 
 impl FromStr for PaneId {
@@ -13,7 +13,7 @@ impl FromStr for PaneId {
     /// Parse into PaneId. The `&str` must start with '%' followed by a `u32`.
     fn from_str(src: &str) -> Result<Self, Self::Err> {
         if !src.starts_with('%') {
-            return Err(error::ParseError::ExpectedIdMarker('$'));
+            return Err(error::ParseError::ExpectedIdMarker('%'));
         }
         let id = src[1..].parse::<u16>()?;
         let id = format!("%{}", id);

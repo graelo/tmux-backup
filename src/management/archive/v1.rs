@@ -1,5 +1,6 @@
 //! Support functions to create and read backup archive files.
 
+use std::collections::HashSet;
 use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -64,6 +65,15 @@ impl Metadata {
             .iter()
             .filter(|&w| w.sessions.contains(&session.name))
             .cloned()
+            .collect()
+    }
+
+    /// Return the list of panes in the provided window.
+    pub fn panes_related_to(&self, window: &tmux::window::Window) -> Vec<&tmux::pane::Pane> {
+        let pane_ids: HashSet<tmux::pane_id::PaneId> = window.pane_ids().iter().cloned().collect();
+        self.panes
+            .iter()
+            .filter(|&p| pane_ids.contains(&p.id))
             .collect()
     }
 }

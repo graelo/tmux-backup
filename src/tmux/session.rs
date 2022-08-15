@@ -4,11 +4,14 @@
 //! information.
 
 use async_std::process::Command;
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use serde::{Deserialize, Serialize};
 
-use super::session_id::SessionId;
+use super::{pane_id::PaneId, session_id::SessionId, window_id::WindowId};
 use crate::error::ParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,27 +90,41 @@ pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
     result
 }
 
-/// Create a Tmux session from a `Session` struct.
-pub async fn new_session(session: &Session, window_name: &str) -> Result<(), ParseError> {
+/// Create a Tmux session from a `Session` struct, and name the window `window_name`.
+pub async fn new_session(
+    session: &Session,
+    dirpath: &Path,
+    window_name: &str,
+) -> Result<(WindowId, PaneId), ParseError> {
     let args = vec![
         "new-session",
         "-d",
         "-c",
-        session.dirpath.to_str().unwrap(),
+        dirpath.to_str().unwrap(),
         "-s",
         &session.name,
         "-n",
         window_name,
+        "-P",
+        "-F",
+        "#{window_id}:#{pane_id}",
     ];
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
-    if !buffer.is_empty() {
-        return Err(ParseError::UnexpectedOutput(buffer));
-    }
+    let items: Vec<&str> = buffer.trim_end().split(':').collect();
+    assert_eq!(items.len(), 2);
 
-    Ok(())
+    let mut iter = items.iter();
+
+    let id_str = iter.next().unwrap();
+    let new_window_id = WindowId::from_str(id_str)?;
+
+    let id_str = iter.next().unwrap();
+    let new_pane_id = PaneId::from_str(id_str)?;
+
+    Ok((new_window_id, new_pane_id))
 }
 
 #[cfg(test)]

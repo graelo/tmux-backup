@@ -23,11 +23,11 @@ impl FromStr for WindowId {
     }
 }
 
-// impl WindowId {
-//     pub fn as_str(&self) -> &str {
-//         &self.0
-//     }
-// }
+impl WindowId {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
 impl fmt::Display for WindowId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
