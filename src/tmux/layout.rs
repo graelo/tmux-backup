@@ -1,7 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::complete::take_while_m_n,
-    character::complete::{char, digit1},
+    character::complete::{char, digit1, hex_digit1},
     combinator::map_res,
     multi::separated_list1,
     sequence::{delimited, tuple},
@@ -113,7 +112,7 @@ impl Split {
 /// let actual = parse_window_layout(input);
 /// let expected = Ok(WindowLayout{id: 40792, width: 479, height: 110, });
 /// ```
-fn parse_window_layout(input: &str) -> Result<WindowLayout, ParseError> {
+pub fn parse_window_layout(input: &str) -> Result<WindowLayout, ParseError> {
     match window_layout(input) {
         Ok((remainder, layout)) => {
             if remainder.is_empty() {
@@ -128,19 +127,15 @@ fn parse_window_layout(input: &str) -> Result<WindowLayout, ParseError> {
 
 fn window_layout(input: &str) -> IResult<&str, WindowLayout> {
     let (input, (id, _, container)) = tuple((layout_id, char(','), container))(input)?;
-    Ok(("", WindowLayout { id, container }))
+    Ok((input, WindowLayout { id, container }))
 }
 
 fn from_hex(input: &str) -> Result<u16, std::num::ParseIntError> {
     u16::from_str_radix(input, 16)
 }
 
-fn is_hex_digit(c: char) -> bool {
-    c.is_digit(16)
-}
-
 fn layout_id(input: &str) -> IResult<&str, u16> {
-    map_res(take_while_m_n(4, 4, is_hex_digit), from_hex)(input)
+    map_res(hex_digit1, from_hex)(input)
 }
 
 fn parse_u16(input: &str) -> IResult<&str, u16> {
