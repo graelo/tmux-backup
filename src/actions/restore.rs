@@ -12,10 +12,13 @@ use crate::{
     tmux::{self, pane::Pane, session::Session, window::Window},
 };
 
+/// Name of the placeholder session.
+const PLACEHOLDER_SESSION_NAME: &str = "[placeholder]";
+
 /// Restore all sessions, windows & panes from the backup file.
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
     let start = Instant::now();
-    tmux::server::start().await?;
+    tmux::server::start(PLACEHOLDER_SESSION_NAME).await?;
     let elapsed = start.elapsed();
     println!("start server: {:?}", elapsed);
 
@@ -53,15 +56,18 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         handles.push(handle);
     }
 
-    if let Err(e) = join_all(handles)
+    let pairs: Vec<Pair> = match join_all(handles)
         .await
         .into_iter()
         .collect::<Result<Vec<_>, ParseError>>()
     {
-        return Err(anyhow::anyhow!("error: {e}"));
-    }
+        Ok(vec_pairs) => vec_pairs.into_iter().flatten().collect(),
+        Err(e) => return Err(anyhow::anyhow!("error: {e}")),
+    };
 
-    tmux::server::kill_placeholder_session().await?; // created above by server::start()
+    eprintln!("num pairs: {}", pairs.len());
+
+    tmux::server::kill_session(PLACEHOLDER_SESSION_NAME).await?; // created above by server::start()
     let elapsed = start.elapsed();
     println!("create sessions: {:?}", elapsed);
 
@@ -82,6 +88,10 @@ struct Pair {
 /// The session is created with the first window in order to give it the right name. The remainder
 /// of windows are created in sequence, to preserve the order from the backup.
 ///
+/// # Note
+///
+/// This strategy is faster than creating a placeholder window and removing it at the end (checked
+/// multiple times).
 async fn restore_session(
     session: Session,
     related_windows: Vec<Window>,
