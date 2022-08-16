@@ -140,6 +140,7 @@ impl Pane {
             "-t",
             self.id.as_str(),
             "-J",
+            "-e",
             "-p",
             "-S",
             "-",
