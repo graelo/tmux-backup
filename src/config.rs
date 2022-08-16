@@ -19,7 +19,7 @@ pub enum CatalogSubcommand {
     /// If the flag `--filepaths` is set, only absolute filepaths are printed. This can be used in
     /// scripting scenarios.
     ///
-    /// Options `--only disposable` or `--only retainable` will list only the corresponding backups.
+    /// Options `--only purgeable` or `--only retainable` will list only the corresponding backups.
     /// They will activate the flag `--filepaths` automatically.
     List {
         /// Add details columns to the table.
@@ -38,7 +38,7 @@ pub enum CatalogSubcommand {
         #[clap(long = "filepaths", action = ArgAction::SetTrue)]
         filepaths_flag: bool,
     },
-    /// Delete disposable backups by applying the catalog's compaction strategy.
+    /// Apply the catalog's compaction strategy: this deletes all purgable backups.
     Compact,
 }
 
@@ -59,7 +59,7 @@ pub enum Command {
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
 
-        /// Delete disposable backups after saving.
+        /// Delete purgeable backups after saving.
         #[clap(long, action = ArgAction::SetTrue)]
         compact: bool,
     },

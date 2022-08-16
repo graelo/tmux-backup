@@ -100,13 +100,13 @@ impl Catalog {
     /// This will probably delete files in the `dirpath` folder.
     pub async fn compact(&self) -> Result<usize> {
         let Plan {
-            disposable,
+            purgeable,
             retainable: _retainable,
             ..
         } = self.plan();
 
-        let n = disposable.len();
-        for backup in disposable {
+        let n = purgeable.len();
+        for backup in purgeable {
             fs::remove_file(&backup.filepath).await?;
         }
 
@@ -152,9 +152,9 @@ impl Catalog {
     ) {
         if filepaths_flag || only_status.is_some() {
             match only_status {
-                Some(BackupStatus::Disposable) => {
-                    let Plan { disposable, .. } = self.plan();
-                    for backup in disposable {
+                Some(BackupStatus::Purgeable) => {
+                    let Plan { purgeable, .. } = self.plan();
+                    for backup in purgeable {
                         println!("{}", backup.filepath.to_string_lossy());
                     }
                 }
@@ -267,7 +267,7 @@ impl Catalog {
         println!("Location: `{}`\n", self.dirpath.to_string_lossy());
 
         let Plan {
-            disposable,
+            purgeable,
             retainable,
             statuses,
         } = self.plan();
@@ -305,7 +305,7 @@ impl Catalog {
             {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 let color = match status {
-                    BackupStatus::Disposable => yellow,
+                    BackupStatus::Purgeable => yellow,
                     BackupStatus::Retainable => green,
                 };
                 let time_ago = Self::time_ago(now, backup.creation_date);
@@ -325,7 +325,7 @@ impl Catalog {
             for (index, (backup, status)) in iter::zip(indices, statuses) {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
                 let color = match status {
-                    BackupStatus::Disposable => yellow,
+                    BackupStatus::Purgeable => yellow,
                     BackupStatus::Retainable => green,
                 };
                 let time_ago = Self::time_ago(now, backup.creation_date);
@@ -337,10 +337,10 @@ impl Catalog {
         }
 
         println!(
-            "\n{} backups: {} retainable, {} disposable",
+            "\n{} backups: {} retainable, {} purgeable",
             self.len(),
             retainable.len(),
-            disposable.len(),
+            purgeable.len(),
         );
     }
 }

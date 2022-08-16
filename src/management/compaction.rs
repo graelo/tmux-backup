@@ -10,7 +10,7 @@ use super::backup::{Backup, BackupStatus};
 
 /// Backups compaction strategy.
 ///
-/// Determines if a backup can be kept (retainable) or deleted (disposable).
+/// Determines if a backup can be kept (retainable) or purged (purgeable).
 #[derive(Debug, Clone)]
 pub enum Strategy {
     /// Keep the `k` most recent backups.
@@ -40,7 +40,7 @@ impl Strategy {
     ///
     /// Simply splits the list of all backups into 2 lists: the `k` recent ones (or less if the
     /// catalog does not contain as much) and the remaining ones are considered outdated
-    /// (disposable).
+    /// (purgeable).
     ///
     /// # Classic strategy
     ///
@@ -65,7 +65,7 @@ impl Strategy {
                 statuses.extend(
                     outdated_backups
                         .iter()
-                        .map(|backup| (backup, BackupStatus::Disposable)),
+                        .map(|backup| (backup, BackupStatus::Purgeable)),
                 );
                 statuses.extend(
                     recent_backups
@@ -74,7 +74,7 @@ impl Strategy {
                 );
 
                 Plan {
-                    disposable: outdated_backups.iter().collect(),
+                    purgeable: outdated_backups.iter().collect(),
                     retainable: recent_backups.iter().collect(),
                     statuses,
                 }
@@ -140,7 +140,7 @@ impl Strategy {
                 let retain_set: std::collections::HashSet<&Backup> =
                     retainable.iter().copied().collect();
 
-                let disposable: Vec<_> = backups
+                let purgeable: Vec<_> = backups
                     .iter()
                     .filter(|&b| !retain_set.contains(b))
                     .collect();
@@ -151,13 +151,13 @@ impl Strategy {
                         if retain_set.contains(b) {
                             (b, BackupStatus::Retainable)
                         } else {
-                            (b, BackupStatus::Disposable)
+                            (b, BackupStatus::Purgeable)
                         }
                     })
                     .collect();
 
                 Plan {
-                    disposable,
+                    purgeable,
                     retainable,
                     statuses,
                 }
@@ -179,12 +179,12 @@ impl fmt::Display for Strategy {
 
 /// Describes what the strategy would do.
 pub struct Plan<'a> {
-    /// List of backup files that should be deleted.
-    pub disposable: Vec<&'a Backup>,
+    /// List of backup files that should be purged.
+    pub purgeable: Vec<&'a Backup>,
 
     /// List of backup files that should be kept.
     pub retainable: Vec<&'a Backup>,
 
-    /// Sorted list of backup files along with their status (disposable/retainable).
+    /// Sorted list of backup files along with their status (purgeable/retainable).
     pub statuses: Vec<(&'a Backup, BackupStatus)>,
 }

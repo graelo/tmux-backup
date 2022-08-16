@@ -28,15 +28,15 @@ pub enum BackupStatus {
     /// Retainable backups only.
     Retainable,
 
-    /// Disposable backups only.
-    Disposable,
+    /// Purgeable backups only.
+    Purgeable,
 }
 
 impl fmt::Display for BackupStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BackupStatus::Retainable => write!(f, "retainable"),
-            BackupStatus::Disposable => write!(f, "disposable"),
+            BackupStatus::Purgeable => write!(f, "purgeable"),
         }
     }
 }
