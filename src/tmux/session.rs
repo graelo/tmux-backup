@@ -57,7 +57,7 @@ impl FromStr for Session {
         }
         let mut iter = items.iter();
 
-        // SessionId must be start with '%' followed by a `u32`
+        // SessionId must be start with '%' followed by a `u16`
         let id_str = iter.next().unwrap();
         let id = SessionId::from_str(id_str)?;
 
@@ -69,7 +69,7 @@ impl FromStr for Session {
     }
 }
 
-/// Returns a list of all `Session` from the current tmux session.
+/// Return a list of all `Session` from the current tmux session.
 pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
     let args = vec![
         "list-sessions",

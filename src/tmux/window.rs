@@ -101,7 +101,7 @@ impl Window {
     }
 }
 
-/// Returns a list of all `Window` from all sessions.
+/// Return a list of all `Window` from all sessions.
 pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
     let args = vec![
         "list-windows",
@@ -174,8 +174,21 @@ pub async fn new_window(
 }
 
 /// Apply the provided `layout` to the window with `window_id`.
-pub async fn set_layout(layout: &str, window_id: WindowId) -> Result<(), ParseError> {
+pub async fn set_layout(layout: &str, window_id: &WindowId) -> Result<(), ParseError> {
     let args = vec!["select-layout", "-t", window_id.as_str(), layout];
+
+    let output = Command::new("tmux").args(&args).output().await?;
+    let buffer = String::from_utf8(output.stdout)?;
+
+    if !buffer.is_empty() {
+        return Err(ParseError::UnexpectedOutput(buffer));
+    }
+    Ok(())
+}
+
+/// Select (make active) the window with `window_id`.
+pub async fn select_window(window_id: &WindowId) -> Result<(), ParseError> {
+    let args = vec!["select-window", "-t", window_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;

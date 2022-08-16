@@ -3,14 +3,15 @@
 //! The main use cases are running Tmux commands & parsing Tmux panes
 //! information.
 
-use async_std::process::Command;
 use std::path::PathBuf;
 use std::str::FromStr;
+
+use async_std::process::Command;
+use serde::{Deserialize, Serialize};
 
 use super::pane_id::PaneId;
 use super::window_id::WindowId;
 use crate::error;
-use serde::{Deserialize, Serialize};
 
 /// A Tmux pane.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -114,7 +115,7 @@ impl FromStr for Pane {
 }
 
 impl Pane {
-    /// Returns the entire Pane content as a `String`.
+    /// Return the entire Pane content as a `String`.
     ///
     /// The provided `region` specifies if the visible area is captured, or the
     /// entire history.
@@ -152,7 +153,7 @@ impl Pane {
     }
 }
 
-/// Returns a list of all `Pane` from all sessions.
+/// Return a list of all `Pane` from all sessions.
 pub async fn available_panes() -> Result<Vec<Pane>, error::ParseError> {
     let args = vec![
         "list-panes",
@@ -206,6 +207,19 @@ pub async fn new_pane(
     let new_id = PaneId::from_str(buffer.trim_end())?;
 
     Ok(new_id)
+}
+
+/// Select (make active) the pane with `pane_id`.
+pub async fn select_pane(pane_id: &PaneId) -> Result<(), error::ParseError> {
+    let args = vec!["select-pane", "-t", pane_id.as_str()];
+
+    let output = Command::new("tmux").args(&args).output().await?;
+    let buffer = String::from_utf8(output.stdout)?;
+
+    if !buffer.is_empty() {
+        return Err(error::ParseError::UnexpectedOutput(buffer));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

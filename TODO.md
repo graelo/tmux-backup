@@ -3,6 +3,7 @@
 ## Global
 
 - use `thiserror` in the library
+- cleanup error types, for instance `UnexpectedOutput`
 - go over functions such as windows_related_to which return copies, and make
   them return references instead
 - check clap config file support
@@ -13,6 +14,8 @@
 
 ## Related to restore
 
+- if in $TMUX, replace the existing session named `0` and switch to client
+  else display a message `tmux attach -t last-session-name`
 - add `restore --attach` to automatically attach if running from the terminal
 - add `restore --override` to replace each existing session by its version from
   the archive

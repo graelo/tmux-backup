@@ -13,6 +13,12 @@
 //!
 //! Work in progress
 //!
+//! ## Caveats
+//!
+//! - This is a beta version
+//! - Does not handle multiple clients: help is welcome if you have clear scenarios for this.
+//! - Does not handle session groups: help is also welcome.
+//!
 //! ## License
 //!
 //! Licensed under either of

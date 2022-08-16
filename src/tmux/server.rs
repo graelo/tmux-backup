@@ -22,7 +22,8 @@ pub async fn start(initial_session_name: &str) -> Result<(), ParseError> {
 
 /// Remove the session named `"[placeholder]"` used to keep the server alive.
 pub async fn kill_session(name: &str) -> Result<(), ParseError> {
-    let args = vec!["kill-session", "-t", name];
+    let exact_name = format!("={name}");
+    let args = vec!["kill-session", "-t", &exact_name];
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;

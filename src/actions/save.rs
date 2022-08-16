@@ -33,6 +33,7 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
             fs::write(&temp_version_filepath, v1::FORMAT_VERSION).await?;
 
             let version = v1::FORMAT_VERSION.to_string();
+            let client = tmux::client::current_client().await?;
             let sessions = tmux::session::available_sessions().await?;
             let windows = tmux::window::available_windows().await?;
             let panes = tmux::pane::available_panes().await?;
@@ -41,6 +42,7 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
 
             let metadata = v1::Metadata {
                 version,
+                client,
                 sessions,
                 windows,
                 panes,

@@ -1,6 +1,6 @@
 //! Restore sessions, windows and panes from the content of a backup.
 
-use std::{collections::HashSet, iter::zip, path::Path, time::Instant};
+use std::{collections::HashSet, iter::zip, path::Path};
 
 use anyhow::Result;
 use async_std::task;
@@ -17,15 +17,15 @@ const PLACEHOLDER_SESSION_NAME: &str = "[placeholder]";
 
 /// Restore all sessions, windows & panes from the backup file.
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
-    let start = Instant::now();
-    tmux::server::start(PLACEHOLDER_SESSION_NAME).await?;
-    let elapsed = start.elapsed();
-    println!("start server: {:?}", elapsed);
+    let not_in_tmux = std::env::var("TMUX").is_err();
 
-    let start = Instant::now();
+    if not_in_tmux {
+        tmux::server::start(PLACEHOLDER_SESSION_NAME).await?;
+    }
+
+    // 1. Restore sessions, windows and panes (without their content, see 2.)
+    //
     let metadata = v1::read_metadata(backup_filepath).await?;
-    let elapsed = start.elapsed();
-    println!("read metadata: {:?}", elapsed);
 
     let existing_sessions_names: HashSet<_> = tmux::session::available_sessions()
         .await?
@@ -33,7 +33,6 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         .map(|s| s.name)
         .collect();
 
-    let start = Instant::now();
     let mut handles = vec![];
 
     for session in &metadata.sessions {
@@ -56,6 +55,8 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         handles.push(handle);
     }
 
+    // 2. Restore pane contents.
+    //
     let pairs: Vec<Pair> = match join_all(handles)
         .await
         .into_iter()
@@ -67,9 +68,26 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
 
     eprintln!("num pairs: {}", pairs.len());
 
-    tmux::server::kill_session(PLACEHOLDER_SESSION_NAME).await?; // created above by server::start()
-    let elapsed = start.elapsed();
-    println!("create sessions: {:?}", elapsed);
+    // 3. Set the client last and current session.
+    //
+    tmux::client::switch_client(&metadata.client.last_session_name).await?;
+    tmux::client::switch_client(&metadata.client.session_name).await?;
+
+    // 4. Kill the session used to start the server.
+    if not_in_tmux {
+        tmux::server::kill_session(PLACEHOLDER_SESSION_NAME).await?;
+        println!(
+            "Attach to your last session with `tmux attach -t {}`",
+            &metadata.client.session_name
+        );
+    } else if tmux::server::kill_session("0").await.is_err() {
+        let message = "
+            Unusual start conditions:
+            - you started from outside tmux but no existing session named `0` was found
+            - check the state of your session
+           ";
+        return Err(anyhow::anyhow!(message));
+    }
 
     Ok(metadata.overview())
 }
@@ -109,13 +127,12 @@ async fn restore_session(
         .expect("a window should have at least one pane");
     let first_pane = first_window_panes.first().unwrap();
 
-    let (new_session_id, new_window_id, new_pane_id) = tmux::session::new_session(
+    let (_new_session_id, new_window_id, new_pane_id) = tmux::session::new_session(
         &session,
         first_pane.dirpath.as_path(),
         first_window.name.as_str(),
     )
     .await?;
-    eprintln!("{new_session_id}");
 
     // 1b. Store the association between the original pane and this new pane.
     pairs.push(Pair {
@@ -134,7 +151,7 @@ async fn restore_session(
     }
 
     // 1d. Set the layout
-    tmux::window::set_layout(&first_window.layout, new_window_id).await?;
+    tmux::window::set_layout(&first_window.layout, &new_window_id).await?;
 
     // 2. Create the other windows (and their first pane as a side-effect).
     for (window, panes) in zip(&related_windows, &related_panes).skip(1) {
@@ -160,7 +177,17 @@ async fn restore_session(
         }
 
         // 2d. Set the layout
-        tmux::window::set_layout(&window.layout, new_window_id).await?;
+        tmux::window::set_layout(&window.layout, &new_window_id).await?;
+
+        if window.is_active {
+            tmux::window::select_window(&new_window_id).await?;
+        }
+    }
+
+    for pair in &pairs {
+        if pair.source.is_active {
+            tmux::pane::select_pane(&pair.target).await?;
+        }
     }
 
     Ok(pairs)

@@ -35,6 +35,9 @@ pub struct Metadata {
     /// Version of the archive's format.
     pub version: String,
 
+    /// Tmux client metadata.
+    pub client: tmux::client::Client,
+
     /// Tmux sessions metadata.
     pub sessions: Vec<tmux::session::Session>,
 
