@@ -1,3 +1,5 @@
+//! Window Id.
+
 use std::fmt;
 use std::str::FromStr;
 
@@ -5,6 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::error;
 
+/// The id of a Tmux window.
+///
+/// This wraps the raw tmux representation (`@41`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WindowId(String);
 
@@ -24,6 +29,7 @@ impl FromStr for WindowId {
 }
 
 impl WindowId {
+    /// Extract a string slice containing the raw representation.
     pub fn as_str(&self) -> &str {
         &self.0
     }

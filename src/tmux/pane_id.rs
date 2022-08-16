@@ -1,9 +1,14 @@
+//! Pane id.
+
 use std::fmt;
 use std::str::FromStr;
 
 use crate::error;
 use serde::{Deserialize, Serialize};
 
+/// The id of a Tmux pane.
+///
+/// This wraps the raw tmux representation (`%12`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PaneId(pub String);
 
@@ -28,6 +33,7 @@ impl From<&u16> for PaneId {
 }
 
 impl PaneId {
+    /// Extract a string slice containing the raw representation.
     pub fn as_str(&self) -> &str {
         &self.0
     }

@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use super::{pane_id::PaneId, session_id::SessionId, window_id::WindowId};
 use crate::error::ParseError;
 
+/// A Tmux session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Session {
     /// Session identifier, e.g. `$3`.

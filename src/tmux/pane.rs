@@ -12,6 +12,7 @@ use super::window_id::WindowId;
 use crate::error;
 use serde::{Deserialize, Serialize};
 
+/// A Tmux pane.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Pane {
     /// Pane identifier, e.g. `%37`.

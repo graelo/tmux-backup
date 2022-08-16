@@ -1,3 +1,16 @@
+//! Parse the window layout string.
+//!
+//! Tmux reports the layout for a window, it can also use it to apply an existing layout to a
+//! window.
+//!
+//! A window layout has this format:
+//!
+//! ```text
+//! "41e9,279x71,0,0[279x40,0,0,71,279x30,0,41{147x30,0,41,72,131x30,148,41,73}]"
+//! ```
+//!
+//! The parser in this module returns the corresponding [`WindowLayout`].
+
 use nom::{
     branch::alt,
     character::complete::{char, digit1, hex_digit1},
@@ -9,6 +22,7 @@ use nom::{
 
 use crate::error::ParseError;
 
+/// Represent a parsed window layout.
 #[derive(Debug, PartialEq, Eq)]
 pub struct WindowLayout {
     /// 4-char hex id, such as `9f58`.

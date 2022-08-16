@@ -1,3 +1,5 @@
+//! Session Id.
+
 use std::fmt;
 use std::str::FromStr;
 
@@ -5,6 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ParseError;
 
+/// The id of a Tmux session.
+///
+/// This wraps the raw tmux representation (`$11`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionId(String);
 

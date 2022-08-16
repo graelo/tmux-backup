@@ -1,7 +1,6 @@
 //! This module provides a few types and functions to handle Tmux windows.
 //!
-//! The main use cases are running Tmux commands & parsing Tmux window
-//! information.
+//! The main use cases are running Tmux commands & parsing Tmux window information.
 
 use std::path::Path;
 use std::str::FromStr;
@@ -13,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::{pane_id::PaneId, window_id::WindowId};
 use crate::{error::ParseError, tmux::layout};
 
+/// A Tmux window.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Window {
     /// Window identifier, e.g. `@3`.

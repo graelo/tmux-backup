@@ -1,3 +1,5 @@
+//! Functions for reporting information inside Tmux.
+
 use std::process::Command;
 
 /// Returns a list of all `Pane` from all sessions.

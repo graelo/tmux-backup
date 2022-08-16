@@ -12,6 +12,7 @@ use crate::{
     tmux::{self, pane::Pane, session::Session, window::Window},
 };
 
+/// Restore all sessions, windows & panes from the backup file.
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
     let start = Instant::now();
     tmux::server::start().await?;
@@ -67,7 +68,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
     Ok(metadata.overview())
 }
 
-/// Associates a pane from the backup with a new target pane id.
+/// Association between a pane from the backup with a new target pane id.
 #[derive(Debug, Clone)]
 struct Pair {
     /// Pane definition from the backup.

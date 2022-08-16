@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 //! A backup & restore solution for Tmux sessions.
 //!
 //! Version requirement: _rustc 1.50+_
