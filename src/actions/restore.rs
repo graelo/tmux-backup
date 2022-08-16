@@ -1,6 +1,6 @@
 //! Restore sessions, windows and panes from the content of a backup.
 
-use std::{collections::HashSet, iter::zip, path::Path};
+use std::{collections::HashSet, iter::zip, path::Path, time::Instant};
 
 use anyhow::Result;
 use async_std::task;
@@ -13,9 +13,15 @@ use crate::{
 };
 
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
+    let start = Instant::now();
     tmux::server::start().await?;
+    let elapsed = start.elapsed();
+    println!("start server: {:?}", elapsed);
 
+    let start = Instant::now();
     let metadata = v1::read_metadata(backup_filepath).await?;
+    let elapsed = start.elapsed();
+    println!("read metadata: {:?}", elapsed);
 
     let existing_sessions_names: HashSet<_> = tmux::session::available_sessions()
         .await?
@@ -23,6 +29,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         .map(|s| s.name)
         .collect();
 
+    let start = Instant::now();
     let mut handles = vec![];
 
     for session in &metadata.sessions {
@@ -54,6 +61,8 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
     }
 
     tmux::server::kill_placeholder_session().await?; // created above by server::start()
+    let elapsed = start.elapsed();
+    println!("create sessions: {:?}", elapsed);
 
     Ok(metadata.overview())
 }
