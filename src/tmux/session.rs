@@ -95,7 +95,7 @@ pub async fn new_session(
     session: &Session,
     dirpath: &Path,
     window_name: &str,
-) -> Result<(WindowId, PaneId), ParseError> {
+) -> Result<(SessionId, WindowId, PaneId), ParseError> {
     let args = vec![
         "new-session",
         "-d",
@@ -107,16 +107,19 @@ pub async fn new_session(
         window_name,
         "-P",
         "-F",
-        "#{window_id}:#{pane_id}",
+        "#{session_id}:#{window_id}:#{pane_id}",
     ];
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
     let items: Vec<&str> = buffer.trim_end().split(':').collect();
-    assert_eq!(items.len(), 2);
+    assert_eq!(items.len(), 3);
 
     let mut iter = items.iter();
+
+    let id_str = iter.next().unwrap();
+    let new_session_id = SessionId::from_str(id_str)?;
 
     let id_str = iter.next().unwrap();
     let new_window_id = WindowId::from_str(id_str)?;
@@ -124,7 +127,7 @@ pub async fn new_session(
     let id_str = iter.next().unwrap();
     let new_pane_id = PaneId::from_str(id_str)?;
 
-    Ok((new_window_id, new_pane_id))
+    Ok((new_session_id, new_window_id, new_pane_id))
 }
 
 #[cfg(test)]

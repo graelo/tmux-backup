@@ -99,12 +99,6 @@ impl Window {
         let layout = layout::parse_window_layout(&self.layout).unwrap();
         layout.pane_ids().iter().map(PaneId::from).collect()
     }
-
-    /// Return the number of panes in this window.
-    pub fn num_panes(&self) -> usize {
-        let layout = layout::parse_window_layout(&self.layout).unwrap();
-        layout.pane_ids().len()
-    }
 }
 
 /// Returns a list of all `Window` from all sessions.

@@ -76,8 +76,10 @@ async fn restore_session(
     session: Session,
     related_windows: Vec<Window>,
     related_panes: Vec<Vec<Pane>>,
-) -> Result<(), ParseError> {
-    // 1a. Create the session and the first window (and the first pane as a side-effect).
+) -> Result<Vec<Pair>, ParseError> {
+    let mut pairs: Vec<Pair> = vec![];
+
+    // 1a. Create the session (and its first window and first pane as a side-effect).
 
     let first_window = related_windows
         .first()
@@ -87,14 +89,13 @@ async fn restore_session(
         .expect("a window should have at least one pane");
     let first_pane = first_window_panes.first().unwrap();
 
-    let (new_window_id, new_pane_id) = tmux::session::new_session(
+    let (new_session_id, new_window_id, new_pane_id) = tmux::session::new_session(
         &session,
         first_pane.dirpath.as_path(),
         first_window.name.as_str(),
     )
     .await?;
-
-    let mut pairs: Vec<Pair> = vec![];
+    eprintln!("{new_session_id}");
 
     // 1b. Store the association between the original pane and this new pane.
     pairs.push(Pair {
@@ -142,5 +143,5 @@ async fn restore_session(
         tmux::window::set_layout(&window.layout, new_window_id).await?;
     }
 
-    Ok(())
+    Ok(pairs)
 }
