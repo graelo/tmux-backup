@@ -1,5 +1,7 @@
 //! Server management.
 
+use std::collections::HashMap;
+
 use async_std::process::Command;
 
 use crate::error::ParseError;
@@ -32,4 +34,57 @@ pub async fn kill_session(name: &str) -> Result<(), ParseError> {
         return Ok(());
     }
     Err(ParseError::UnexpectedOutput(buffer))
+}
+
+/// Return the value of a Tmux option. For instance, this can be used to get Tmux's default
+/// command.
+pub async fn show_option(option_name: &str, global: bool) -> Result<Option<String>, ParseError> {
+    let mut args = vec!["show-options", "-w", "-q"];
+    if global {
+        args.push("-g");
+    }
+    args.push(option_name);
+
+    let output = Command::new("tmux").args(&args).output().await?;
+    let buffer = String::from_utf8(output.stdout)?;
+    let buffer = buffer.trim_end();
+
+    if buffer.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(buffer.to_string()))
+}
+
+/// Return all Tmux options as a `std::haosh::HashMap`.
+pub async fn show_options(global: bool) -> Result<HashMap<String, String>, ParseError> {
+    let args = if global {
+        vec!["show-options", "-g"]
+    } else {
+        vec!["show-options"]
+    };
+
+    let output = Command::new("tmux").args(&args).output().await?;
+    let buffer = String::from_utf8(output.stdout)?;
+    let pairs: HashMap<String, String> = buffer
+        .trim_end()
+        .split('\n')
+        .into_iter()
+        .map(|s| s.split_at(s.find(' ').unwrap()))
+        .map(|(k, v)| (k.to_string(), v[1..].to_string()))
+        .collect();
+
+    Ok(pairs)
+}
+
+/// Return the `"default-command"` used to start a pane, falling back to `"default shell"` if none.
+pub async fn default_command() -> Result<String, ParseError> {
+    let options = show_options(true).await?;
+
+    options
+        .get("default-command")
+        .or_else(|| options.get("default-shell"))
+        .map(|v| v.to_owned())
+        .ok_or(ParseError::TmuxConfig(
+            "no default-command nor default-shell",
+        ))
 }

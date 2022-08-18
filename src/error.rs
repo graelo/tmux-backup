@@ -16,6 +16,9 @@ pub enum ParseError {
     #[error("unexpected process output: `{0}`")]
     UnexpectedOutput(String),
 
+    #[error("unexpected tmux config: `{0}`")]
+    TmuxConfig(&'static str),
+
     // #[error("process failed with error `{0}`")]
     // ProcessFailure(String),
     #[error("failed parsing utf-8 string: `{source}`")]
