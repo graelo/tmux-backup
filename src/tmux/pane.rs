@@ -188,9 +188,10 @@ pub async fn available_panes() -> Result<Vec<Pane>, error::ParseError> {
 /// pane id.
 pub async fn new_pane(
     reference_pane: &Pane,
+    pane_command: Option<&str>,
     window_id: &WindowId,
 ) -> Result<PaneId, error::ParseError> {
-    let args = vec![
+    let mut args = vec![
         "split-window",
         "-h",
         "-c",
@@ -201,6 +202,9 @@ pub async fn new_pane(
         "-F",
         "#{pane_id}",
     ];
+    if let Some(pane_command) = pane_command {
+        args.push(pane_command);
+    }
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;

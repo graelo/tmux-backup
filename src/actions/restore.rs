@@ -1,6 +1,10 @@
 //! Restore sessions, windows and panes from the content of a backup.
 
-use std::{collections::HashSet, iter::zip, path::Path};
+use std::{
+    collections::HashSet,
+    iter::zip,
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 use async_std::task;
@@ -18,18 +22,19 @@ const PLACEHOLDER_SESSION_NAME: &str = "[placeholder]";
 
 /// Restore all sessions, windows & panes from the backup file.
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
-    // 0. Prepare the temp directory with the content of the backup.
-    //
+    // Prepare the temp directory with the content of the backup.
     let temp_dir = TempDir::new("tmux-backup")?;
     v1::unpack(backup_filepath.as_ref(), temp_dir.path()).await?;
+    let panes_content_dir = temp_dir.path().join("panes-content");
 
     let not_in_tmux = std::env::var("TMUX").is_err();
     if not_in_tmux {
         tmux::server::start(PLACEHOLDER_SESSION_NAME).await?;
     }
 
-    // 1. Restore sessions, windows and panes.
-    //
+    let default_command = tmux::server::default_command().await?;
+
+    // Restore sessions, windows and panes.
     let metadata = v1::read_metadata(backup_filepath).await?;
 
     let existing_sessions_names: HashSet<_> = tmux::session::available_sessions()
@@ -52,11 +57,19 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
             .iter()
             .map(|w| metadata.panes_related_to(w).into_iter().cloned().collect())
             .collect();
+        let panes_content_dirpath = panes_content_dir.clone();
+        let default_command = default_command.clone();
 
-        let handle =
-            task::spawn(
-                async move { restore_session(session, related_windows, related_panes).await },
-            );
+        let handle = task::spawn(async move {
+            restore_session(
+                session,
+                related_windows,
+                related_panes,
+                panes_content_dirpath,
+                &default_command,
+            )
+            .await
+        });
         handles.push(handle);
     }
 
@@ -68,14 +81,14 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         return Err(anyhow::anyhow!("error: {e}"));
     }
 
-    // 2. Delete the temp restore directory.
+    // Delete the temp restore directory.
     temp_dir.close()?;
 
-    // 3. Set the client last and current session.
+    // Set the client last and current session.
     tmux::client::switch_client(&metadata.client.last_session_name).await?;
     tmux::client::switch_client(&metadata.client.session_name).await?;
 
-    // 4. Kill the session used to start the server.
+    // Kill the session used to start the server.
     if not_in_tmux {
         tmux::server::kill_session(PLACEHOLDER_SESSION_NAME).await?;
         println!(
@@ -116,6 +129,8 @@ async fn restore_session(
     session: Session,
     session_windows: Vec<Window>,
     panes_per_window: Vec<Vec<Pane>>,
+    panes_content_dir: PathBuf,
+    default_command: &str,
 ) -> Result<(), ParseError> {
     let mut pairs: Vec<Pair> = vec![];
 
@@ -123,14 +138,26 @@ async fn restore_session(
 
     for (index, (src_window, src_panes)) in zip(&session_windows, &panes_per_window).enumerate() {
         let first_pane = src_panes.first().unwrap(); // guaranteed
+        let content_filepath = panes_content_dir.join(format!("pane-{}.txt", first_pane.id));
+        let pane_command = format!(
+            "cat {} ; exec {}",
+            content_filepath.to_string_lossy(),
+            &default_command
+        );
 
         let (new_window_id, new_pane_id) = {
             if index == 0 {
-                let (_new_session_id, new_window_id, new_pane_id) =
-                    tmux::session::new_session(&session, src_window, first_pane, None).await?;
+                let (_new_session_id, new_window_id, new_pane_id) = tmux::session::new_session(
+                    &session,
+                    src_window,
+                    first_pane,
+                    Some(&pane_command),
+                )
+                .await?;
                 (new_window_id, new_pane_id)
             } else {
-                tmux::window::new_window(&session, src_window, first_pane, None).await?
+                tmux::window::new_window(&session, src_window, first_pane, Some(&pane_command))
+                    .await?
             }
         };
 
@@ -143,7 +170,15 @@ async fn restore_session(
         // 1c. Create the other panes of the first window, storing their association with the original
         //     panes for this first window. Each new pane is configured as the original pane.
         for pane in src_panes.iter().skip(1) {
-            let new_pane_id = tmux::pane::new_pane(pane, &new_window_id).await?;
+            let content_filepath = panes_content_dir.join(format!("pane-{}.txt", pane.id));
+            let pane_command = format!(
+                "cat {} ; exec {}",
+                content_filepath.to_string_lossy(),
+                &default_command
+            );
+
+            let new_pane_id =
+                tmux::pane::new_pane(pane, Some(&pane_command), &new_window_id).await?;
             pairs.push(Pair {
                 source: pane.clone(),
                 target: new_pane_id,
