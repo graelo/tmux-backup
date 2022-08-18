@@ -36,6 +36,6 @@
 
 pub mod actions;
 pub mod config;
-mod error;
+pub mod error;
 pub mod management;
 pub mod tmux;
