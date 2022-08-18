@@ -189,3 +189,17 @@ pub fn create_from_paths<P: AsRef<Path>>(
 
     Ok(())
 }
+
+/// Unpack a backup at `backup_filepath` into `dest_dirpath`.
+///
+/// This is used to unpack the archive into `/tmp/` and access the panes-content.
+pub async fn unpack<P: AsRef<Path>>(
+    backup_filepath: P,
+    dest_dirpath: P,
+) -> std::result::Result<(), std::io::Error> {
+    let archive = std::fs::File::open(backup_filepath.as_ref())?;
+    let dec = zstd::stream::read::Decoder::new(archive)?;
+    let mut tar = tar::Archive::new(dec);
+
+    tar.unpack(dest_dirpath)
+}

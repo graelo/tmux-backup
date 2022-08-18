@@ -1,9 +1,9 @@
 //! Restore sessions, windows and panes from the content of a backup.
 
-use std::{collections::HashSet, iter::zip, path::Path};
+use std::{collections::HashSet, env, iter::zip, path::Path};
 
 use anyhow::Result;
-use async_std::task;
+use async_std::{fs, task};
 use futures::future::join_all;
 
 use crate::{
@@ -17,6 +17,12 @@ const PLACEHOLDER_SESSION_NAME: &str = "[placeholder]";
 
 /// Restore all sessions, windows & panes from the backup file.
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
+    // 0. Prepare the temp directory with the content of the backup:
+    //    `$TMPDIR/backup-20220501T175538`
+    let temp_dirpath = env::temp_dir().join(backup_filepath.as_ref().file_stem().unwrap());
+    fs::create_dir_all(&temp_dirpath).await?;
+    v1::unpack(backup_filepath.as_ref(), temp_dirpath.as_path()).await?;
+
     let not_in_tmux = std::env::var("TMUX").is_err();
 
     if not_in_tmux {
@@ -55,21 +61,18 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         handles.push(handle);
     }
 
-    // 2. Restore pane contents.
-    //
-    let pairs: Vec<Pair> = match join_all(handles)
+    if let Err(e) = join_all(handles)
         .await
         .into_iter()
-        .collect::<Result<Vec<_>, ParseError>>()
+        .collect::<Result<(), ParseError>>()
     {
-        Ok(vec_pairs) => vec_pairs.into_iter().flatten().collect(),
-        Err(e) => return Err(anyhow::anyhow!("error: {e}")),
-    };
+        return Err(anyhow::anyhow!("error: {e}"));
+    }
 
-    eprintln!("num pairs: {}", pairs.len());
+    // 2. Delete the temp restore directory.
+    fs::remove_dir_all(temp_dirpath).await?;
 
     // 3. Set the client last and current session.
-    //
     tmux::client::switch_client(&metadata.client.last_session_name).await?;
     tmux::client::switch_client(&metadata.client.session_name).await?;
 
@@ -114,7 +117,7 @@ async fn restore_session(
     session: Session,
     related_windows: Vec<Window>,
     related_panes: Vec<Vec<Pane>>,
-) -> Result<Vec<Pair>, ParseError> {
+) -> Result<(), ParseError> {
     let mut pairs: Vec<Pair> = vec![];
 
     // 1a. Create the session (and its first window and first pane as a side-effect).
@@ -190,5 +193,5 @@ async fn restore_session(
         }
     }
 
-    Ok(pairs)
+    Ok(())
 }
