@@ -1,11 +1,11 @@
 //! Retrieve session information and panes content save to a backup.
 
-use std::env;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use async_std::{fs, task};
 use futures::future::join_all;
+use tempdir::TempDir;
 
 use crate::{management::archive::v1, tmux};
 
@@ -21,12 +21,11 @@ use crate::{management::archive::v1, tmux};
 ///
 pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Overview)> {
     // Prepare the temp directory.
-    let temp_dirpath = env::temp_dir().join("tmux-backup");
-    fs::create_dir_all(&temp_dirpath).await?;
+    let temp_dir = TempDir::new("tmux-backup")?;
 
     // Save sessions & windows into `metadata.yaml` in the temp folder.
     let metadata_task: task::JoinHandle<Result<(PathBuf, PathBuf, u16, u16)>> = {
-        let temp_dirpath = temp_dirpath.clone();
+        let temp_dirpath = temp_dir.path().to_path_buf();
 
         task::spawn(async move {
             let temp_version_filepath = temp_dirpath.join(v1::VERSION_FILENAME);
@@ -63,7 +62,7 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
 
     // Save pane contents in the temp folder.
     let (temp_panes_content_dir, num_panes) = {
-        let temp_panes_content_dir = temp_dirpath.join(v1::PANES_DIR_NAME);
+        let temp_panes_content_dir = temp_dir.path().join(v1::PANES_DIR_NAME);
         fs::create_dir_all(&temp_panes_content_dir).await?;
 
         let panes = tmux::pane::available_panes().await?;
@@ -86,7 +85,7 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
     )?;
 
     // Cleanup the entire temp folder.
-    fs::remove_dir_all(temp_dirpath).await?;
+    temp_dir.close()?;
 
     let overview = v1::Overview {
         version: v1::FORMAT_VERSION.to_string(),
