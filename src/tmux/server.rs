@@ -77,14 +77,28 @@ pub async fn show_options(global: bool) -> Result<HashMap<String, String>, Parse
 }
 
 /// Return the `"default-command"` used to start a pane, falling back to `"default shell"` if none.
+///
+/// In case of bash, a `-l` flag is added.
 pub async fn default_command() -> Result<String, ParseError> {
-    let options = show_options(true).await?;
+    let all_options = show_options(true).await?;
 
-    options
+    let default_shell = all_options
+        .get("default-shell")
+        .ok_or(ParseError::TmuxConfig("no default-shell"))
+        .map(|cmd| cmd.to_owned())
+        .map(|cmd| {
+            if cmd.ends_with("bash") {
+                format!("-l {}", cmd)
+            } else {
+                cmd
+            }
+        })?;
+
+    all_options
         .get("default-command")
-        .or_else(|| options.get("default-shell"))
-        .map(|v| v.to_owned())
+        .or(Some(&default_shell))
         .ok_or(ParseError::TmuxConfig(
             "no default-command nor default-shell",
         ))
+        .map(|cmd| cmd.to_owned())
 }
