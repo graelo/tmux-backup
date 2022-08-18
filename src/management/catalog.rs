@@ -10,6 +10,7 @@ use async_std::{fs, task};
 use chrono::{Duration, Local, NaiveDateTime};
 use futures::future::join_all;
 use regex::Regex;
+use si_scale::helpers::bytes2;
 
 use crate::management::{
     archive::v1,
@@ -284,8 +285,8 @@ impl Catalog {
         if details_flag {
             // Table header
             println!(
-                "{:4} {:32} {:17} {:12} {:8} {:8}",
-                "", "NAME", "CREATED", "STATUS", "VERSION", "CONTENT"
+                "{:4} {:32} {:17} {:12} {:11} {:8} {:8}",
+                "", "NAME", "CREATED", "STATUS", "FILESIZE", "VERSION", "CONTENT"
             );
 
             // Read all metadata concurrently
@@ -304,6 +305,9 @@ impl Catalog {
                 iter::zip(indices, iter::zip(statuses, metadatas))
             {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
+                let filesize = fs::metadata(backup.filepath.as_path()).await.unwrap().len();
+                let filesize = bytes2(filesize as f64);
+
                 let color = match status {
                     BackupStatus::Purgeable => yellow,
                     BackupStatus::Retainable => green,
@@ -314,7 +318,7 @@ impl Catalog {
                 let version = &metadata.version;
 
                 println!(
-                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status:12}{reset} {version:8} {overview:8}"
+                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status:12}{reset} {filesize:11} {version:8} {overview:8}"
                     );
             }
         } else {

@@ -35,8 +35,8 @@ pub enum BackupStatus {
 impl fmt::Display for BackupStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BackupStatus::Retainable => write!(f, "retainable"),
-            BackupStatus::Purgeable => write!(f, "purgeable"),
+            BackupStatus::Retainable => write!(f, "{:12}", "retainable"),
+            BackupStatus::Purgeable => write!(f, "{:12}", "purgeable"),
         }
     }
 }

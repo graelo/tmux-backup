@@ -797,6 +797,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "si-scale"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13b2ea70e751236bf1e5c4ab596e7a385eaa6e5d2a0d7a977c4e112fa0654ebc"
+
+[[package]]
 name = "signal-hook"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -933,6 +939,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_yaml",
+ "si-scale",
  "tar",
  "tempdir",
  "thiserror",
