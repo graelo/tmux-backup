@@ -1,40 +1,35 @@
-use std::fmt;
+use std::io;
 
-#[derive(Debug)]
+use thiserror::Error;
+
+#[derive(Error, Debug)]
 pub enum ParseError {
-    ExpectedPaneIdMarker,
-    ExpectedInt(std::num::ParseIntError),
-    ExpectedBool(std::str::ParseBoolError),
-    ExpectedString(String),
-    ProcessFailure(String),
-}
+    #[error("expected a tmux id marker `{0}`")]
+    ExpectedIdMarker(char),
 
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ParseError::ExpectedPaneIdMarker => write!(f, "Expected pane id marker"),
-            ParseError::ExpectedInt(msg) => write!(f, "Expected an int: {}", msg),
-            ParseError::ExpectedBool(msg) => write!(f, "Expected a bool: {}", msg),
-            ParseError::ExpectedString(msg) => write!(f, "Expected {}", msg),
-            ParseError::ProcessFailure(msg) => write!(f, "{}", msg),
-        }
-    }
-}
+    #[error("failed parsing int")]
+    ExpectedInt(#[from] std::num::ParseIntError),
 
-impl From<std::num::ParseIntError> for ParseError {
-    fn from(error: std::num::ParseIntError) -> Self {
-        ParseError::ExpectedInt(error)
-    }
-}
+    #[error("failed parsing bool")]
+    ExpectedBool(#[from] std::str::ParseBoolError),
 
-impl From<std::str::ParseBoolError> for ParseError {
-    fn from(error: std::str::ParseBoolError) -> Self {
-        ParseError::ExpectedBool(error)
-    }
-}
+    #[error("unexpected process output: `{0}`")]
+    UnexpectedOutput(String),
 
-impl From<std::io::Error> for ParseError {
-    fn from(error: std::io::Error) -> Self {
-        ParseError::ProcessFailure(error.to_string())
-    }
+    #[error("unexpected tmux config: `{0}`")]
+    TmuxConfig(&'static str),
+
+    // #[error("process failed with error `{0}`")]
+    // ProcessFailure(String),
+    #[error("failed parsing utf-8 string: `{source}`")]
+    Utf8 {
+        #[from]
+        source: std::string::FromUtf8Error,
+    },
+
+    #[error("failed with io: `{source}`")]
+    Io {
+        #[from]
+        source: io::Error,
+    },
 }
