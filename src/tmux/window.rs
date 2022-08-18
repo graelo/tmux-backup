@@ -2,14 +2,13 @@
 //!
 //! The main use cases are running Tmux commands & parsing Tmux window information.
 
-use std::path::Path;
 use std::str::FromStr;
 
 use async_std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
-use super::{pane_id::PaneId, window_id::WindowId};
+use super::{pane::Pane, pane_id::PaneId, session::Session, window_id::WindowId};
 use crate::{error::ParseError, tmux::layout};
 
 /// A Tmux window.
@@ -130,31 +129,38 @@ pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
     result
 }
 
-/// Create a Tmux window.
+/// Create a Tmux window in a session exactly named as the passed `session`.
 ///
-/// This function uses the provided `Window` struct as a reference for configuration, uses the
-/// provided `working_dirpath` (`Window` does not have this), and create the new window in the
-/// session exactly named as `session_name`, and return the new window id and pane id.
+/// The new window attributes:
+///
+/// - created in the `session`
+/// - the window name is taken from the passed `window`
+/// - the working directory is the pane's working directory.
+///
 pub async fn new_window(
-    reference_window: &Window,
-    working_dirpath: &Path,
-    session_name: &str,
+    session: &Session,
+    window: &Window,
+    pane: &Pane,
+    pane_command: Option<&str>,
 ) -> Result<(WindowId, PaneId), ParseError> {
-    let exact_session_name = format!("={}", session_name);
+    let exact_session_name = format!("={}", session.name);
 
-    let args = vec![
+    let mut args = vec![
         "new-window",
         "-d",
         "-c",
-        working_dirpath.to_str().unwrap(),
+        pane.dirpath.to_str().unwrap(),
         "-n",
-        &reference_window.name,
+        &window.name,
         "-t",
         &exact_session_name,
         "-P",
         "-F",
         "#{window_id}:#{pane_id}",
     ];
+    if let Some(pane_command) = pane_command {
+        args.push(pane_command);
+    }
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;

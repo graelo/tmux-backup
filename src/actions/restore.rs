@@ -120,17 +120,20 @@ async fn restore_session(
 ) -> Result<(), ParseError> {
     let mut pairs: Vec<Pair> = vec![];
 
-    // 1a. Create the session (and its first window and first pane as a side-effect).
+    // Create the session (first window and first pane as side-effects) or only windows & panes.
 
-    for (src_window, src_panes) in zip(&session_windows, &panes_per_window).take(1) {
+    for (index, (src_window, src_panes)) in zip(&session_windows, &panes_per_window).enumerate() {
         let first_pane = src_panes.first().unwrap(); // guaranteed
 
-        let (_new_session_id, new_window_id, new_pane_id) = tmux::session::new_session(
-            &session,
-            first_pane.dirpath.as_path(),
-            src_window.name.as_str(),
-        )
-        .await?;
+        let (new_window_id, new_pane_id) = {
+            if index == 0 {
+                let (_new_session_id, new_window_id, new_pane_id) =
+                    tmux::session::new_session(&session, src_window, first_pane, None).await?;
+                (new_window_id, new_pane_id)
+            } else {
+                tmux::window::new_window(&session, src_window, first_pane, None).await?
+            }
+        };
 
         // 1b. Store the association between the original pane and this new pane.
         pairs.push(Pair {
@@ -149,37 +152,6 @@ async fn restore_session(
         }
 
         // 1d. Set the layout
-        tmux::window::set_layout(&src_window.layout, &new_window_id).await?;
-
-        if src_window.is_active {
-            tmux::window::select_window(&new_window_id).await?;
-        }
-    }
-
-    // 2. Create the other windows (and their first pane as a side-effect).
-    for (src_window, src_panes) in zip(&session_windows, &panes_per_window).skip(1) {
-        let first_pane = src_panes.first().unwrap(); // guaranteed
-
-        let (new_window_id, new_pane_id) =
-            tmux::window::new_window(src_window, first_pane.dirpath.as_path(), &session.name)
-                .await?;
-
-        // 2b. Store the association between the original pane and this new pane.
-        pairs.push(Pair {
-            source: first_pane.clone(),
-            target: new_pane_id,
-        });
-
-        // 2c. Then add the new panes in each window.
-        for pane in src_panes.iter().skip(1) {
-            let new_pane_id = tmux::pane::new_pane(pane, &new_window_id).await?;
-            pairs.push(Pair {
-                source: pane.clone(),
-                target: new_pane_id,
-            });
-        }
-
-        // 2d. Set the layout
         tmux::window::set_layout(&src_window.layout, &new_window_id).await?;
 
         if src_window.is_active {

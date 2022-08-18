@@ -4,14 +4,13 @@
 //! information.
 
 use async_std::process::Command;
-use std::{
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{path::PathBuf, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use super::{pane_id::PaneId, session_id::SessionId, window_id::WindowId};
+use super::{
+    pane::Pane, pane_id::PaneId, session_id::SessionId, window::Window, window_id::WindowId,
+};
 use crate::error::ParseError;
 
 /// A Tmux session.
@@ -91,25 +90,35 @@ pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
     result
 }
 
-/// Create a Tmux session from a `Session` struct, and name the window `window_name`.
+/// Create a Tmux session (and thus a window & pane).
+///
+/// The new session attributes:
+///
+/// - the session name is taken from the passed `session`
+/// - the working directory is taken from the pane's working directory.
+///
 pub async fn new_session(
     session: &Session,
-    dirpath: &Path,
-    window_name: &str,
+    window: &Window,
+    pane: &Pane,
+    pane_command: Option<&str>,
 ) -> Result<(SessionId, WindowId, PaneId), ParseError> {
-    let args = vec![
+    let mut args = vec![
         "new-session",
         "-d",
         "-c",
-        dirpath.to_str().unwrap(),
+        pane.dirpath.to_str().unwrap(),
         "-s",
         &session.name,
         "-n",
-        window_name,
+        &window.name,
         "-P",
         "-F",
         "#{session_id}:#{window_id}:#{pane_id}",
     ];
+    if let Some(pane_command) = pane_command {
+        args.push(pane_command);
+    }
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
