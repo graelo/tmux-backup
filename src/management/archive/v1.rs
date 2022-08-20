@@ -5,11 +5,10 @@ use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-use crate::tmux;
+use crate::{error::Error, tmux, Result};
 
 /// Version of the archive format.
 pub const FORMAT_VERSION: &str = "1.0";
@@ -85,10 +84,15 @@ impl Metadata {
             if entry.path().unwrap().to_string_lossy() == VERSION_FILENAME {
                 entry.read_to_string(&mut version)?;
                 if version.is_empty() {
-                    return Err(anyhow::anyhow!("Could not read the format version"));
+                    return Err(Error::ArchiveVersion(
+                        "could not read the format version".to_string(),
+                    ));
                 }
                 if version != FORMAT_VERSION {
-                    return Err(anyhow::anyhow!("Unsupported format version: `{}`", version));
+                    return Err(Error::ArchiveVersion(format!(
+                        "Unsupported format version: `{}`",
+                        version
+                    )));
                 }
             } else if entry.path().unwrap().to_string_lossy() == METADATA_FILENAME {
                 entry.read_to_end(&mut bytes)?;
@@ -96,7 +100,10 @@ impl Metadata {
         }
 
         if bytes.is_empty() {
-            return Err(anyhow::anyhow!("Could not read metadata"));
+            return Err(Error::MissingMetadata(format!(
+                "missing metadata in `{}`",
+                backup_filepath.as_ref().to_string_lossy()
+            )));
         }
 
         let metadata = serde_yaml::from_slice(&bytes)?;

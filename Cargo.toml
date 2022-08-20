@@ -23,7 +23,6 @@ path = "src/bin/tmux-backup.rs"
 clap = { version = "3.2.17", features = ["derive", "env"] }
 clap_complete = "3.2.3"
 
-anyhow = "1"
 thiserror = "1"
 
 nom = "7"

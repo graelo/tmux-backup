@@ -6,15 +6,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
 use async_std::task;
 use futures::future::join_all;
 use tempdir::TempDir;
 
 use crate::{
-    error::ParseError,
+    error::{Error, ParseError},
     management::archive::v1,
     tmux::{self, pane::Pane, session::Session, window::Window},
+    Result,
 };
 
 /// Name of the placeholder session.
@@ -73,13 +73,10 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         handles.push(handle);
     }
 
-    if let Err(e) = join_all(handles)
+    join_all(handles)
         .await
         .into_iter()
-        .collect::<Result<(), ParseError>>()
-    {
-        return Err(anyhow::anyhow!("error: {e}"));
-    }
+        .collect::<Result<()>>()?;
 
     // Delete the temp restore directory.
     temp_dir.close()?;
@@ -101,7 +98,9 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
             - you started from outside tmux but no existing session named `0` was found
             - check the state of your session
            ";
-        return Err(anyhow::anyhow!(message));
+        return Err(Error::TmuxError {
+            source: ParseError::TmuxConfig(message),
+        });
     }
 
     let metadata = v1::Metadata::new().await?;
@@ -132,7 +131,7 @@ async fn restore_session(
     panes_per_window: Vec<Vec<Pane>>,
     panes_content_dir: PathBuf,
     default_command: &str,
-) -> Result<(), ParseError> {
+) -> Result<()> {
     let mut pairs: Vec<Pair> = vec![];
 
     // Create the session (first window and first pane as side-effects) or only windows & panes.

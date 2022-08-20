@@ -2,12 +2,11 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
 use async_std::{fs, task};
 use futures::future::join_all;
 use tempdir::TempDir;
 
-use crate::{management::archive::v1, tmux};
+use crate::{management::archive::v1, tmux, Result};
 
 /// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`.
 ///

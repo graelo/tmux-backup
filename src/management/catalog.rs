@@ -4,7 +4,6 @@ use std::iter;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
 use async_std::stream::StreamExt;
 use async_std::{fs, task};
 use chrono::{Duration, Local, NaiveDateTime};
@@ -12,10 +11,13 @@ use futures::future::join_all;
 use regex::Regex;
 use si_scale::helpers::bytes2;
 
-use crate::management::{
-    archive::v1,
-    backup::{Backup, BackupStatus},
-    compaction::{Plan, Strategy},
+use crate::{
+    management::{
+        archive::v1,
+        backup::{Backup, BackupStatus},
+        compaction::{Plan, Strategy},
+    },
+    Result,
 };
 
 /// Catalog of all backups.
@@ -297,7 +299,7 @@ impl Catalog {
                     task::spawn(async move { v1::Metadata::read_file(backup_filepath).await })
                 })
                 .collect();
-            let metadatas: Result<Vec<_>, _> = join_all(tasks).await.into_iter().collect();
+            let metadatas: Result<Vec<_>> = join_all(tasks).await.into_iter().collect();
             let metadatas = metadatas.expect("Cannot read metadata files");
 
             // Build & print table rows
