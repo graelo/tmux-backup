@@ -50,20 +50,56 @@ pub struct Metadata {
 
 impl Metadata {
     /// Query Tmux and return a new `Metadata`.
-    pub async fn new() -> Result<Metadata> {
+    pub async fn new() -> Result<Self> {
         let version = FORMAT_VERSION.to_string();
         let client = tmux::client::current_client().await?;
         let sessions = tmux::session::available_sessions().await?;
         let windows = tmux::window::available_windows().await?;
         let panes = tmux::pane::available_panes().await?;
 
-        let metadata = Metadata {
+        let metadata = Self {
             version,
             client,
             sessions,
             windows,
             panes,
         };
+
+        Ok(metadata)
+    }
+
+    /// Open the archive file at `backup_filepath` and read the version string and tmux metadata.
+    pub async fn read_file<P: AsRef<Path>>(backup_filepath: P) -> Result<Self> {
+        let archive = std::fs::File::open(backup_filepath.as_ref())?;
+        let dec = zstd::stream::read::Decoder::new(archive)?;
+        let mut tar = tar::Archive::new(dec);
+
+        // Read the version file.
+        let mut version = String::new();
+        version.reserve(4);
+
+        let mut bytes = vec![];
+        bytes.reserve(8 * 1024);
+
+        for mut entry in tar.entries()?.flatten() {
+            if entry.path().unwrap().to_string_lossy() == VERSION_FILENAME {
+                entry.read_to_string(&mut version)?;
+                if version.is_empty() {
+                    return Err(anyhow::anyhow!("Could not read the format version"));
+                }
+                if version != FORMAT_VERSION {
+                    return Err(anyhow::anyhow!("Unsupported format version: `{}`", version));
+                }
+            } else if entry.path().unwrap().to_string_lossy() == METADATA_FILENAME {
+                entry.read_to_end(&mut bytes)?;
+            }
+        }
+
+        if bytes.is_empty() {
+            return Err(anyhow::anyhow!("Could not read metadata"));
+        }
+
+        let metadata = serde_yaml::from_slice(&bytes)?;
 
         Ok(metadata)
     }
@@ -128,53 +164,18 @@ impl fmt::Display for Overview {
     }
 }
 
-/// Open the archive file then read the version string and tmux metadata.
-pub async fn read_metadata<P: AsRef<Path>>(backup_filepath: P) -> Result<Metadata> {
-    let archive = std::fs::File::open(backup_filepath.as_ref())?;
-    let dec = zstd::stream::read::Decoder::new(archive)?;
-    let mut tar = tar::Archive::new(dec);
-
-    // Read the version file.
-    let mut version = String::new();
-    version.reserve(4);
-
-    let mut bytes = vec![];
-    bytes.reserve(8 * 1024);
-
-    for mut entry in tar.entries()?.flatten() {
-        if entry.path().unwrap().to_string_lossy() == VERSION_FILENAME {
-            entry.read_to_string(&mut version)?;
-            if version.is_empty() {
-                return Err(anyhow::anyhow!("Could not read the format version"));
-            }
-            if version != FORMAT_VERSION {
-                return Err(anyhow::anyhow!("Unsupported format version: `{}`", version));
-            }
-        } else if entry.path().unwrap().to_string_lossy() == METADATA_FILENAME {
-            entry.read_to_end(&mut bytes)?;
-        }
-    }
-
-    if bytes.is_empty() {
-        return Err(anyhow::anyhow!("Could not read metadata"));
-    }
-
-    let metadata = serde_yaml::from_slice(&bytes)?;
-
-    Ok(metadata)
-}
-
-/// Print a full description of the archive.
-pub async fn print_description<P>(backup_filepath: P) -> Result<()>
+/// Print a full description of the archive, with session and window names.
+pub async fn print_description<P>(_backup_filepath: P) -> Result<()>
 where
     P: AsRef<Path>,
 {
-    let metadata = read_metadata(backup_filepath).await?;
-    let overview = metadata.overview();
+    unimplemented!()
+    // let metadata = read_metadata(backup_filepath).await?;
+    // let overview = metadata.overview();
 
-    println!("full details {overview}");
+    // println!("full details {overview}");
 
-    Ok(())
+    // Ok(())
 }
 
 /// Return the filepath for a new backup.

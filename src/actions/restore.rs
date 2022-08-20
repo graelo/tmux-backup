@@ -35,7 +35,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
     let default_command = tmux::server::default_command().await?;
 
     // Restore sessions, windows and panes.
-    let metadata = v1::read_metadata(backup_filepath).await?;
+    let metadata = v1::Metadata::read_file(backup_filepath).await?;
 
     let existing_sessions_names: HashSet<_> = tmux::session::available_sessions()
         .await?

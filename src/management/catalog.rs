@@ -294,7 +294,7 @@ impl Catalog {
                 .iter()
                 .map(|&(backup, _)| {
                     let backup_filepath = backup.filepath.clone();
-                    task::spawn(async move { v1::read_metadata(backup_filepath).await })
+                    task::spawn(async move { v1::Metadata::read_file(backup_filepath).await })
                 })
                 .collect();
             let metadatas: Result<Vec<_>, _> = join_all(tasks).await.into_iter().collect();
