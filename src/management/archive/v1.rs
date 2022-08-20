@@ -49,6 +49,25 @@ pub struct Metadata {
 }
 
 impl Metadata {
+    /// Query Tmux and return a new `Metadata`.
+    pub async fn new() -> Result<Metadata> {
+        let version = FORMAT_VERSION.to_string();
+        let client = tmux::client::current_client().await?;
+        let sessions = tmux::session::available_sessions().await?;
+        let windows = tmux::window::available_windows().await?;
+        let panes = tmux::pane::available_panes().await?;
+
+        let metadata = Metadata {
+            version,
+            client,
+            sessions,
+            windows,
+            panes,
+        };
+
+        Ok(metadata)
+    }
+
     /// Return an overview of the metadata.
     pub fn overview(&self) -> Overview {
         Overview {

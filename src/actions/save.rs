@@ -31,21 +31,8 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
             let temp_version_filepath = temp_dirpath.join(v1::VERSION_FILENAME);
             fs::write(&temp_version_filepath, v1::FORMAT_VERSION).await?;
 
-            let version = v1::FORMAT_VERSION.to_string();
-            let client = tmux::client::current_client().await?;
-            let sessions = tmux::session::available_sessions().await?;
-            let windows = tmux::window::available_windows().await?;
-            let panes = tmux::pane::available_panes().await?;
-            let num_sessions = sessions.len() as u16;
-            let num_windows = windows.len() as u16;
+            let metadata = v1::Metadata::new().await?;
 
-            let metadata = v1::Metadata {
-                version,
-                client,
-                sessions,
-                windows,
-                panes,
-            };
             let yaml = serde_yaml::to_string(&metadata)?;
 
             let temp_metadata_filepath = temp_dirpath.join(v1::METADATA_FILENAME);
@@ -54,8 +41,8 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
             Ok((
                 temp_version_filepath,
                 temp_metadata_filepath,
-                num_sessions,
-                num_windows,
+                metadata.sessions.len() as u16,
+                metadata.windows.len() as u16,
             ))
         })
     };
