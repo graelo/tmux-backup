@@ -104,6 +104,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         return Err(anyhow::anyhow!(message));
     }
 
+    let metadata = v1::Metadata::new().await?;
     Ok(metadata.overview())
 }
 
