@@ -1,0 +1,46 @@
+[package]
+name = "tmux-backup"
+version = "0.1.0"
+edition = "2021"
+description = "A backup & restore solution for Tmux sessions."
+readme = "README.md"
+
+license = "MIT"
+authors = ["graelo <graelo@grael.cc>"]
+repository = "https://github.com/graelo/tmux-backup"
+homepage = "https://github.com/graelo/tmux-backup"
+documentation = "https://docs.rs/tmux-backup"
+
+keywords = ["tmux", "tmux-plugin", "tmux-resurrect", "backup"]
+categories = ["command-line-utilities"]
+exclude = ["/.github", "/ci", "/.travis.yml", "/appveyor.yml"]
+
+[[bin]]
+name = "tmux-backup"
+path = "src/bin/tmux-backup.rs"
+
+[dependencies]
+clap = { version = "3.2.17", features = ["derive", "env"] }
+clap_complete = "3.2.3"
+
+thiserror = "1"
+
+nom = "7"
+regex = "1.4"
+itertools = "0.10.3" # waiting for https://doc.rust-lang.org/std/primitive.slice.html#method.group_by
+si-scale = "0.2"
+
+futures = "0.3"
+async-std = { version = "1", features = ["unstable"] }
+
+# archive ser/deser
+tempdir = "0.3"
+tar = "0.4.38"
+zstd = "0.11.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+chrono = "0.4.19"
+
+[build-dependencies]
+clap = { version = "3.2.17", features = ["derive"] }
+clap_complete = "3.2.3"
