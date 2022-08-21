@@ -1,6 +1,7 @@
 [workspace]
 members = [
-  "tmux-backup"
+  "tmux-backup",
+  "tmux-lib"
 ]
 
 [profile.release]

@@ -1,5 +1,7 @@
 //! Functions to read or manipulate Tmux
 
+pub mod error;
+
 pub mod client;
 pub use client::display_message;
 pub mod layout;

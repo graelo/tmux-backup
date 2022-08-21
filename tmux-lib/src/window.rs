@@ -9,7 +9,7 @@ use async_std::process::Command;
 use serde::{Deserialize, Serialize};
 
 use super::{pane::Pane, pane_id::PaneId, session::Session, window_id::WindowId};
-use crate::{error::ParseError, tmux::layout};
+use crate::{error::ParseError, layout};
 
 /// A Tmux window.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

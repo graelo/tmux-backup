@@ -11,7 +11,7 @@ use futures::future::join_all;
 use tempdir::TempDir;
 
 use crate::{
-    error::{Error, ParseError},
+    error::Error,
     management::archive::v1,
     tmux::{self, pane::Pane, session::Session, window::Window},
     Result,
@@ -98,9 +98,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
             - you started from outside tmux but no existing session named `0` was found
             - check the state of your session
            ";
-        return Err(Error::TmuxError {
-            source: ParseError::TmuxConfig(message),
-        });
+        return Err(Error::ConfigError(message.to_string()));
     }
 
     let metadata = v1::Metadata::new().await?;
