@@ -2,7 +2,7 @@
 
 use std::io;
 
-use crate::tmux::error::ParseError;
+use crate::tmux;
 
 /// Describes all errors from this crate.
 ///
@@ -15,7 +15,7 @@ pub enum Error {
     TmuxError {
         #[from]
         /// Source error.
-        source: ParseError,
+        source: tmux::error::Error,
     },
 
     /// Unsupported archive version.

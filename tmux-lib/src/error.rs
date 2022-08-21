@@ -2,7 +2,7 @@ use std::io;
 
 /// Describes all errors variants from this crate.
 #[derive(thiserror::Error, Debug)]
-pub enum ParseError {
+pub enum Error {
     /// Failed parsing a tmux id marker for sessions, windows or panes.
     #[error("expected a tmux id marker `{0}`")]
     ExpectedIdMarker(char),

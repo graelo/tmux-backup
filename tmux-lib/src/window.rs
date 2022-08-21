@@ -9,7 +9,7 @@ use async_std::process::Command;
 use serde::{Deserialize, Serialize};
 
 use super::{pane::Pane, pane_id::PaneId, session::Session, window_id::WindowId};
-use crate::{error::ParseError, layout};
+use crate::{error::Error, layout, Result};
 
 /// A Tmux window.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,11 +29,11 @@ pub struct Window {
 }
 
 impl FromStr for Window {
-    type Err = ParseError;
+    type Err = Error;
 
     /// Parse a string containing the tmux window status into a new `Window`.
     ///
-    /// This returns a `Result<Window, ParseError>` as this call can obviously
+    /// This returns a `Result<Window, Error>` as this call can obviously
     /// fail if provided an invalid format.
     ///
     /// The expected format of the tmux status is
@@ -60,7 +60,7 @@ impl FromStr for Window {
     ///
     /// For definitions, look at `Window` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
+    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
         let items: Vec<&str> = src.split(':').collect();
         assert_eq!(items.len(), 6, "tmux should have returned 6 items per line");
 
@@ -101,7 +101,7 @@ impl Window {
 }
 
 /// Return a list of all `Window` from all sessions.
-pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
+pub async fn available_windows() -> Result<Vec<Window>> {
     let args = vec![
         "list-windows",
         "-a",
@@ -120,7 +120,7 @@ pub async fn available_windows() -> Result<Vec<Window>, ParseError> {
     // Note: each call to the `Window::from_str` returns a `Result<Window, _>`.
     // All results are then collected into a Result<Vec<Window>, _>, via
     // `collect()`.
-    let result: Result<Vec<Window>, ParseError> = buffer
+    let result: Result<Vec<Window>> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
         .map(Window::from_str)
@@ -142,7 +142,7 @@ pub async fn new_window(
     window: &Window,
     pane: &Pane,
     pane_command: Option<&str>,
-) -> Result<(WindowId, PaneId), ParseError> {
+) -> Result<(WindowId, PaneId)> {
     let exact_session_name = format!("={}", session.name);
 
     let mut args = vec![
@@ -180,27 +180,27 @@ pub async fn new_window(
 }
 
 /// Apply the provided `layout` to the window with `window_id`.
-pub async fn set_layout(layout: &str, window_id: &WindowId) -> Result<(), ParseError> {
+pub async fn set_layout(layout: &str, window_id: &WindowId) -> Result<()> {
     let args = vec!["select-layout", "-t", window_id.as_str(), layout];
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
     if !buffer.is_empty() {
-        return Err(ParseError::UnexpectedOutput(buffer));
+        return Err(Error::UnexpectedOutput(buffer));
     }
     Ok(())
 }
 
 /// Select (make active) the window with `window_id`.
-pub async fn select_window(window_id: &WindowId) -> Result<(), ParseError> {
+pub async fn select_window(window_id: &WindowId) -> Result<()> {
     let args = vec!["select-window", "-t", window_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
     if !buffer.is_empty() {
-        return Err(ParseError::UnexpectedOutput(buffer));
+        return Err(Error::UnexpectedOutput(buffer));
     }
     Ok(())
 }
@@ -209,7 +209,7 @@ pub async fn select_window(window_id: &WindowId) -> Result<(), ParseError> {
 mod tests {
     use super::Window;
     use super::WindowId;
-    use crate::error;
+    use crate::Result;
     use std::str::FromStr;
 
     #[test]
@@ -227,7 +227,7 @@ mod tests {
             "@10:1:false:ae3a,334x85,0,0[334x48,0,0,17,334x36,0,49{175x36,0,49,18,158x36,176,49,19}]:mytui-app:tmux-hacking",
             "@11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:tmux-backup:tmux-hacking",
         ];
-        let sessions: Result<Vec<Window>, error::ParseError> =
+        let sessions: Result<Vec<Window>> =
             output.iter().map(|&line| Window::from_str(line)).collect();
         let windows = sessions.expect("Could not parse tmux sessions");
 

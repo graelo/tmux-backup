@@ -42,3 +42,6 @@ pub mod session;
 pub mod session_id;
 pub mod window;
 pub mod window_id;
+
+/// Result type for this crate.
+pub type Result<T> = std::result::Result<T, error::Error>;

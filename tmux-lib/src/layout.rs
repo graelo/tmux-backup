@@ -20,7 +20,7 @@ use nom::{
     IResult,
 };
 
-use crate::error::ParseError;
+use crate::{error::Error, Result};
 
 /// Represent a parsed window layout.
 #[derive(Debug, PartialEq, Eq)]
@@ -118,16 +118,16 @@ impl Split {
 }
 
 /// Parse the Tmux layout string description and return the pane-ids.
-pub fn parse_window_layout(input: &str) -> Result<WindowLayout, ParseError> {
+pub fn parse_window_layout(input: &str) -> Result<WindowLayout> {
     match window_layout(input) {
         Ok((remainder, layout)) => {
             if remainder.is_empty() {
                 Ok(layout)
             } else {
-                Err(ParseError::UnexpectedOutput(remainder.into()))
+                Err(Error::UnexpectedOutput(remainder.into()))
             }
         }
-        Err(_) => Err(ParseError::UnexpectedOutput("cannot parse".into())),
+        Err(_) => Err(Error::UnexpectedOutput("cannot parse".into())),
     }
 }
 
@@ -136,7 +136,7 @@ fn window_layout(input: &str) -> IResult<&str, WindowLayout> {
     Ok((input, WindowLayout { id, container }))
 }
 
-fn from_hex(input: &str) -> Result<u16, std::num::ParseIntError> {
+fn from_hex(input: &str) -> std::result::Result<u16, std::num::ParseIntError> {
     u16::from_str_radix(input, 16)
 }
 

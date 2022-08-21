@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::ParseError;
+use crate::error::Error;
 
 /// The id of a Tmux session.
 ///
@@ -14,13 +14,13 @@ use crate::error::ParseError;
 pub struct SessionId(String);
 
 impl FromStr for SessionId {
-    type Err = ParseError;
+    type Err = Error;
 
     /// Parse into SessionId. The `&str` must start with '$' followed by a
     /// `u16`.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
+    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
         if !src.starts_with('$') {
-            return Err(ParseError::ExpectedIdMarker('$'));
+            return Err(Error::ExpectedIdMarker('$'));
         }
         let id = src[1..].parse::<u16>()?;
         let id = format!("${}", id);
