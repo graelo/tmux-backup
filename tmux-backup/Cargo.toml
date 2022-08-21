@@ -5,7 +5,7 @@ edition = "2021"
 description = "A backup & restore solution for Tmux sessions."
 readme = "README.md"
 
-license = "MIT"
+license = "MIT OR Apache-2.0"
 authors = ["graelo <graelo@grael.cc>"]
 repository = "https://github.com/graelo/tmux-backup"
 homepage = "https://github.com/graelo/tmux-backup"
