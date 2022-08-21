@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use async_std::{fs, task};
 use futures::future::join_all;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use crate::{management::archive::v1, tmux, Result};
 
@@ -20,7 +20,7 @@ use crate::{management::archive::v1, tmux, Result};
 ///
 pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Overview)> {
     // Prepare the temp directory.
-    let temp_dir = TempDir::new("tmux-backup")?;
+    let temp_dir = TempDir::new()?;
 
     // Save sessions & windows into `metadata.yaml` in the temp folder.
     let metadata_task: task::JoinHandle<Result<(PathBuf, PathBuf, u16, u16)>> = {

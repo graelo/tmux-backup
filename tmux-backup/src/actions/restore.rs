@@ -8,7 +8,7 @@ use std::{
 
 use async_std::task;
 use futures::future::join_all;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use crate::{
     error::Error,
@@ -23,7 +23,7 @@ const PLACEHOLDER_SESSION_NAME: &str = "[placeholder]";
 /// Restore all sessions, windows & panes from the backup file.
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
     // Prepare the temp directory with the content of the backup.
-    let temp_dir = TempDir::new("tmux-backup")?;
+    let temp_dir = TempDir::new()?;
     v1::unpack(backup_filepath.as_ref(), temp_dir.path()).await?;
     let panes_content_dir = temp_dir.path().join("panes-content");
 
