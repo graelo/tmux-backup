@@ -6,15 +6,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
 use async_std::task;
 use futures::future::join_all;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use crate::{
-    error::ParseError,
+    error::Error,
     management::archive::v1,
     tmux::{self, pane::Pane, session::Session, window::Window},
+    Result,
 };
 
 /// Name of the placeholder session.
@@ -23,7 +23,7 @@ const PLACEHOLDER_SESSION_NAME: &str = "[placeholder]";
 /// Restore all sessions, windows & panes from the backup file.
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
     // Prepare the temp directory with the content of the backup.
-    let temp_dir = TempDir::new("tmux-backup")?;
+    let temp_dir = TempDir::new()?;
     v1::unpack(backup_filepath.as_ref(), temp_dir.path()).await?;
     let panes_content_dir = temp_dir.path().join("panes-content");
 
@@ -35,7 +35,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
     let default_command = tmux::server::default_command().await?;
 
     // Restore sessions, windows and panes.
-    let metadata = v1::read_metadata(backup_filepath).await?;
+    let metadata = v1::Metadata::read_file(backup_filepath).await?;
 
     let existing_sessions_names: HashSet<_> = tmux::session::available_sessions()
         .await?
@@ -73,13 +73,10 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         handles.push(handle);
     }
 
-    if let Err(e) = join_all(handles)
+    join_all(handles)
         .await
         .into_iter()
-        .collect::<Result<(), ParseError>>()
-    {
-        return Err(anyhow::anyhow!("error: {e}"));
-    }
+        .collect::<Result<()>>()?;
 
     // Delete the temp restore directory.
     temp_dir.close()?;
@@ -101,9 +98,10 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
             - you started from outside tmux but no existing session named `0` was found
             - check the state of your session
            ";
-        return Err(anyhow::anyhow!(message));
+        return Err(Error::ConfigError(message.to_string()));
     }
 
+    let metadata = v1::Metadata::new().await?;
     Ok(metadata.overview())
 }
 
@@ -131,7 +129,7 @@ async fn restore_session(
     panes_per_window: Vec<Vec<Pane>>,
     panes_content_dir: PathBuf,
     default_command: &str,
-) -> Result<(), ParseError> {
+) -> Result<()> {
     let mut pairs: Vec<Pair> = vec![];
 
     // Create the session (first window and first pane as side-effects) or only windows & panes.

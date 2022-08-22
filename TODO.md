@@ -2,24 +2,24 @@
 
 ## Global
 
-- use `thiserror` in the library
-- cleanup error types, for instance `UnexpectedOutput`
-- go over functions such as windows_related_to which return copies, and make
+- [ ] use `thiserror` in the library
+- [ ] cleanup error types, for instance `UnexpectedOutput`
+- [ ] go over functions such as windows_related_to which return copies, and make
   them return references instead
-- check clap config file support
+- [x] check clap config file support
 
 ## Related to save
 
-- add list of captured environment variables (in conf file?)
+- [ ] add list of captured environment variables (in conf file?)
 
 ## Related to restore
 
-- if in $TMUX, replace the existing session named `0` and switch to client
+- [ ] if in $TMUX, replace the existing session named `0` and switch to client
   else display a message `tmux attach -t last-session-name`
-- add `restore --attach` to automatically attach if running from the terminal
-- add `restore --override` to replace each existing session by its version from
+- [ ] add `restore --attach` to automatically attach if running from the terminal
+- [ ] add `restore --override` to replace each existing session by its version from
   the archive
-- add `restore --skip-last-lines n` to not restore the last n lines of each
+- [ ] add `restore --skip-last-lines n` to not restore the last n lines of each
   buffer
-- in `restore()` gather the true metadata for displaying the overview, instead
+- [x] in `restore()` gather the true metadata for displaying the overview, instead
   of the metadata from the archive

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use super::pane_id::PaneId;
 use super::window_id::WindowId;
-use crate::error;
+use crate::{error, Result};
 
 /// A Tmux pane.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,11 +43,11 @@ pub struct Pane {
 }
 
 impl FromStr for Pane {
-    type Err = error::ParseError;
+    type Err = error::Error;
 
     /// Parse a string containing tmux panes status into a new `Pane`.
     ///
-    /// This returns a `Result<Pane, ParseError>` as this call can obviously
+    /// This returns a `Result<Pane, Error>` as this call can obviously
     /// fail if provided an invalid format.
     ///
     /// The expected format of the tmux status is
@@ -66,7 +66,7 @@ impl FromStr for Pane {
     ///
     /// For definitions, look at `Pane` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
+    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
         let items: Vec<&str> = src.split(':').collect();
         assert_eq!(
             items.len(),
@@ -134,7 +134,7 @@ impl Pane {
     /// scrolled up by 3 lines. It is necessarily in copy mode. Its start line
     /// index is `-3`. The index of the last line is `(40-1) - 3 = 36`.
     ///
-    pub async fn capture(&self) -> Result<Vec<u8>, error::ParseError> {
+    pub async fn capture(&self) -> Result<Vec<u8>> {
         let args = vec![
             "capture-pane",
             "-t",
@@ -155,7 +155,7 @@ impl Pane {
 }
 
 /// Return a list of all `Pane` from all sessions.
-pub async fn available_panes() -> Result<Vec<Pane>, error::ParseError> {
+pub async fn available_panes() -> Result<Vec<Pane>> {
     let args = vec![
         "list-panes",
         "-a",
@@ -175,7 +175,7 @@ pub async fn available_panes() -> Result<Vec<Pane>, error::ParseError> {
 
     // Each call to `Pane::parse` returns a `Result<Pane, _>`. All results
     // are collected into a Result<Vec<Pane>, _>, thanks to `collect()`.
-    let result: Result<Vec<Pane>, error::ParseError> = buffer
+    let result: Result<Vec<Pane>> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
         .map(Pane::from_str)
@@ -190,7 +190,7 @@ pub async fn new_pane(
     reference_pane: &Pane,
     pane_command: Option<&str>,
     window_id: &WindowId,
-) -> Result<PaneId, error::ParseError> {
+) -> Result<PaneId> {
     let mut args = vec![
         "split-window",
         "-h",
@@ -215,14 +215,14 @@ pub async fn new_pane(
 }
 
 /// Select (make active) the pane with `pane_id`.
-pub async fn select_pane(pane_id: &PaneId) -> Result<(), error::ParseError> {
+pub async fn select_pane(pane_id: &PaneId) -> Result<()> {
     let args = vec!["select-pane", "-t", pane_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
 
     if !buffer.is_empty() {
-        return Err(error::ParseError::UnexpectedOutput(buffer));
+        return Err(error::Error::UnexpectedOutput(buffer));
     }
     Ok(())
 }
@@ -231,7 +231,7 @@ pub async fn select_pane(pane_id: &PaneId) -> Result<(), error::ParseError> {
 mod tests {
     use super::Pane;
     use super::PaneId;
-    use crate::error;
+    use crate::Result;
     use std::path::PathBuf;
     use std::str::FromStr;
 
@@ -242,8 +242,7 @@ mod tests {
             "%21:1:true:158:42:176:333:0:41:rmbp:/Users/graelo/code/rust/tmux-backup:tmux",
             "%27:2:false:158:42:176:333:43:84:rmbp:/Users/graelo/code/rust/tmux-backup:man",
         ];
-        let panes: Result<Vec<Pane>, error::ParseError> =
-            output.iter().map(|&line| Pane::from_str(line)).collect();
+        let panes: Result<Vec<Pane>> = output.iter().map(|&line| Pane::from_str(line)).collect();
         let panes = panes.expect("Could not parse tmux panes");
 
         let expected = vec![

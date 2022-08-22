@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     pane::Pane, pane_id::PaneId, session_id::SessionId, window::Window, window_id::WindowId,
 };
-use crate::error::ParseError;
+use crate::{error::Error, Result};
 
 /// A Tmux session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,11 +25,11 @@ pub struct Session {
 }
 
 impl FromStr for Session {
-    type Err = ParseError;
+    type Err = Error;
 
     /// Parse a string containing tmux session status into a new `Session`.
     ///
-    /// This returns a `Result<Session, ParseError>` as this call can obviously
+    /// This returns a `Result<Session, Error>` as this call can obviously
     /// fail if provided an invalid format.
     ///
     /// The expected format of the tmux status is
@@ -49,10 +49,10 @@ impl FromStr for Session {
     ///
     /// For definitions, look at `Session` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
+    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
         let items: Vec<&str> = src.split(':').collect();
         if items.len() != 3 {
-            return Err(ParseError::UnexpectedOutput(src.into()));
+            return Err(Error::UnexpectedOutput(src.into()));
         }
         let mut iter = items.iter();
 
@@ -69,7 +69,7 @@ impl FromStr for Session {
 }
 
 /// Return a list of all `Session` from the current tmux session.
-pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
+pub async fn available_sessions() -> Result<Vec<Session>> {
     let args = vec![
         "list-sessions",
         "-F",
@@ -81,7 +81,7 @@ pub async fn available_sessions() -> Result<Vec<Session>, ParseError> {
 
     // Each call to `Session::parse` returns a `Result<Session, _>`. All results
     // are collected into a Result<Vec<Session>, _>, thanks to `collect()`.
-    let result: Result<Vec<Session>, ParseError> = buffer
+    let result: Result<Vec<Session>> = buffer
         .trim_end() // trim last '\n' as it would create an empty line
         .split('\n')
         .map(Session::from_str)
@@ -102,7 +102,7 @@ pub async fn new_session(
     window: &Window,
     pane: &Pane,
     pane_command: Option<&str>,
-) -> Result<(SessionId, WindowId, PaneId), ParseError> {
+) -> Result<(SessionId, WindowId, PaneId)> {
     let mut args = vec![
         "new-session",
         "-d",
@@ -144,7 +144,7 @@ pub async fn new_session(
 mod tests {
     use super::Session;
     use super::SessionId;
-    use crate::error;
+    use crate::Result;
     use std::path::PathBuf;
     use std::str::FromStr;
 
@@ -156,7 +156,7 @@ mod tests {
             "$3:swift:/Users/graelo/swift",
             "$4:tmux-hacking:/Users/graelo/tmux",
         ];
-        let sessions: Result<Vec<Session>, error::ParseError> =
+        let sessions: Result<Vec<Session>> =
             output.iter().map(|&line| Session::from_str(line)).collect();
         let sessions = sessions.expect("Could not parse tmux sessions");
 

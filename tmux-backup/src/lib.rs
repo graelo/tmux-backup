@@ -36,6 +36,9 @@
 
 pub mod actions;
 pub mod config;
-mod error;
+pub mod error;
 pub mod management;
-pub mod tmux;
+pub use tmux_lib as tmux;
+
+/// Result type for this crate.
+pub type Result<T> = std::result::Result<T, error::Error>;

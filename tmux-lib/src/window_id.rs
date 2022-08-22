@@ -14,13 +14,13 @@ use crate::error;
 pub struct WindowId(String);
 
 impl FromStr for WindowId {
-    type Err = error::ParseError;
+    type Err = error::Error;
 
     /// Parse into WindowId. The `&str` must start with '@' followed by a
     /// `u16`.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
+    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
         if !src.starts_with('@') {
-            return Err(error::ParseError::ExpectedIdMarker('@'));
+            return Err(error::Error::ExpectedIdMarker('@'));
         }
         let id = src[1..].parse::<u16>()?;
         let id = format!("@{}", id);

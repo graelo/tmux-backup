@@ -5,7 +5,7 @@ use std::str::FromStr;
 use async_std::process::Command;
 use serde::{Deserialize, Serialize};
 
-use crate::error;
+use crate::{error, Result};
 
 /// A Tmux client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,11 +17,11 @@ pub struct Client {
 }
 
 impl FromStr for Client {
-    type Err = error::ParseError;
+    type Err = error::Error;
 
     /// Parse a string containing client information into a new `Client`.
     ///
-    /// This returns a `Result<Client, ParseError>` as this call can obviously
+    /// This returns a `Result<Client, Error>` as this call can obviously
     /// fail if provided an invalid format.
     ///
     /// The expected format of the tmux response is
@@ -38,10 +38,10 @@ impl FromStr for Client {
     ///
     /// For definitions, look at `Pane` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
+    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
         let items: Vec<&str> = src.split(':').collect();
         if items.len() != 2 {
-            return Err(error::ParseError::UnexpectedOutput(src.into()));
+            return Err(error::Error::UnexpectedOutput(src.into()));
         }
 
         let mut iter = items.iter();
@@ -58,7 +58,7 @@ impl FromStr for Client {
 }
 
 /// Return the current client useful attributes.
-pub async fn current_client() -> Result<Client, error::ParseError> {
+pub async fn current_client() -> Result<Client> {
     let args = vec![
         "display-message",
         "-p",
@@ -88,7 +88,7 @@ pub fn display_message(message: &str) {
 
 /// Switch to session exactly named `session_name`.
 
-pub async fn switch_client(session_name: &str) -> Result<(), error::ParseError> {
+pub async fn switch_client(session_name: &str) -> Result<()> {
     let exact_session_name = format!("={session_name}");
     let args = vec!["switch-client", "-t", &exact_session_name];
 

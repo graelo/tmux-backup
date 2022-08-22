@@ -13,12 +13,12 @@ use serde::{Deserialize, Serialize};
 pub struct PaneId(pub String);
 
 impl FromStr for PaneId {
-    type Err = error::ParseError;
+    type Err = error::Error;
 
     /// Parse into PaneId. The `&str` must start with '%' followed by a `u32`.
     fn from_str(src: &str) -> Result<Self, Self::Err> {
         if !src.starts_with('%') {
-            return Err(error::ParseError::ExpectedIdMarker('%'));
+            return Err(error::Error::ExpectedIdMarker('%'));
         }
         let id = src[1..].parse::<u16>()?;
         let id = format!("%{}", id);
