@@ -3,7 +3,7 @@
 use std::fmt;
 use std::path::PathBuf;
 
-use chrono::NaiveDateTime;
+use chrono::{Duration, NaiveDateTime};
 use clap::ValueEnum;
 
 /// Quick access, high-level representation of a backup.
@@ -20,6 +20,63 @@ pub struct Backup {
 
     /// Backup date.
     pub creation_date: NaiveDateTime,
+}
+
+impl Backup {
+    /// Return a string representing the duration since the backup file was created.
+    ///
+    // This function can only receive properly formatted files
+    pub fn age(&self, now: NaiveDateTime) -> String {
+        let duration = now.signed_duration_since(self.creation_date);
+        let duration_secs = duration.num_seconds();
+
+        // Month scale -> "n months ago"
+        let month = Duration::weeks(4).num_seconds();
+        if duration_secs >= 2 * month {
+            return format!("{} months", duration_secs / month);
+        }
+        if duration_secs >= month {
+            return "1 month".into();
+        }
+
+        // Week scale -> "n weeks ago"
+        let week = Duration::weeks(1).num_seconds();
+        if duration_secs >= 2 * week {
+            return format!("{} weeks", duration_secs / week);
+        }
+        if duration_secs >= week {
+            return "1 week".into();
+        }
+
+        // Day scale -> "n days ago"
+        let day = Duration::days(1).num_seconds();
+        if duration_secs >= 2 * day {
+            return format!("{} days", duration_secs / day);
+        }
+        if duration_secs >= day {
+            return "1 day".into();
+        }
+
+        // Hour scale -> "n hours ago"
+        let hour = Duration::hours(1).num_seconds();
+        if duration_secs >= 2 * hour {
+            return format!("{} hours", duration_secs / hour);
+        }
+        if duration_secs >= hour {
+            return "1 hour".into();
+        }
+
+        // Minute scale -> "n minutes ago"
+        let minute = Duration::minutes(1).num_seconds();
+        if duration_secs >= 2 * minute {
+            return format!("{} minutes", duration_secs / minute);
+        }
+        if duration_secs >= minute {
+            return "1 minute".into();
+        }
+
+        format!("{} seconds", duration_secs)
+    }
 }
 
 /// Which subset of backups to print.

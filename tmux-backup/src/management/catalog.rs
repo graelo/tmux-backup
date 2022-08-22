@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use async_std::stream::StreamExt;
 use async_std::{fs, task};
-use chrono::{Duration, Local, NaiveDateTime};
+use chrono::{Local, NaiveDateTime};
 use futures::future::join_all;
 use regex::Regex;
 use si_scale::helpers::bytes2;
@@ -210,61 +210,6 @@ impl Catalog {
         Ok(backups)
     }
 
-    /// Return a string representing the duration since the backup file was created.
-    ///
-    // This function can only receive properly formatted files
-    fn time_ago(now: NaiveDateTime, creation_date: NaiveDateTime) -> String {
-        let duration = now.signed_duration_since(creation_date);
-        let duration_secs = duration.num_seconds();
-
-        // Month scale -> "n months ago"
-        let month = Duration::weeks(4).num_seconds();
-        if duration_secs >= 2 * month {
-            return format!("{} months ago", duration_secs / month);
-        }
-        if duration_secs >= month {
-            return "1 month ago".into();
-        }
-
-        // Week scale -> "n weeks ago"
-        let week = Duration::weeks(1).num_seconds();
-        if duration_secs >= 2 * week {
-            return format!("{} weeks ago", duration_secs / week);
-        }
-        if duration_secs >= week {
-            return "1 week ago".into();
-        }
-
-        // Day scale -> "n days ago"
-        let day = Duration::days(1).num_seconds();
-        if duration_secs >= 2 * day {
-            return format!("{} days ago", duration_secs / day);
-        }
-        if duration_secs >= day {
-            return "1 day ago".into();
-        }
-
-        // Hour scale -> "n hours ago"
-        let hour = Duration::hours(1).num_seconds();
-        if duration_secs >= 2 * hour {
-            return format!("{} hours ago", duration_secs / hour);
-        }
-        if duration_secs >= hour {
-            return "1 hour ago".into();
-        }
-
-        // Minute scale -> "n minutes ago"
-        let minute = Duration::minutes(1).num_seconds();
-        if duration_secs >= 2 * minute {
-            return format!("{} minutes ago", duration_secs / minute);
-        }
-        if duration_secs >= minute {
-            return "1 minute ago".into();
-        }
-
-        format!("{} seconds ago", duration_secs)
-    }
-
     async fn print_table(&self, details_flag: bool) {
         println!("Strategy: {}", &self.strategy);
         println!("Location: `{}`\n", self.dirpath.to_string_lossy());
@@ -287,8 +232,8 @@ impl Catalog {
         if details_flag {
             // Table header
             println!(
-                "{:4} {:32} {:17} {:12} {:11} {:8} {:8}",
-                "", "NAME", "CREATED", "STATUS", "FILESIZE", "VERSION", "CONTENT"
+                "{:4} {:32} {:11} {:12} {:11} {:8} {:8}",
+                "", "NAME", "AGE", "STATUS", "FILESIZE", "VERSION", "CONTENT"
             );
 
             // Read all metadata concurrently
@@ -314,18 +259,18 @@ impl Catalog {
                     BackupStatus::Purgeable => yellow,
                     BackupStatus::Retainable => green,
                 };
-                let time_ago = Self::time_ago(now, backup.creation_date);
+                let age = backup.age(now);
 
                 let overview = metadata.overview();
                 let version = &metadata.version;
 
                 println!(
-                        "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status:12}{reset} {filesize:11} {version:8} {overview:8}"
+                        "{index:3}. {color}{filename:32}{reset} {age:11} {color}{status:12}{reset} {filesize:11} {version:8} {overview:8}"
                     );
             }
         } else {
             // Table header
-            println!("{:4} {:32} {:17} {:6}", "", "NAME", "CREATED", "STATUS");
+            println!("{:4} {:32} {:17} {:11}", "", "NAME", "CREATED", "STATUS");
 
             // Build & print table rows
             for (index, (backup, status)) in iter::zip(indices, statuses) {
@@ -334,10 +279,10 @@ impl Catalog {
                     BackupStatus::Purgeable => yellow,
                     BackupStatus::Retainable => green,
                 };
-                let time_ago = Self::time_ago(now, backup.creation_date);
+                let age = backup.age(now);
 
                 println!(
-                    "{index:3}. {color}{filename:32}{reset} {time_ago:17} {color}{status:6}{reset}"
+                    "{index:3}. {color}{filename:32}{reset} {age:11} {color}{status:6}{reset}"
                 );
             }
         }
