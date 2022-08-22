@@ -1,0 +1,141 @@
+# Test pre-releases on a larger scope (platforms & versions) to avoid bad surprises.
+
+name: Large scope
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  test-versions:
+    name: Test version compatibility on Linux
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [1.59.0, stable, beta, nightly]
+
+    steps:
+      - name: Rust install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+          components: rustfmt, clippy
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache crates from crates.io
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+             ~/.cargo/bin/
+             ~/.cargo/registry/index/
+             ~/.cargo/registry/cache/
+             ~/.cargo/git/db/
+             target/
+          key: '${{ runner.os }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
+
+      - name: Lint
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy -- -D warnings
+
+      - name: Install cargo check tools
+        timeout-minutes: 20
+        if: ${{ matrix.rust == 'stable' }}
+        run: |
+          cargo install --locked convco || true
+          cargo install --locked cargo-deny || true
+          cargo install --locked cargo-outdated || true
+          # cargo install --locked cargo-udeps || true # needs nightly
+          cargo install --locked cargo-audit || true
+          cargo install --locked cargo-pants || true
+
+      - name: Check
+        if: ${{ matrix.rust == 'stable' }}
+        run: |
+          convco check
+          cargo deny check
+          cargo outdated --exit-code 1
+          # cargo udeps
+          rm -rf ~/.cargo/advisory-db
+          cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+          cargo pants
+
+      - name: Build (dev)
+        run: cargo build --all-features
+
+      - name: Test
+        run: ./ci/test_full.sh
+
+  test-other-platforms:
+    name: Test on other platforms with stable
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - name: Rust install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+          components: rustfmt, clippy
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache crates from crates.io
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+             ~/.cargo/bin/
+             ~/.cargo/registry/index/
+             ~/.cargo/registry/cache/
+             ~/.cargo/git/db/
+             target/
+          key: '${{ runner.os }}-cargo-${{ hashFiles(''**/Cargo.lock'') }}'
+
+      - name: Lint
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy -- -D warnings
+
+      - name: Install cargo check tools
+        timeout-minutes: 20
+        run: |
+          cargo install --locked convco || true
+          cargo install --locked cargo-deny || true
+          cargo install --locked cargo-outdated || true
+          # cargo install --locked cargo-udeps || true
+          cargo install --locked cargo-audit || true
+          cargo install --locked cargo-pants || true
+
+      - name: Check
+        run: |
+          convco check
+          cargo deny check
+          cargo outdated --exit-code 1
+          # cargo udeps
+          rm -rf ~/.cargo/advisory-db
+          cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+          cargo pants
+
+      - name: Build (dev)
+        run: cargo build --all-features
+        # run: cargo build --target aarch64-apple-darwin --all-features
+
+      - name: Test
+        run: ./ci/test_full.sh

@@ -1,0 +1,72 @@
+# Any commit on main & PRs
+
+name: Essentials
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [1.59.0, stable]
+    steps:
+      - name: Rust install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+          components: rustfmt, clippy
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache crates from crates.io
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+             ~/.cargo/bin/
+             ~/.cargo/registry/index/
+             ~/.cargo/registry/cache/
+             ~/.cargo/git/db/
+             target/
+          key: '${{ runner.os }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
+
+      - name: Lint
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy -- -D warnings
+
+      - name: Install cargo check tools
+        timeout-minutes: 20
+        if: ${{ matrix.rust == 'stable' }}
+        run: |
+          cargo install --locked convco || true
+          cargo install --locked cargo-deny || true
+          cargo install --locked cargo-outdated || true
+          # cargo install --locked cargo-udeps || true # needs nightly
+          cargo install --locked cargo-audit || true
+          cargo install --locked cargo-pants || true
+
+      - name: Check
+        if: ${{ matrix.rust == 'stable' }}
+        run: |
+          convco check
+          cargo deny check
+          cargo outdated --exit-code 1
+          # cargo udeps
+          rm -rf ~/.cargo/advisory-db
+          cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+          cargo pants
+
+      - name: Build (dev)
+        run: cargo build --all-features
+
+      - name: Test
+        run: ./ci/test_full.sh
