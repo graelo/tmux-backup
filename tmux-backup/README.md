@@ -9,7 +9,7 @@
 
 A backup & restore solution for Tmux sessions.
 
-Version requirement: _rustc 1.50+_
+Version requirement: _rustc 1.59.0+_
 
 ```toml
 [dependencies]
