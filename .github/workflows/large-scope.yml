@@ -79,10 +79,13 @@ jobs:
         include:
           - os: macos-latest
             target: x86_64-apple-darwin
+            type: unix
           - os: macos-latest
             target: aarch64-apple-darwin
+            type: unix
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            type: windows
     steps:
       - name: Rust install
         uses: actions-rs/toolchain@v1
@@ -129,7 +132,20 @@ jobs:
           cargo deny check
           cargo outdated --exit-code 1
           # cargo udeps
+
+      - name: Audit (on Unix)
+        if: ${{ matrix.type == 'unix' }}
+        run: |
           rm -rf ~/.cargo/advisory-db
+
+      - name: Audit (on Windows)
+        if: ${{ matrix.type == 'windows' }}
+        run: |
+          rm -rf ~/.cargo/advisory-db
+        shell: bash
+
+      - name: Audit
+        run: |
           cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
           cargo pants
 
