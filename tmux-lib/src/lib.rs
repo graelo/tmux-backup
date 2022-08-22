@@ -1,10 +1,10 @@
-//! Functions to read or manipulate Tmux
+//! Read or manipulate Tmux.
 //!
-//! Version requirement: _rustc 1.50+_
+//! Version requirement: _rustc 1.59.0+_
 //!
 //! ```toml
 //! [dependencies]
-//! tmux-backup = "0.1"
+//! tmux-lib = "0.1"
 //! ```
 //!
 //! ## Getting started
