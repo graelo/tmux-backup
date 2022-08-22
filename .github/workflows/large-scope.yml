@@ -63,7 +63,7 @@ jobs:
           cargo outdated --exit-code 1
           # cargo udeps
           rm -rf ~/.cargo/advisory-db
-          cargo audit
+          cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
           cargo pants
 
       - name: Build (dev)
@@ -122,7 +122,7 @@ jobs:
           cargo outdated --exit-code 1
           # cargo udeps
           rm -rf ~/.cargo/advisory-db
-          cargo audit
+          cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
           cargo pants
 
       - name: Build (dev)
