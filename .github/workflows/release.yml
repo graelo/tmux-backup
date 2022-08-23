@@ -53,7 +53,7 @@ jobs:
              ~/.cargo/registry/cache/
              ~/.cargo/git/db/
              target/
-          key: '${{ runner.os }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: '${{ runner.os }}-${{ matrix.target }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
 
       - name: Build Release
         run: cargo build --release
