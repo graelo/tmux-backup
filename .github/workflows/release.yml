@@ -1,0 +1,125 @@
+name: Release
+on:
+  push:
+   tags:
+     - '*'
+
+jobs:
+  prepare-artifacts:
+    if: github.ref == 'refs/heads/main'
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            rust: stable
+            suffix: ''
+            archive_ext: zip
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            rust: stable
+            suffix: ''
+            archive_ext: zip
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            rust: stable
+            suffix: ''
+            archive_ext: tar.xz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust: stable
+            suffix: .exe
+            archive_ext: zip
+    steps:
+      - name: Rust install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          components: rustfmt, clippy
+
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: Cache crates from crates.io
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+             ~/.cargo/bin/
+             ~/.cargo/registry/index/
+             ~/.cargo/registry/cache/
+             ~/.cargo/git/db/
+             target/
+          key: '${{ runner.os }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: ECHO LIST
+        run: |
+          ls -alF .
+          ls -alF target/release/
+        shell: bash
+
+
+      - name: Compress to zip (macOS)
+        if: ${{ matrix.os == 'macos-latest' }}
+        run:
+          zip -A ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
+
+      - name: Compress to zip (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run:
+          Compress-Archive target/release/${{ github.event.repository.name }}${{ matrix.suffix }} ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
+
+      - name: Compress to tar.xz (Linux)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run:
+          tar Jcf ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
+
+      # - name: Get repository name
+      #   id: get_repository_name
+      #   run: echo ::set-output name=REPOSITORY_NAME::$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}' | sed -e "s/:refs//")
+      #   shell: bash
+      #   ${{ github.event.repository.name }}
+
+      - name: ECHO LIST
+        run: |
+          ls -alF .
+        shell: bash
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
+          path: ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
+
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs:
+      - prepare-artifacts
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ github.event.repository.name }}-x86_64-unknown-linux-gnu.tar.xz
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ github.event.repository.name }}-aarch64-apple-darwin.zip
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ github.event.repository.name }}-x86_64-apple-darwin.zip
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ github.event.repository.name }}-x86_64-pc-windows-msvc.zip
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "*.zip,*.tar.xz"
+          bodyFile: "CHANGELOG.md"
+          token: ${{ secrets.GITHUB_TOKEN }}

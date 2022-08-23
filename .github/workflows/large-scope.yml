@@ -68,6 +68,9 @@ jobs:
       - name: Build (dev)
         run: cargo build --all-features
 
+      - name: Build (release)
+        run: cargo build --all-features --release
+
       - name: Test
         run: ./ci/test_full.sh
 
@@ -151,7 +154,9 @@ jobs:
 
       - name: Build (dev)
         run: cargo build --all-features
-        # run: cargo build --target aarch64-apple-darwin --all-features
+
+      - name: Build (release)
+        run: cargo build --all-features --release
 
       - name: Test
         run: ./ci/test_full.sh
