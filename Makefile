@@ -1,4 +1,4 @@
 .PHONY: all clean test
 
-release:
+build-release:
 	RUSTFLAGS="-Ctarget-cpu=native" cargo build --release
