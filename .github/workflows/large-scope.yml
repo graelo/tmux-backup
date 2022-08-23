@@ -135,22 +135,10 @@ jobs:
           cargo deny check
           cargo outdated --exit-code 1
           # cargo udeps
-
-      - name: Audit (on Unix)
-        if: ${{ matrix.type == 'unix' }}
-        run: |
           rm -rf ~/.cargo/advisory-db
-
-      - name: Audit (on Windows)
-        if: ${{ matrix.type == 'windows' }}
-        run: |
-          rm -rf ~/.cargo/advisory-db
-        shell: bash
-
-      - name: Audit
-        run: |
           cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
           cargo pants
+        shell: bash
 
       - name: Build (dev)
         run: cargo build --all-features
