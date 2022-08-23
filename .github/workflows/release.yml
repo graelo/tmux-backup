@@ -6,7 +6,7 @@ on:
 
 jobs:
   prepare-artifacts:
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
     runs-on: '${{ matrix.os }}'
     strategy:
       matrix:
@@ -98,7 +98,7 @@ jobs:
           path: ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
 
   release:
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
