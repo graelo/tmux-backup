@@ -105,6 +105,10 @@ jobs:
     needs:
       - prepare-artifacts
     steps:
+      - name: checkout
+        # get CHANGELOG.md
+        uses: actions/checkout@v3
+
       - uses: actions/download-artifact@v3
         with:
           name: ${{ github.event.repository.name }}-x86_64-unknown-linux-gnu.tar.xz
