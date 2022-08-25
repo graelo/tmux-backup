@@ -6,7 +6,7 @@ on:
 
 jobs:
   prepare-artifacts:
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: '${{ matrix.os }}'
     strategy:
       matrix:
@@ -58,13 +58,6 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
-      - name: ECHO LIST
-        run: |
-          ls -alF .
-          ls -alF target/release/
-        shell: bash
-
-
       - name: Compress to zip (macOS)
         if: ${{ matrix.os == 'macos-latest' }}
         run:
@@ -80,15 +73,10 @@ jobs:
         run:
           tar Jcf ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
 
-      # - name: Get repository name
-      #   id: get_repository_name
-      #   run: echo ::set-output name=REPOSITORY_NAME::$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}' | sed -e "s/:refs//")
-      #   shell: bash
-      #   ${{ github.event.repository.name }}
-
-      - name: ECHO LIST
+      - name: List files
         run: |
           ls -alF .
+          ls -alF target/release/
         shell: bash
 
       - name: Upload artifacts
@@ -98,7 +86,7 @@ jobs:
           path: ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
 
   release:
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
