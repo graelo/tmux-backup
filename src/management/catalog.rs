@@ -270,7 +270,7 @@ impl Catalog {
             }
         } else {
             // Table header
-            println!("{:4} {:32} {:17} {:11}", "", "NAME", "CREATED", "STATUS");
+            println!("{:4} {:32} {:11} {:11}", "", "NAME", "AGE", "STATUS");
 
             // Build & print table rows
             for (index, (backup, status)) in iter::zip(indices, statuses) {
