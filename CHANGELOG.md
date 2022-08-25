@@ -1,11 +1,9 @@
 # Changelog
 
-## [Unreleased](https://github.com/graelo/tmux-backup/compare/v0.0.0...HEAD) (2022-08-21)
+## [Unreleased](https://github.com/graelo/tmux-backup/compare/v0.0.0...HEAD) (2022-08-18)
 
 ### Features
 
-* **restore:** report the actual metadata after restoration
-  ([40ad1df](https://github.com/graelo/tmux-backup/commit/40ad1df6715934d1727d93ee076f09598f343dc8))
 * **restore:** restore panes content 🎉
   ([f1675e4](https://github.com/graelo/tmux-backup/commit/f1675e49b494ad9a9492ca6760aaeb30030cacf9))
 * **catalog:** add filesize to --details columns
@@ -89,8 +87,6 @@
 
 ### Fixes
 
-* **license:** consistent files & statement
-  ([e5ba5d7](https://github.com/graelo/tmux-backup/commit/e5ba5d7b3e30aca754bc25bceef93307c49a1766))
 * **tmux:** default command if bash
   ([cad5a81](https://github.com/graelo/tmux-backup/commit/cad5a81bb2851952b19bfc545714bde314d3414c))
 * **archive:** use tempdir for save & restore
