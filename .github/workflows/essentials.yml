@@ -68,5 +68,8 @@ jobs:
       - name: Build (dev)
         run: cargo build --all-features
 
+      - name: Build (release)
+        run: cargo build --all-features --release
+
       - name: Test
         run: ./ci/test_full.sh

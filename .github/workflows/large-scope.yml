@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [1.59.0, stable, beta, nightly]
+        rust: [1.59.0, beta, nightly]
 
     steps:
       - name: Rust install
@@ -68,6 +68,9 @@ jobs:
       - name: Build (dev)
         run: cargo build --all-features
 
+      - name: Build (release)
+        run: cargo build --all-features --release
+
       - name: Test
         run: ./ci/test_full.sh
 
@@ -109,7 +112,7 @@ jobs:
              ~/.cargo/registry/cache/
              ~/.cargo/git/db/
              target/
-          key: '${{ runner.os }}-cargo-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: '${{ runner.os }}-${{ matrix.target }}-cargo-stable-${{ hashFiles(''**/Cargo.lock'') }}'
 
       - name: Lint
         run: |
@@ -132,26 +135,16 @@ jobs:
           cargo deny check
           cargo outdated --exit-code 1
           # cargo udeps
-
-      - name: Audit (on Unix)
-        if: ${{ matrix.type == 'unix' }}
-        run: |
           rm -rf ~/.cargo/advisory-db
-
-      - name: Audit (on Windows)
-        if: ${{ matrix.type == 'windows' }}
-        run: |
-          rm -rf ~/.cargo/advisory-db
-        shell: bash
-
-      - name: Audit
-        run: |
           cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
           cargo pants
+        shell: bash
 
       - name: Build (dev)
         run: cargo build --all-features
-        # run: cargo build --target aarch64-apple-darwin --all-features
+
+      - name: Build (release)
+        run: cargo build --all-features --release
 
       - name: Test
         run: ./ci/test_full.sh
