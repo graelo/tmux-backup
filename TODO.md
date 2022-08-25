@@ -2,11 +2,12 @@
 
 ## Global
 
-- [ ] use `thiserror` in the library
+- [x] use `thiserror` in the library
 - [ ] cleanup error types, for instance `UnexpectedOutput`
 - [ ] go over functions such as windows_related_to which return copies, and make
   them return references instead
 - [x] check clap config file support
+- [ ] use the strategy option only in save and catalog commands
 
 ## Related to save
 
@@ -14,7 +15,7 @@
 
 ## Related to restore
 
-- [ ] if in $TMUX, replace the existing session named `0` and switch to client
+- [x] if in $TMUX, replace the existing session named `0` and switch to client
   else display a message `tmux attach -t last-session-name`
 - [ ] add `restore --attach` to automatically attach if running from the terminal
 - [ ] add `restore --override` to replace each existing session by its version from
