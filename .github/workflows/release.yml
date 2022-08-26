@@ -103,11 +103,14 @@ jobs:
         run: |
           printf "::set-output name=%s::%s\n" tag-name "${GITHUB_REF#refs/tags/}"
 
-      - name: Create the changelog
+      - name: Download convco
         run: |
           git show-ref
           curl -sSfL https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip | zcat > convco
           chmod +x convco
+
+      - name: Use convco to create the changelog
+        run: |
           git tag ${{ steps.extract-version.outputs.tag-name }}
           ./convco changelog ${{ steps.extract-version.outputs.tag-name }} --max-versions 1 > CHANGELOG.md
           git tag -d ${{ steps.extract-version.outputs.tag-name }}
