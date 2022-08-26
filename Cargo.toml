@@ -38,7 +38,7 @@ si-scale = "0.2"
 futures = "0.3"
 async-std = { version = "1", features = ["unstable"] }
 
-tmux-lib = { version = "0.1.0", path = "./tmux-lib" }
+tmux-lib = { version = "0.0.0", path = "./tmux-lib" }
 
 # archive ser/deser
 tempfile = "3"

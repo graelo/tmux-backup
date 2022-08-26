@@ -7,7 +7,7 @@ on:
 jobs:
   prepare-artifacts:
     name: Prepare release artifacts
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
     runs-on: '${{ matrix.os }}'
     strategy:
       matrix:
@@ -88,7 +88,7 @@ jobs:
 
   release:
     name: Create a GitHub Release
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -97,12 +97,24 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v3
+        with:
+          # convco needs all history to create the changelog
+          fetch-depth: 0
 
-      - name: Create the changelog
+      - name: Extract version
+        id: extract-version
+        run: |
+          printf "::set-output name=%s::%s\n" tag-name "${GITHUB_REF#refs/tags/}"
+
+      - name: Download convco
         run: |
           git show-ref
-          curl -sSfL https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip | zcat > convco
+          curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
+          unzip convco
           chmod +x convco
+
+      - name: Use convco to create the changelog
+        run: |
           ./convco changelog --max-versions 1 > CHANGELOG.md
           rm convco
 
@@ -127,7 +139,7 @@ jobs:
 
   homebrew:
     name: Bump Homebrew formula
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs:
       - release
@@ -141,10 +153,10 @@ jobs:
         if: "!contains(github.ref, '-')" # skip prereleases
         with:
           formula-name: tmux-backup
-          formula-path: Formula/tmux-backup.rb
           homebrew-tap: graelo/homebrew-tap
-          base-branch: main
-          download-url: https://github.com/graelo/homebrew-tap/archive/refs/tags/${{ steps.extract-version.outputs.tag-name }}.tar.gz
+          # base-branch: main
+          create-pullrequest: true
+          download-url: https://github.com/graelo/tmux-backup/archive/refs/tags/${{ steps.extract-version.outputs.tag-name }}.tar.gz
           commit-message: |
             {{formulaName}} {{version}}
 
