@@ -96,8 +96,15 @@ jobs:
       - prepare-artifacts
     steps:
       - name: checkout
-        # get CHANGELOG.md
         uses: actions/checkout@v3
+
+      - name: Create the changelog
+        run: |
+          git show-ref
+          curl -sSfL https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip | zcat > convco
+          chmod +x convco
+          ./convco changelog --max-versions 1 > CHANGELOG.md
+          rm convco
 
       - uses: actions/download-artifact@v3
         with:
