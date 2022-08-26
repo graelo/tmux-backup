@@ -108,7 +108,9 @@ jobs:
           git show-ref
           curl -sSfL https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip | zcat > convco
           chmod +x convco
+          git tag ${{ steps.extract-version.outputs.tag-name }}
           ./convco changelog ${{ steps.extract-version.outputs.tag-name }} --max-versions 1 > CHANGELOG.md
+          git tag -d ${{ steps.extract-version.outputs.tag-name }}
           rm convco
 
       - uses: actions/download-artifact@v3
