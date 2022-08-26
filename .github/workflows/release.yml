@@ -110,7 +110,7 @@ jobs:
         run: |
           git show-ref
           curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
-          unzip convco
+          unzip convco-ubuntu.zip
           chmod +x convco
 
       - name: Use convco to create the changelog
