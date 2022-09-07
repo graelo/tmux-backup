@@ -28,18 +28,18 @@ if ! check_version $MSRV ; then
 fi
 
 FEATURES=()
-# check_version 1.27 && FEATURES+=(libm)
+# check_version 1.59 && FEATURES+=(libm)
 echo "Testing supported features: ${FEATURES[*]}"
 
 set -x
 
 # test the default
 cargo build
-cargo test
+cargo test --workspace
 
 # test `no_std`
 cargo build --no-default-features
-cargo test --no-default-features
+cargo test --no-default-features --workspace
 
 # test each isolated feature, with and without std
 for feature in "${FEATURES[@]}"; do
@@ -47,7 +47,7 @@ for feature in "${FEATURES[@]}"; do
   # cargo test --no-default-features --features="std $feature"
 
   cargo build --no-default-features --features="$feature"
-  cargo test --no-default-features --features="$feature"
+  cargo test --no-default-features --features="$feature" --workspace
 done
 
 # test all supported features, with and without std
@@ -55,4 +55,4 @@ done
 # cargo test --features="std ${FEATURES[*]}"
 
 cargo build --features="${FEATURES[*]}"
-cargo test --features="${FEATURES[*]}"
+cargo test --features="${FEATURES[*]}" --workspace
