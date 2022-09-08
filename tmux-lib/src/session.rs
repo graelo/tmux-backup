@@ -3,15 +3,28 @@
 //! The main use cases are running Tmux commands & parsing Tmux session
 //! information.
 
-use async_std::process::Command;
 use std::{path::PathBuf, str::FromStr};
+
+use async_std::process::Command;
+use nom::{
+    character::complete::{char, not_line_ending},
+    combinator::all_consuming,
+    sequence::tuple,
+    IResult,
+};
 
 use serde::{Deserialize, Serialize};
 
 use super::{
-    pane::Pane, pane_id::PaneId, session_id::SessionId, window::Window, window_id::WindowId,
+    pane::Pane,
+    pane_id::PaneId,
+    session_id::{session_id, SessionId},
+    window::Window,
+    window_id::WindowId,
 };
-use crate::{error::Error, Result};
+use crate::{
+    error::Error, pane_id::pane_id, parse::quoted_nonempty_string, window_id::window_id, Result,
+};
 
 /// A Tmux session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,37 +48,56 @@ impl FromStr for Session {
     /// The expected format of the tmux status is
     ///
     /// ```text
-    /// $1:pytorch:/Users/graelo/dl/pytorch
-    /// $2:rust:/Users/graelo/rust
-    /// $3:swift:/Users/graelo/swift
-    /// $4:tmux-hacking:/Users/graelo/tmux
+    /// $1:'pytorch':/Users/graelo/dl/pytorch
+    /// $2:'rust':/Users/graelo/rust
+    /// $3:'server: $~':/Users/graelo/swift
+    /// $4:'tmux-hacking':/Users/graelo/tmux
     /// ```
     ///
     /// This status line is obtained with
     ///
     /// ```text
-    /// tmux list-sessions -F "#{session_id}:#{session_name}:#{session_path}"
+    /// tmux list-sessions -F "#{session_id}:'#{session_name}':#{session_path}"
     /// ```
     ///
     /// For definitions, look at `Session` type and the tmux man page for
     /// definitions.
     fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
-        let items: Vec<&str> = src.split(':').collect();
-        if items.len() != 3 {
-            return Err(Error::UnexpectedOutput(src.into()));
+        // if let Ok((input, sess)) = session(src) && input.is_empty(){
+        //     return Ok(sess);
+        // }
+        // Err(Error::ParseSessionError(src.into()))
+
+        match session(src) {
+            Ok((input, sess)) => {
+                if input.is_empty() {
+                    Ok(sess)
+                } else {
+                    Err(Error::ParseSessionError(src.to_string()))
+                }
+            }
+            Err(_) => Err(Error::ParseSessionError(src.to_string())),
         }
-        let mut iter = items.iter();
-
-        // SessionId must be start with '%' followed by a `u16`
-        let id_str = iter.next().unwrap();
-        let id = SessionId::from_str(id_str)?;
-
-        let name = iter.next().unwrap().to_string();
-
-        let dirpath = iter.next().unwrap().into();
-
-        Ok(Session { id, name, dirpath })
     }
+}
+
+pub(crate) fn session(input: &str) -> IResult<&str, Session> {
+    let (input, (id, _, name, _, dirpath)) = tuple((
+        session_id,
+        char(':'),
+        quoted_nonempty_string,
+        char(':'),
+        not_line_ending,
+    ))(input)?;
+
+    Ok((
+        input,
+        Session {
+            id,
+            name: name.to_string(),
+            dirpath: dirpath.into(),
+        },
+    ))
 }
 
 /// Return a list of all `Session` from the current tmux session.
@@ -73,7 +105,7 @@ pub async fn available_sessions() -> Result<Vec<Session>> {
     let args = vec![
         "list-sessions",
         "-F",
-        "#{session_id}:#{session_name}:#{session_path}",
+        "#{session_id}:'#{session_name}':#{session_path}",
     ];
 
     let output = Command::new("tmux").args(&args).output().await?;
@@ -122,20 +154,16 @@ pub async fn new_session(
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
+    let buffer = buffer.trim_end();
 
-    let items: Vec<&str> = buffer.trim_end().split(':').collect();
-    assert_eq!(items.len(), 3);
-
-    let mut iter = items.iter();
-
-    let id_str = iter.next().unwrap();
-    let new_session_id = SessionId::from_str(id_str)?;
-
-    let id_str = iter.next().unwrap();
-    let new_window_id = WindowId::from_str(id_str)?;
-
-    let id_str = iter.next().unwrap();
-    let new_pane_id = PaneId::from_str(id_str)?;
+    let (_, (new_session_id, _, new_window_id, _, new_pane_id)) = all_consuming(tuple((
+        session_id,
+        char(':'),
+        window_id,
+        char(':'),
+        pane_id,
+    )))(buffer)
+    .map_err(|_| Error::ParseSessionIdError(buffer.to_string()))?;
 
     Ok((new_session_id, new_window_id, new_pane_id))
 }
@@ -151,10 +179,10 @@ mod tests {
     #[test]
     fn parse_list_sessions() {
         let output = vec![
-            "$1:pytorch:/Users/graelo/ml/pytorch",
-            "$2:rust:/Users/graelo/rust",
-            "$3:swift:/Users/graelo/swift",
-            "$4:tmux-hacking:/Users/graelo/tmux",
+            "$1:'pytorch':/Users/graelo/ml/pytorch",
+            "$2:'rust':/Users/graelo/rust",
+            "$3:'server: $':/Users/graelo/swift",
+            "$4:'tmux-hacking':/Users/graelo/tmux",
         ];
         let sessions: Result<Vec<Session>> =
             output.iter().map(|&line| Session::from_str(line)).collect();
@@ -173,7 +201,7 @@ mod tests {
             },
             Session {
                 id: SessionId::from_str("$3").unwrap(),
-                name: String::from("swift"),
+                name: String::from("server: $"),
                 dirpath: PathBuf::from("/Users/graelo/swift"),
             },
             Session {

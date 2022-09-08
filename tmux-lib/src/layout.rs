@@ -131,7 +131,7 @@ pub fn parse_window_layout(input: &str) -> Result<WindowLayout> {
     }
 }
 
-fn window_layout(input: &str) -> IResult<&str, WindowLayout> {
+pub(crate) fn window_layout(input: &str) -> IResult<&str, WindowLayout> {
     let (input, (id, _, container)) = tuple((layout_id, char(','), container))(input)?;
     Ok((input, WindowLayout { id, container }))
 }

@@ -3,9 +3,14 @@
 use std::fmt;
 use std::str::FromStr;
 
+use nom::{
+    character::complete::{char, digit1},
+    sequence::preceded,
+    IResult,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::error;
+use crate::error::Error;
 
 /// The id of a Tmux window.
 ///
@@ -14,17 +19,26 @@ use crate::error;
 pub struct WindowId(String);
 
 impl FromStr for WindowId {
-    type Err = error::Error;
+    type Err = Error;
 
     /// Parse into WindowId. The `&str` must start with '@' followed by a
     /// `u16`.
     fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
-        if !src.starts_with('@') {
-            return Err(error::Error::ExpectedIdMarker('@'));
+        // if let Ok((input, win_id)) = window_id(src) && input.is_empty(){
+        //     return Ok(win_id);
+        // }
+        // Err(Error::ParseWindowIdError(src.into()))
+
+        match window_id(src) {
+            Ok((input, win_id)) => {
+                if input.is_empty() {
+                    Ok(win_id)
+                } else {
+                    Err(Error::ParseWindowIdError(src.into()))
+                }
+            }
+            Err(_) => Err(Error::ParseWindowIdError(src.into())),
         }
-        let id = src[1..].parse::<u16>()?;
-        let id = format!("@{}", id);
-        Ok(WindowId(id))
     }
 }
 
@@ -38,5 +52,37 @@ impl WindowId {
 impl fmt::Display for WindowId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+pub(crate) fn window_id(input: &str) -> IResult<&str, WindowId> {
+    let (input, digit) = preceded(char('@'), digit1)(input)?;
+    let id = format!("@{}", digit);
+    Ok((input, WindowId(id)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_window_id_fn() {
+        let actual = window_id("@43");
+        let expected = Ok(("", WindowId("@43".into())));
+        assert_eq!(actual, expected);
+
+        let actual = window_id("@4");
+        let expected = Ok(("", WindowId("@4".into())));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_parse_window_id_struct() {
+        let actual = WindowId::from_str("@43");
+        assert!(actual.is_ok());
+        assert_eq!(actual.unwrap(), WindowId("@43".into()));
+
+        let actual = WindowId::from_str("4:38");
+        assert!(matches!(actual, Err(Error::ParseWindowIdError(string)) if string == *"4:38"));
     }
 }

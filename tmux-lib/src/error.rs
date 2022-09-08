@@ -20,6 +20,30 @@ pub enum Error {
     #[error("unexpected process output: `{0}`")]
     UnexpectedOutput(String),
 
+    /// Failed parsing a PaneId.
+    #[error("failed parsing PaneId from `{0}`")]
+    ParsePaneIdError(String),
+
+    /// Failed parsing a Pane.
+    #[error("failed parsing Pane from `{0}`")]
+    ParsePaneError(String),
+
+    /// Failed parsing a WindowId.
+    #[error("failed parsing WindowId from `{0}`")]
+    ParseWindowIdError(String),
+
+    /// Failed parsing a Window.
+    #[error("failed parsing Window from `{0}`")]
+    ParseWindowError(String),
+
+    /// Failed parsing a SessionId.
+    #[error("failed parsing SessionId from `{0}`")]
+    ParseSessionIdError(String),
+
+    /// Failed parsing a Session.
+    #[error("failed parsing Session from `{0}`")]
+    ParseSessionError(String),
+
     /// Indicates Tmux has a weird config, like missing the `"default-shell"`.
     #[error("unexpected tmux config: `{0}`")]
     TmuxConfig(&'static str),

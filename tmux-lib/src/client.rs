@@ -3,9 +3,14 @@
 use std::str::FromStr;
 
 use async_std::process::Command;
+use nom::{character::complete::char, combinator::all_consuming, sequence::tuple};
 use serde::{Deserialize, Serialize};
 
-use crate::{error, Result};
+use crate::{
+    error::Error,
+    parse::{quoted_nonempty_string, quoted_string},
+    Result,
+};
 
 /// A Tmux client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,7 +22,7 @@ pub struct Client {
 }
 
 impl FromStr for Client {
-    type Err = error::Error;
+    type Err = Error;
 
     /// Parse a string containing client information into a new `Client`.
     ///
@@ -33,26 +38,19 @@ impl FromStr for Client {
     /// This status line is obtained with
     ///
     /// ```text
-    /// tmux display-message -p -F "#{client_session}:#{client_last_session}"
+    /// tmux display-message -p -F "'#{client_session}':'#{client_last_session}'"
     /// ```
     ///
     /// For definitions, look at `Pane` type and the tmux man page for
     /// definitions.
     fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
-        let items: Vec<&str> = src.split(':').collect();
-        if items.len() != 2 {
-            return Err(error::Error::UnexpectedOutput(src.into()));
-        }
-
-        let mut iter = items.iter();
-
-        // Session id must be start with '$' followed by a `u16`
-        let session_name = iter.next().unwrap().to_string();
-        let last_session_name = iter.next().unwrap().to_string();
+        let (_, (session_name, _, last_session_name)) =
+            all_consuming(tuple((quoted_nonempty_string, char(':'), quoted_string)))(src)
+                .map_err(|_| Error::ParseWindowIdError(src.to_string()))?;
 
         Ok(Client {
-            session_name,
-            last_session_name,
+            session_name: session_name.to_string(),
+            last_session_name: last_session_name.to_string(),
         })
     }
 }
@@ -63,7 +61,7 @@ pub async fn current_client() -> Result<Client> {
         "display-message",
         "-p",
         "-F",
-        "#{client_session}:#{client_last_session}",
+        "'#{client_session}':'#{client_last_session}'",
     ];
 
     let output = Command::new("tmux").args(&args).output().await?;
