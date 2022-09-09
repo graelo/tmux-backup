@@ -43,23 +43,23 @@ jobs:
           cargo fmt --all -- --check
           cargo clippy -- -D warnings
 
-      - name: Install cargo check tools
-        timeout-minutes: 20
-        if: ${{ matrix.rust == 'stable' }}
-        run: |
-          cargo install --locked cargo-outdated || true
-          # cargo install --locked cargo-udeps || true # needs nightly
-          cargo install --locked cargo-audit || true
-          cargo install --locked cargo-pants || true
+      # - name: Install cargo check tools
+      #   timeout-minutes: 20
+      #   if: ${{ matrix.rust == 'stable' }}
+      #   run: |
+      #     cargo install --locked cargo-outdated || true
+      #     # cargo install --locked cargo-udeps || true # needs nightly
+      #     cargo install --locked cargo-audit || true
+      #     cargo install --locked cargo-pants || true
 
-      - name: Check
-        if: ${{ matrix.rust == 'stable' }}
-        run: |
-          cargo outdated --exit-code 1
-          # cargo udeps
-          rm -rf ~/.cargo/advisory-db
-          cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
-          cargo pants
+      # - name: Check
+      #   if: ${{ matrix.rust == 'stable' }}
+      #   run: |
+      #     cargo outdated --exit-code 1
+      #     # cargo udeps
+      #     rm -rf ~/.cargo/advisory-db
+      #     cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+      #     cargo pants
 
       - name: Build (dev)
         run: cargo build --all-features

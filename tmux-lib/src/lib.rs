@@ -37,6 +37,7 @@ pub use client::display_message;
 pub mod layout;
 pub mod pane;
 pub mod pane_id;
+pub(crate) mod parse;
 pub mod server;
 pub mod session;
 pub mod session_id;

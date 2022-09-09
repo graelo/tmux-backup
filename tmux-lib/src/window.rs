@@ -6,10 +6,24 @@ use std::str::FromStr;
 
 use async_std::process::Command;
 
+use nom::{
+    character::complete::{char, digit1},
+    combinator::{all_consuming, map_res, recognize},
+    sequence::tuple,
+    IResult,
+};
 use serde::{Deserialize, Serialize};
 
-use super::{pane::Pane, pane_id::PaneId, session::Session, window_id::WindowId};
-use crate::{error::Error, layout, Result};
+use crate::{
+    error::{check_empty_process_output, map_add_intent, Error},
+    layout::{self, window_layout},
+    pane::Pane,
+    pane_id::{parse::pane_id, PaneId},
+    parse::{boolean, quoted_nonempty_string},
+    session::Session,
+    window_id::{parse::window_id, WindowId},
+    Result,
+};
 
 /// A Tmux window.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,56 +53,35 @@ impl FromStr for Window {
     /// The expected format of the tmux status is
     ///
     /// ```text
-    /// @1:0:true:035d,334x85,0,0{167x85,0,0,1,166x85,168,0[166x48,168,0,2,166x36,168,49,3]}:ignite:pytorch
-    /// @2:1:false:4438,334x85,0,0[334x41,0,0{167x41,0,0,4,166x41,168,0,5},334x43,0,42{167x43,0,42,6,166x43,168,42,7}]:dates-attn:pytorch
-    /// @3:2:false:9e8b,334x85,0,0{167x85,0,0,8,166x85,168,0,9}:th-bits:pytorch
-    /// @4:3:false:64ef,334x85,0,0,10:docker-pytorch:pytorch
-    /// @5:0:true:64f0,334x85,0,0,11:ben:rust
-    /// @6:1:false:64f1,334x85,0,0,12:pyo3:rust
-    /// @7:2:false:64f2,334x85,0,0,13:mdns-repeater:rust
-    /// @8:0:true:64f3,334x85,0,0,14:combine:swift
-    /// @9:0:false:64f4,334x85,0,0,15:copyrat:tmux-hacking
-    /// @10:1:false:ae3a,334x85,0,0[334x48,0,0,17,334x36,0,49{175x36,0,49,18,158x36,176,49,19}]:mytui-app:tmux-hacking
-    /// @11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:tmux-backup:tmux-hacking
+    /// @1:0:true:035d,334x85,0,0{167x85,0,0,1,166x85,168,0[166x48,168,0,2,166x36,168,49,3]}:'ignite':'pytorch'
+    /// @2:1:false:4438,334x85,0,0[334x41,0,0{167x41,0,0,4,166x41,168,0,5},334x43,0,42{167x43,0,42,6,166x43,168,42,7}]:'dates-attn':'pytorch'
+    /// @3:2:false:9e8b,334x85,0,0{167x85,0,0,8,166x85,168,0,9}:'th-bits':'pytorch'
+    /// @4:3:false:64ef,334x85,0,0,10:'docker-pytorch':'pytorch'
+    /// @5:0:true:64f0,334x85,0,0,11:'ben':'rust'
+    /// @6:1:false:64f1,334x85,0,0,12:'pyo3':'rust'
+    /// @7:2:false:64f2,334x85,0,0,13:'mdns-repeater':'rust'
+    /// @8:0:true:64f3,334x85,0,0,14:'combine':'swift'
+    /// @9:0:false:64f4,334x85,0,0,15:'copyrat':'tmux-hacking'
+    /// @10:1:false:ae3a,334x85,0,0[334x48,0,0,17,334x36,0,49{175x36,0,49,18,158x36,176,49,19}]:'mytui-app':'tmux-hacking'
+    /// @11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:'tmux-backup':'tmux-hacking'
     /// ```
     ///
     /// This status line is obtained with
     ///
     /// ```text
-    /// tmux list-windows -a -F "#{window_id}:#{window_index}:#{?window_active,true,false}:#{window_layout}:#{window_name}:#{window_linked_sessions_list}"
+    /// tmux list-windows -a -F "#{window_id}:#{window_index}:#{?window_active,true,false}:#{window_layout}:'#{window_name}':'#{window_linked_sessions_list}'"
     /// ```
     ///
     /// For definitions, look at `Window` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
-        let items: Vec<&str> = src.split(':').collect();
-        assert_eq!(items.len(), 6, "tmux should have returned 6 items per line");
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        let desc = "Window";
+        let intent = "#{window_id}:#{window_index}:#{?window_active,true,false}:#{window_layout}:'#{window_name}':'#{window_linked_sessions_list}'";
 
-        let mut iter = items.iter();
+        let (_, window) =
+            all_consuming(parse::window)(input).map_err(|e| map_add_intent(desc, intent, e))?;
 
-        // Window id must be start with '%' followed by a `u32`
-        let id_str = iter.next().unwrap();
-        let id = WindowId::from_str(id_str)?;
-
-        let index = iter.next().unwrap().parse::<u16>()?;
-
-        let is_active = iter.next().unwrap().parse::<bool>()?;
-
-        let layout = iter.next().unwrap().to_string();
-
-        let name = iter.next().unwrap().to_string();
-
-        let session_names = iter.next().unwrap().to_string();
-        let sessions = vec![session_names];
-
-        Ok(Window {
-            id,
-            index,
-            is_active,
-            layout,
-            name,
-            sessions,
-        })
+        Ok(window)
     }
 }
 
@@ -100,6 +93,43 @@ impl Window {
     }
 }
 
+pub(crate) mod parse {
+    use super::*;
+
+    pub(crate) fn window(input: &str) -> IResult<&str, Window> {
+        let (input, (id, _, index, _, is_active, _, layout, _, name, _, session_names)) =
+            tuple((
+                window_id,
+                char(':'),
+                map_res(digit1, str::parse),
+                char(':'),
+                boolean,
+                char(':'),
+                recognize(window_layout),
+                char(':'),
+                quoted_nonempty_string,
+                char(':'),
+                quoted_nonempty_string,
+            ))(input)?;
+
+        Ok((
+            input,
+            Window {
+                id,
+                index,
+                is_active,
+                layout: layout.to_string(),
+                name: name.to_string(),
+                sessions: vec![session_names.to_string()],
+            },
+        ))
+    }
+}
+
+// ------------------------------
+// Ops
+// ------------------------------
+
 /// Return a list of all `Window` from all sessions.
 pub async fn available_windows() -> Result<Vec<Window>> {
     let args = vec![
@@ -110,8 +140,8 @@ pub async fn available_windows() -> Result<Vec<Window>> {
         :#{window_index}\
         :#{?window_active,true,false}\
         :#{window_layout}\
-        :#{window_name}\
-        :#{window_linked_sessions_list}",
+        :'#{window_name}'\
+        :'#{window_linked_sessions_list}'",
     ];
 
     let output = Command::new("tmux").args(&args).output().await?;
@@ -164,17 +194,14 @@ pub async fn new_window(
 
     let output = Command::new("tmux").args(&args).output().await?;
     let buffer = String::from_utf8(output.stdout)?;
+    let buffer = buffer.trim_end();
 
-    let items: Vec<&str> = buffer.trim_end().split(':').collect();
-    assert_eq!(items.len(), 2);
+    let desc = "new-window";
+    let intent = "#{window_id}:#{pane_id}";
 
-    let mut iter = items.iter();
-
-    let id_str = iter.next().unwrap();
-    let new_window_id = WindowId::from_str(id_str)?;
-
-    let id_str = iter.next().unwrap();
-    let new_pane_id = PaneId::from_str(id_str)?;
+    let (_, (new_window_id, _, new_pane_id)) =
+        all_consuming(tuple((window_id, char(':'), pane_id)))(buffer)
+            .map_err(|e| map_add_intent(desc, intent, e))?;
 
     Ok((new_window_id, new_pane_id))
 }
@@ -184,12 +211,7 @@ pub async fn set_layout(layout: &str, window_id: &WindowId) -> Result<()> {
     let args = vec!["select-layout", "-t", window_id.as_str(), layout];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    let buffer = String::from_utf8(output.stdout)?;
-
-    if !buffer.is_empty() {
-        return Err(Error::UnexpectedOutput(buffer));
-    }
-    Ok(())
+    check_empty_process_output(output, "select-layout")
 }
 
 /// Select (make active) the window with `window_id`.
@@ -197,12 +219,7 @@ pub async fn select_window(window_id: &WindowId) -> Result<()> {
     let args = vec!["select-window", "-t", window_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    let buffer = String::from_utf8(output.stdout)?;
-
-    if !buffer.is_empty() {
-        return Err(Error::UnexpectedOutput(buffer));
-    }
-    Ok(())
+    check_empty_process_output(output, "select-window")
 }
 
 #[cfg(test)]
@@ -215,17 +232,17 @@ mod tests {
     #[test]
     fn parse_list_sessions() {
         let output = vec![
-            "@1:0:true:035d,334x85,0,0{167x85,0,0,1,166x85,168,0[166x48,168,0,2,166x36,168,49,3]}:ignite:pytorch",
-            "@2:1:false:4438,334x85,0,0[334x41,0,0{167x41,0,0,4,166x41,168,0,5},334x43,0,42{167x43,0,42,6,166x43,168,42,7}]:dates-attn:pytorch",
-            "@3:2:false:9e8b,334x85,0,0{167x85,0,0,8,166x85,168,0,9}:th-bits:pytorch",
-            "@4:3:false:64ef,334x85,0,0,10:docker-pytorch:pytorch",
-            "@5:0:true:64f0,334x85,0,0,11:ben:rust",
-            "@6:1:false:64f1,334x85,0,0,12:pyo3:rust",
-            "@7:2:false:64f2,334x85,0,0,13:mdns-repeater:rust",
-            "@8:0:true:64f3,334x85,0,0,14:combine:swift",
-            "@9:0:false:64f4,334x85,0,0,15:copyrat:tmux-hacking",
-            "@10:1:false:ae3a,334x85,0,0[334x48,0,0,17,334x36,0,49{175x36,0,49,18,158x36,176,49,19}]:mytui-app:tmux-hacking",
-            "@11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:tmux-backup:tmux-hacking",
+            "@1:0:true:035d,334x85,0,0{167x85,0,0,1,166x85,168,0[166x48,168,0,2,166x36,168,49,3]}:'ignite':'pytorch'",
+            "@2:1:false:4438,334x85,0,0[334x41,0,0{167x41,0,0,4,166x41,168,0,5},334x43,0,42{167x43,0,42,6,166x43,168,42,7}]:'dates-attn':'pytorch'",
+            "@3:2:false:9e8b,334x85,0,0{167x85,0,0,8,166x85,168,0,9}:'th-bits':'pytorch'",
+            "@4:3:false:64ef,334x85,0,0,10:'docker-pytorch':'pytorch'",
+            "@5:0:true:64f0,334x85,0,0,11:'ben':'rust'",
+            "@6:1:false:64f1,334x85,0,0,12:'pyo3':'rust'",
+            "@7:2:false:64f2,334x85,0,0,13:'mdns-repeater':'rust'",
+            "@8:0:true:64f3,334x85,0,0,14:'combine':'swift'",
+            "@9:0:false:64f4,334x85,0,0,15:'copyrat':'tmux-hacking'",
+            "@10:1:false:ae3a,334x85,0,0[334x48,0,0,17,334x36,0,49{175x36,0,49,18,158x36,176,49,19}]:'mytui-app':'tmux-hacking'",
+            "@11:2:true:e2e2,334x85,0,0{175x85,0,0,20,158x85,176,0[158x42,176,0,21,158x42,176,43,27]}:'tmux-backup':'tmux-hacking'",
         ];
         let sessions: Result<Vec<Window>> =
             output.iter().map(|&line| Window::from_str(line)).collect();

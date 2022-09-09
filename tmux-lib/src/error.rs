@@ -1,28 +1,30 @@
-use std::io;
+use std::{io, process::Output};
 
 /// Describes all errors variants from this crate.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    /// Failed parsing a tmux id marker for sessions, windows or panes.
-    #[error("expected a tmux id marker `{0}`")]
-    ExpectedIdMarker(char),
-
-    /// Failed parsing an integer from a tmux response.
-    #[error("failed parsing int")]
-    ExpectedInt(#[from] std::num::ParseIntError),
-
-    /// Failed parsing a bool from a tmux response.
-    #[error("failed parsing bool")]
-    ExpectedBool(#[from] std::str::ParseBoolError),
-
     /// A tmux invocation returned some output where none was expected (actions such as
     /// some `tmux display-message` invocations).
-    #[error("unexpected process output: `{0}`")]
-    UnexpectedOutput(String),
+    #[error(
+        "unexpected process output: intent: `{intent}`, stdout: `{stdout}`, stderr: `{stderr}`"
+    )]
+    UnexpectedTmuxOutput {
+        intent: &'static str,
+        stdout: String,
+        stderr: String,
+    },
 
     /// Indicates Tmux has a weird config, like missing the `"default-shell"`.
     #[error("unexpected tmux config: `{0}`")]
     TmuxConfig(&'static str),
+
+    /// Some parsing error.
+    #[error("failed parsing: `{intent}`")]
+    ParseError {
+        desc: &'static str,
+        intent: &'static str,
+        err: nom::Err<nom::error::Error<String>>,
+    },
 
     /// Failed parsing the output of a process invocation as utf-8.
     #[error("failed parsing utf-8 string: `{source}`")]
@@ -39,4 +41,33 @@ pub enum Error {
         /// Source error.
         source: io::Error,
     },
+}
+
+/// Convert a nom error into an owned error and add the parsing intent.
+pub fn map_add_intent(
+    desc: &'static str,
+    intent: &'static str,
+    nom_err: nom::Err<nom::error::Error<&str>>,
+) -> Error {
+    Error::ParseError {
+        desc,
+        intent,
+        err: nom_err.to_owned(),
+    }
+}
+
+pub fn check_empty_process_output(
+    output: Output,
+    intent: &'static str,
+) -> std::result::Result<(), Error> {
+    if !output.stdout.is_empty() || !output.stderr.is_empty() {
+        let stdout = String::from_utf8_lossy(&output.stdout[..]).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr[..]).to_string();
+        return Err(Error::UnexpectedTmuxOutput {
+            intent,
+            stdout,
+            stderr,
+        });
+    }
+    Ok(())
 }

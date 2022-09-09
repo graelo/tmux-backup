@@ -7,11 +7,21 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use async_std::process::Command;
+use nom::{
+    character::complete::{char, digit1, not_line_ending},
+    combinator::{all_consuming, map_res},
+    sequence::tuple,
+    IResult,
+};
 use serde::{Deserialize, Serialize};
 
-use super::pane_id::PaneId;
-use super::window_id::WindowId;
-use crate::{error, Result};
+use crate::{
+    error::{check_empty_process_output, map_add_intent, Error},
+    pane_id::{parse::pane_id, PaneId},
+    parse::{boolean, quoted_nonempty_string},
+    window_id::WindowId,
+    Result,
+};
 
 /// A Tmux pane.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,18 +32,6 @@ pub struct Pane {
     pub index: u16,
     /// Describes if the pane is currently active (focused).
     pub is_active: bool,
-    /// Number of columns in the pane.
-    pub width: u16,
-    /// Number of lines in the pane.
-    pub height: u16,
-    /// Position (column) of the left of the Pane
-    pub pos_left: u16,
-    /// Position (column) of the right of the Pane
-    pub pos_right: u16,
-    /// Position (row) of the top of the Pane
-    pub pos_top: u16,
-    /// Position (row) of the bottom of the Pane
-    pub pos_bottom: u16,
     /// Title of the Pane (usually defaults to the hostname)
     pub title: String,
     /// Current dirpath of the Pane
@@ -43,7 +41,7 @@ pub struct Pane {
 }
 
 impl FromStr for Pane {
-    type Err = error::Error;
+    type Err = Error;
 
     /// Parse a string containing tmux panes status into a new `Pane`.
     ///
@@ -53,64 +51,27 @@ impl FromStr for Pane {
     /// The expected format of the tmux status is
     ///
     /// ```text
-    /// %20:0:false:175:85:0:174:0:84:rmbp:/Users/graelo/code/rust/tmux-backup:nvim
-    /// %21:1:true:158:42:176:333:0:41:rmbp:/Users/graelo/code/rust/tmux-backup:tmux
-    /// %27:2:false:158:42:176:333:43:84:rmbp:/Users/graelo/code/rust/tmux-backup:man
+    /// %20:0:false:'rmbp':'nvim':/Users/graelo/code/rust/tmux-backup
+    /// %21:1:true:'rmbp':'tmux':/Users/graelo/code/rust/tmux-backup
+    /// %27:2:false:'rmbp':'man man':/Users/graelo/code/rust/tmux-backup
     /// ```
     ///
     /// This status line is obtained with
     ///
     /// ```text
-    /// tmux list-panes -F "#{pane_id}:#{pane_index}:#{?pane_active,true,false}:#{pane_width}:#{pane_height}:#{pane_left}:#{pane_right}:#{pane_top}:#{pane_bottom}:#{pane_title}:#{pane_current_path}:#{pane_current_command}"
+    /// tmux list-panes -F "#{pane_id}:#{pane_index}:#{?pane_active,true,false}:'#{pane_title}':'#{pane_current_command}':#{pane_current_path}"
     /// ```
     ///
     /// For definitions, look at `Pane` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
-        let items: Vec<&str> = src.split(':').collect();
-        assert_eq!(
-            items.len(),
-            12,
-            "tmux should have returned 12 items per line"
-        );
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        let desc = "Pane";
+        let intent = "#{pane_id}:#{pane_index}:#{?pane_active,true,false}:'#{pane_title}':'#{pane_current_command}':#{pane_current_path}";
 
-        let mut iter = items.iter();
+        let (_, pane) =
+            all_consuming(parse::pane)(input).map_err(|e| map_add_intent(desc, intent, e))?;
 
-        // Pane id must be start with '%' followed by a `u32`
-        let id_str = iter.next().unwrap();
-        let id = PaneId::from_str(id_str)?;
-
-        let index = iter.next().unwrap().parse::<u16>()?;
-
-        let is_active = iter.next().unwrap().parse::<bool>()?;
-
-        let width = iter.next().unwrap().parse::<u16>()?;
-        let height = iter.next().unwrap().parse::<u16>()?;
-
-        let pos_left = iter.next().unwrap().parse::<u16>()?;
-        let pos_right = iter.next().unwrap().parse::<u16>()?;
-        let pos_top = iter.next().unwrap().parse::<u16>()?;
-        let pos_bottom = iter.next().unwrap().parse::<u16>()?;
-
-        let title = iter.next().unwrap().to_string();
-
-        let path = PathBuf::from(iter.next().unwrap());
-        let command = iter.next().unwrap().to_string();
-
-        Ok(Pane {
-            id,
-            index,
-            is_active,
-            width,
-            height,
-            pos_left,
-            pos_right,
-            pos_top,
-            pos_bottom,
-            title,
-            dirpath: path,
-            command,
-        })
+        Ok(pane)
     }
 }
 
@@ -154,6 +115,43 @@ impl Pane {
     }
 }
 
+pub(crate) mod parse {
+    use super::*;
+
+    pub(crate) fn pane(input: &str) -> IResult<&str, Pane> {
+        let (input, (id, _, index, _, is_active, _, title, _, command, _, dirpath)) =
+            tuple((
+                pane_id,
+                char(':'),
+                map_res(digit1, str::parse),
+                char(':'),
+                boolean,
+                char(':'),
+                quoted_nonempty_string,
+                char(':'),
+                quoted_nonempty_string,
+                char(':'),
+                not_line_ending,
+            ))(input)?;
+
+        Ok((
+            input,
+            Pane {
+                id,
+                index,
+                is_active,
+                title: title.into(),
+                dirpath: dirpath.into(),
+                command: command.into(),
+            },
+        ))
+    }
+}
+
+// ------------------------------
+// Ops
+// ------------------------------
+
 /// Return a list of all `Pane` from all sessions.
 pub async fn available_panes() -> Result<Vec<Pane>> {
     let args = vec![
@@ -163,11 +161,9 @@ pub async fn available_panes() -> Result<Vec<Pane>> {
         "#{pane_id}\
         :#{pane_index}\
         :#{?pane_active,true,false}\
-        :#{pane_width}:#{pane_height}\
-        :#{pane_left}:#{pane_right}:#{pane_top}:#{pane_bottom}\
-        :#{pane_title}\
-        :#{pane_current_path}\
-        :#{pane_current_command}",
+        :'#{pane_title}'\
+        :'#{pane_current_command}'\
+        :#{pane_current_path}",
     ];
 
     let output = Command::new("tmux").args(&args).output().await?;
@@ -210,7 +206,6 @@ pub async fn new_pane(
     let buffer = String::from_utf8(output.stdout)?;
 
     let new_id = PaneId::from_str(buffer.trim_end())?;
-
     Ok(new_id)
 }
 
@@ -219,12 +214,7 @@ pub async fn select_pane(pane_id: &PaneId) -> Result<()> {
     let args = vec!["select-pane", "-t", pane_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    let buffer = String::from_utf8(output.stdout)?;
-
-    if !buffer.is_empty() {
-        return Err(error::Error::UnexpectedOutput(buffer));
-    }
-    Ok(())
+    check_empty_process_output(output, "select-pane")
 }
 
 #[cfg(test)]
@@ -238,9 +228,9 @@ mod tests {
     #[test]
     fn parse_list_panes() {
         let output = vec![
-            "%20:0:false:175:85:0:174:0:84:rmbp:/Users/graelo/code/rust/tmux-backup:nvim",
-            "%21:1:true:158:42:176:333:0:41:rmbp:/Users/graelo/code/rust/tmux-backup:tmux",
-            "%27:2:false:158:42:176:333:43:84:rmbp:/Users/graelo/code/rust/tmux-backup:man",
+            "%20:0:false:'rmbp':'nvim':/Users/graelo/code/rust/tmux-backup",
+            "%21:1:true:'graelo@server: ~':'tmux':/Users/graelo/code/rust/tmux-backup",
+            "%27:2:false:'rmbp':'man man':/Users/graelo/code/rust/tmux-backup",
         ];
         let panes: Result<Vec<Pane>> = output.iter().map(|&line| Pane::from_str(line)).collect();
         let panes = panes.expect("Could not parse tmux panes");
@@ -250,12 +240,6 @@ mod tests {
                 id: PaneId::from_str("%20").unwrap(),
                 index: 0,
                 is_active: false,
-                width: 175,
-                height: 85,
-                pos_left: 0,
-                pos_right: 174,
-                pos_top: 0,
-                pos_bottom: 84,
                 title: String::from("rmbp"),
                 dirpath: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
                 command: String::from("nvim"),
@@ -264,13 +248,7 @@ mod tests {
                 id: PaneId(String::from("%21")),
                 index: 1,
                 is_active: true,
-                width: 158,
-                height: 42,
-                pos_left: 176,
-                pos_right: 333,
-                pos_top: 0,
-                pos_bottom: 41,
-                title: String::from("rmbp"),
+                title: String::from("graelo@server: ~"),
                 dirpath: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
                 command: String::from("tmux"),
             },
@@ -278,15 +256,9 @@ mod tests {
                 id: PaneId(String::from("%27")),
                 index: 2,
                 is_active: false,
-                width: 158,
-                height: 42,
-                pos_left: 176,
-                pos_right: 333,
-                pos_top: 43,
-                pos_bottom: 84,
                 title: String::from("rmbp"),
                 dirpath: PathBuf::from_str("/Users/graelo/code/rust/tmux-backup").unwrap(),
-                command: String::from("man"),
+                command: String::from("man man"),
             },
         ];
 
