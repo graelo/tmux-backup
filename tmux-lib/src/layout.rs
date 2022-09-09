@@ -14,13 +14,13 @@
 use nom::{
     branch::alt,
     character::complete::{char, digit1, hex_digit1},
-    combinator::map_res,
+    combinator::{all_consuming, map_res},
     multi::separated_list1,
     sequence::{delimited, tuple},
     IResult,
 };
 
-use crate::{error::Error, Result};
+use crate::{error::map_add_intent, Result};
 
 /// Represent a parsed window layout.
 #[derive(Debug, PartialEq, Eq)]
@@ -119,16 +119,12 @@ impl Split {
 
 /// Parse the Tmux layout string description and return the pane-ids.
 pub fn parse_window_layout(input: &str) -> Result<WindowLayout> {
-    match window_layout(input) {
-        Ok((remainder, layout)) => {
-            if remainder.is_empty() {
-                Ok(layout)
-            } else {
-                Err(Error::UnexpectedOutput(remainder.into()))
-            }
-        }
-        Err(_) => Err(Error::UnexpectedOutput("cannot parse".into())),
-    }
+    let desc = "window-layout";
+    let intent = "window-layout";
+    let (_, win_layout) =
+        all_consuming(window_layout)(input).map_err(|e| map_add_intent(desc, intent, e))?;
+
+    Ok(win_layout)
 }
 
 pub(crate) fn window_layout(input: &str) -> IResult<&str, WindowLayout> {

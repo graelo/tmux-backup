@@ -12,18 +12,17 @@ use nom::{
     sequence::tuple,
     IResult,
 };
-
 use serde::{Deserialize, Serialize};
 
-use super::{
-    pane::Pane,
-    pane_id::PaneId,
-    session_id::{session_id, SessionId},
-    window::Window,
-    window_id::WindowId,
-};
 use crate::{
-    error::Error, pane_id::pane_id, parse::quoted_nonempty_string, window_id::window_id, Result,
+    error::{map_add_intent, Error},
+    pane::Pane,
+    pane_id::{parse::pane_id, PaneId},
+    parse::quoted_nonempty_string,
+    session_id::{parse::session_id, SessionId},
+    window::Window,
+    window_id::{parse::window_id, WindowId},
+    Result,
 };
 
 /// A Tmux session.
@@ -62,43 +61,43 @@ impl FromStr for Session {
     ///
     /// For definitions, look at `Session` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
-        // if let Ok((input, sess)) = session(src) && input.is_empty(){
-        //     return Ok(sess);
-        // }
-        // Err(Error::ParseSessionError(src.into()))
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        let desc = "Session";
+        let intent = "#{session_id}:'#{session_name}':#{session_path}";
 
-        match session(src) {
-            Ok((input, sess)) => {
-                if input.is_empty() {
-                    Ok(sess)
-                } else {
-                    Err(Error::ParseSessionError(src.to_string()))
-                }
-            }
-            Err(_) => Err(Error::ParseSessionError(src.to_string())),
-        }
+        let (_, sess) =
+            all_consuming(parse::session)(input).map_err(|e| map_add_intent(desc, intent, e))?;
+
+        Ok(sess)
     }
 }
 
-pub(crate) fn session(input: &str) -> IResult<&str, Session> {
-    let (input, (id, _, name, _, dirpath)) = tuple((
-        session_id,
-        char(':'),
-        quoted_nonempty_string,
-        char(':'),
-        not_line_ending,
-    ))(input)?;
+pub(crate) mod parse {
+    use super::*;
 
-    Ok((
-        input,
-        Session {
-            id,
-            name: name.to_string(),
-            dirpath: dirpath.into(),
-        },
-    ))
+    pub(crate) fn session(input: &str) -> IResult<&str, Session> {
+        let (input, (id, _, name, _, dirpath)) = tuple((
+            session_id,
+            char(':'),
+            quoted_nonempty_string,
+            char(':'),
+            not_line_ending,
+        ))(input)?;
+
+        Ok((
+            input,
+            Session {
+                id,
+                name: name.to_string(),
+                dirpath: dirpath.into(),
+            },
+        ))
+    }
 }
+
+// ------------------------------
+// Ops
+// ------------------------------
 
 /// Return a list of all `Session` from the current tmux session.
 pub async fn available_sessions() -> Result<Vec<Session>> {
@@ -156,6 +155,8 @@ pub async fn new_session(
     let buffer = String::from_utf8(output.stdout)?;
     let buffer = buffer.trim_end();
 
+    let desc = "new-session";
+    let intent = "#{session_id}:#{window_id}:#{pane_id}";
     let (_, (new_session_id, _, new_window_id, _, new_pane_id)) = all_consuming(tuple((
         session_id,
         char(':'),
@@ -163,7 +164,7 @@ pub async fn new_session(
         char(':'),
         pane_id,
     )))(buffer)
-    .map_err(|_| Error::ParseSessionIdError(buffer.to_string()))?;
+    .map_err(|e| map_add_intent(desc, intent, e))?;
 
     Ok((new_session_id, new_window_id, new_pane_id))
 }

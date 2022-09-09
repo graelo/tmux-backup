@@ -14,13 +14,14 @@ use nom::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{pane::Pane, pane_id::PaneId, session::Session, window_id::WindowId};
 use crate::{
-    error::Error,
+    error::{check_empty_process_output, map_add_intent, Error},
     layout::{self, window_layout},
-    pane_id::pane_id,
+    pane::Pane,
+    pane_id::{parse::pane_id, PaneId},
     parse::{boolean, quoted_nonempty_string},
-    window_id::window_id,
+    session::Session,
+    window_id::{parse::window_id, WindowId},
     Result,
 };
 
@@ -68,56 +69,20 @@ impl FromStr for Window {
     /// This status line is obtained with
     ///
     /// ```text
-    /// tmux list-windows -a -F "#{window_id}:#{window_index}:#{?window_active,true,false}:#{window_layout}:'#{window_name}':'#{window_linked_sessions_list}"'
+    /// tmux list-windows -a -F "#{window_id}:#{window_index}:#{?window_active,true,false}:#{window_layout}:'#{window_name}':'#{window_linked_sessions_list}'"
     /// ```
     ///
     /// For definitions, look at `Window` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
-        // if let Ok((input, window)) = window(src) && input.is_empty(){
-        //     return Ok(window);
-        // }
-        // Err(Error::ParseSessionError(src.into()))
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        let desc = "Window";
+        let intent = "#{window_id}:#{window_index}:#{?window_active,true,false}:#{window_layout}:'#{window_name}':'#{window_linked_sessions_list}'";
 
-        match window(src) {
-            Ok((input, window)) => {
-                if input.is_empty() {
-                    Ok(window)
-                } else {
-                    Err(Error::ParseSessionError(src.to_string()))
-                }
-            }
-            Err(_) => Err(Error::ParseSessionError(src.to_string())),
-        }
+        let (_, window) =
+            all_consuming(parse::window)(input).map_err(|e| map_add_intent(desc, intent, e))?;
+
+        Ok(window)
     }
-}
-
-pub(crate) fn window(input: &str) -> IResult<&str, Window> {
-    let (input, (id, _, index, _, is_active, _, layout, _, name, _, session_names)) = tuple((
-        window_id,
-        char(':'),
-        map_res(digit1, str::parse),
-        char(':'),
-        boolean,
-        char(':'),
-        recognize(window_layout),
-        char(':'),
-        quoted_nonempty_string,
-        char(':'),
-        quoted_nonempty_string,
-    ))(input)?;
-
-    Ok((
-        input,
-        Window {
-            id,
-            index,
-            is_active,
-            layout: layout.to_string(),
-            name: name.to_string(),
-            sessions: vec![session_names.to_string()],
-        },
-    ))
 }
 
 impl Window {
@@ -127,6 +92,43 @@ impl Window {
         layout.pane_ids().iter().map(PaneId::from).collect()
     }
 }
+
+pub(crate) mod parse {
+    use super::*;
+
+    pub(crate) fn window(input: &str) -> IResult<&str, Window> {
+        let (input, (id, _, index, _, is_active, _, layout, _, name, _, session_names)) =
+            tuple((
+                window_id,
+                char(':'),
+                map_res(digit1, str::parse),
+                char(':'),
+                boolean,
+                char(':'),
+                recognize(window_layout),
+                char(':'),
+                quoted_nonempty_string,
+                char(':'),
+                quoted_nonempty_string,
+            ))(input)?;
+
+        Ok((
+            input,
+            Window {
+                id,
+                index,
+                is_active,
+                layout: layout.to_string(),
+                name: name.to_string(),
+                sessions: vec![session_names.to_string()],
+            },
+        ))
+    }
+}
+
+// ------------------------------
+// Ops
+// ------------------------------
 
 /// Return a list of all `Window` from all sessions.
 pub async fn available_windows() -> Result<Vec<Window>> {
@@ -194,9 +196,12 @@ pub async fn new_window(
     let buffer = String::from_utf8(output.stdout)?;
     let buffer = buffer.trim_end();
 
+    let desc = "new-window";
+    let intent = "#{window_id}:#{pane_id}";
+
     let (_, (new_window_id, _, new_pane_id)) =
         all_consuming(tuple((window_id, char(':'), pane_id)))(buffer)
-            .map_err(|_| Error::ParseWindowIdError(buffer.to_string()))?;
+            .map_err(|e| map_add_intent(desc, intent, e))?;
 
     Ok((new_window_id, new_pane_id))
 }
@@ -206,12 +211,7 @@ pub async fn set_layout(layout: &str, window_id: &WindowId) -> Result<()> {
     let args = vec!["select-layout", "-t", window_id.as_str(), layout];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    let buffer = String::from_utf8(output.stdout)?;
-
-    if !buffer.is_empty() {
-        return Err(Error::UnexpectedOutput(buffer));
-    }
-    Ok(())
+    check_empty_process_output(output, "select-layout")
 }
 
 /// Select (make active) the window with `window_id`.
@@ -219,12 +219,7 @@ pub async fn select_window(window_id: &WindowId) -> Result<()> {
     let args = vec!["select-window", "-t", window_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    let buffer = String::from_utf8(output.stdout)?;
-
-    if !buffer.is_empty() {
-        return Err(Error::UnexpectedOutput(buffer));
-    }
-    Ok(())
+    check_empty_process_output(output, "select-window")
 }
 
 #[cfg(test)]

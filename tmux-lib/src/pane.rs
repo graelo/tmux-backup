@@ -9,18 +9,17 @@ use std::str::FromStr;
 use async_std::process::Command;
 use nom::{
     character::complete::{char, digit1, not_line_ending},
-    combinator::map_res,
+    combinator::{all_consuming, map_res},
     sequence::tuple,
     IResult,
 };
 use serde::{Deserialize, Serialize};
 
-use super::pane_id::PaneId;
-use super::window_id::WindowId;
 use crate::{
-    error::Error,
-    pane_id::pane_id,
+    error::{check_empty_process_output, map_add_intent, Error},
+    pane_id::{parse::pane_id, PaneId},
     parse::{boolean, quoted_nonempty_string},
+    window_id::WindowId,
     Result,
 };
 
@@ -65,22 +64,14 @@ impl FromStr for Pane {
     ///
     /// For definitions, look at `Pane` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
-        // if let Ok((input, pane)) = session(src) && input.is_empty(){
-        //     return Ok(pane);
-        // }
-        // Err(Error::ParseSessionError(src.into()))
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        let desc = "Pane";
+        let intent = "#{pane_id}:#{pane_index}:#{?pane_active,true,false}:'#{pane_title}':'#{pane_current_command}':#{pane_current_path}";
 
-        match pane(src) {
-            Ok((input, pane)) => {
-                if input.is_empty() {
-                    Ok(pane)
-                } else {
-                    Err(Error::ParsePaneError(src.to_string()))
-                }
-            }
-            Err(_) => Err(Error::ParsePaneError(src.to_string())),
-        }
+        let (_, pane) =
+            all_consuming(parse::pane)(input).map_err(|e| map_add_intent(desc, intent, e))?;
+
+        Ok(pane)
     }
 }
 
@@ -124,6 +115,43 @@ impl Pane {
     }
 }
 
+pub(crate) mod parse {
+    use super::*;
+
+    pub(crate) fn pane(input: &str) -> IResult<&str, Pane> {
+        let (input, (id, _, index, _, is_active, _, title, _, command, _, dirpath)) =
+            tuple((
+                pane_id,
+                char(':'),
+                map_res(digit1, str::parse),
+                char(':'),
+                boolean,
+                char(':'),
+                quoted_nonempty_string,
+                char(':'),
+                quoted_nonempty_string,
+                char(':'),
+                not_line_ending,
+            ))(input)?;
+
+        Ok((
+            input,
+            Pane {
+                id,
+                index,
+                is_active,
+                title: title.into(),
+                dirpath: dirpath.into(),
+                command: command.into(),
+            },
+        ))
+    }
+}
+
+// ------------------------------
+// Ops
+// ------------------------------
+
 /// Return a list of all `Pane` from all sessions.
 pub async fn available_panes() -> Result<Vec<Pane>> {
     let args = vec![
@@ -152,34 +180,6 @@ pub async fn available_panes() -> Result<Vec<Pane>> {
     result
 }
 
-pub(crate) fn pane(input: &str) -> IResult<&str, Pane> {
-    let (input, (id, _, index, _, is_active, _, title, _, command, _, dirpath)) = tuple((
-        pane_id,
-        char(':'),
-        map_res(digit1, str::parse),
-        char(':'),
-        boolean,
-        char(':'),
-        quoted_nonempty_string,
-        char(':'),
-        quoted_nonempty_string,
-        char(':'),
-        not_line_ending,
-    ))(input)?;
-
-    Ok((
-        input,
-        Pane {
-            id,
-            index,
-            is_active,
-            title: title.into(),
-            dirpath: dirpath.into(),
-            command: command.into(),
-        },
-    ))
-}
-
 /// Create a new pane (horizontal split) in the window with `window_id`, and return the new
 /// pane id.
 pub async fn new_pane(
@@ -206,7 +206,6 @@ pub async fn new_pane(
     let buffer = String::from_utf8(output.stdout)?;
 
     let new_id = PaneId::from_str(buffer.trim_end())?;
-
     Ok(new_id)
 }
 
@@ -215,12 +214,7 @@ pub async fn select_pane(pane_id: &PaneId) -> Result<()> {
     let args = vec!["select-pane", "-t", pane_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    let buffer = String::from_utf8(output.stdout)?;
-
-    if !buffer.is_empty() {
-        return Err(Error::UnexpectedOutput(buffer));
-    }
-    Ok(())
+    check_empty_process_output(output, "select-pane")
 }
 
 #[cfg(test)]

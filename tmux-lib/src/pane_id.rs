@@ -5,12 +5,13 @@ use std::str::FromStr;
 
 use nom::{
     character::complete::{char, digit1},
+    combinator::all_consuming,
     sequence::preceded,
     IResult,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::error::Error;
+use crate::error::{map_add_intent, Error};
 
 /// The id of a Tmux pane.
 ///
@@ -22,22 +23,14 @@ impl FromStr for PaneId {
     type Err = Error;
 
     /// Parse into PaneId. The `&str` must start with '%' followed by a `u32`.
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
-        // if let Ok((input, pane_id)) = pane_id(src) && input.is_empty(){
-        //     return Ok(pane_id);
-        // }
-        // Err(Error::ParsePaneIdError(src.into()))
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let desc = "PaneId";
+        let intent = "#{pane_id}";
 
-        match pane_id(src) {
-            Ok((input, pane_id)) => {
-                if input.is_empty() {
-                    Ok(pane_id)
-                } else {
-                    Err(Error::ParsePaneIdError(src.into()))
-                }
-            }
-            Err(_) => Err(Error::ParsePaneIdError(src.into())),
-        }
+        let (_, pane_id) =
+            all_consuming(parse::pane_id)(input).map_err(|e| map_add_intent(desc, intent, e))?;
+
+        Ok(pane_id)
     }
 }
 
@@ -60,10 +53,14 @@ impl fmt::Display for PaneId {
     }
 }
 
-pub(crate) fn pane_id(input: &str) -> IResult<&str, PaneId> {
-    let (input, digit) = preceded(char('%'), digit1)(input)?;
-    let id = format!("%{}", digit);
-    Ok((input, PaneId(id)))
+pub(crate) mod parse {
+    use super::*;
+
+    pub(crate) fn pane_id(input: &str) -> IResult<&str, PaneId> {
+        let (input, digit) = preceded(char('%'), digit1)(input)?;
+        let id = format!("%{}", digit);
+        Ok((input, PaneId(id)))
+    }
 }
 
 #[cfg(test)]
@@ -72,11 +69,11 @@ mod tests {
 
     #[test]
     fn test_parse_pane_id_fn() {
-        let actual = pane_id("%43");
+        let actual = parse::pane_id("%43");
         let expected = Ok(("", PaneId("%43".into())));
         assert_eq!(actual, expected);
 
-        let actual = pane_id("%4");
+        let actual = parse::pane_id("%4");
         let expected = Ok(("", PaneId("%4".into())));
         assert_eq!(actual, expected);
     }
@@ -88,6 +85,13 @@ mod tests {
         assert_eq!(actual.unwrap(), PaneId("%43".into()));
 
         let actual = PaneId::from_str("4:38");
-        assert!(matches!(actual, Err(Error::ParsePaneIdError(string)) if string == *"4:38"));
+        assert!(matches!(
+            actual,
+            Err(Error::ParseError {
+                desc: "PaneId",
+                intent: "#{pane_id}",
+                err: _
+            })
+        ));
     }
 }

@@ -7,7 +7,7 @@ use nom::{character::complete::char, combinator::all_consuming, sequence::tuple}
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::Error,
+    error::{map_add_intent, Error},
     parse::{quoted_nonempty_string, quoted_string},
     Result,
 };
@@ -43,10 +43,13 @@ impl FromStr for Client {
     ///
     /// For definitions, look at `Pane` type and the tmux man page for
     /// definitions.
-    fn from_str(src: &str) -> std::result::Result<Self, Self::Err> {
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        let desc = "Client";
+        let intent = "'#{client_session}':'#{client_last_session}'";
+        let parser = tuple((quoted_nonempty_string, char(':'), quoted_string));
+
         let (_, (session_name, _, last_session_name)) =
-            all_consuming(tuple((quoted_nonempty_string, char(':'), quoted_string)))(src)
-                .map_err(|_| Error::ParseWindowIdError(src.to_string()))?;
+            all_consuming(parser)(input).map_err(|e| map_add_intent(desc, intent, e))?;
 
         Ok(Client {
             session_name: session_name.to_string(),
@@ -54,6 +57,10 @@ impl FromStr for Client {
         })
     }
 }
+
+// ------------------------------
+// Ops
+// ------------------------------
 
 /// Return the current client useful attributes.
 pub async fn current_client() -> Result<Client> {
