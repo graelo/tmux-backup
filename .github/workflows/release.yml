@@ -115,7 +115,7 @@ jobs:
 
       - name: Use convco to create the changelog
         run: |
-          ./convco changelog --max-versions 1 > CHANGELOG.md
+          ./convco changelog --max-versions 1 --include-hidden-sections > CHANGELOG.md
           rm convco convco-ubuntu.zip
 
       - uses: actions/download-artifact@v3
