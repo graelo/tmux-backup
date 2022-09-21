@@ -24,7 +24,7 @@ pub const PANES_DIR_NAME: &str = "panes-content";
 /// Name of the file storing the metadata in the backup.
 ///
 /// This name is also used in the temporary directory when storing the catalog.
-pub const METADATA_FILENAME: &str = "metadata.yaml";
+pub const METADATA_FILENAME: &str = "metadata.json";
 
 /// Describes the Tmux sessions, windows & panes stored in a backup.
 ///
@@ -106,7 +106,7 @@ impl Metadata {
             )));
         }
 
-        let metadata = serde_yaml::from_slice(&bytes)?;
+        let metadata = serde_json::from_slice(&bytes)?;
 
         Ok(metadata)
     }
