@@ -92,17 +92,24 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
             "Attach to your last session with `tmux attach -t {}`",
             &metadata.client.session_name
         );
-    } else if tmux::server::kill_session("0").await.is_err() {
-        let message = "
+
+        // Return an overview of the archived tmux environment, which is identical, in principle,
+        // with the new one. We cannot do more because the client metadata cannot be fetched.
+        Ok(metadata.overview())
+    } else {
+        if tmux::server::kill_session("0").await.is_err() {
+            let message = "
             Unusual start conditions:
             - you started from outside tmux but no existing session named `0` was found
             - check the state of your session
            ";
-        return Err(Error::ConfigError(message.to_string()));
-    }
+            return Err(Error::ConfigError(message.to_string()));
+        }
 
-    let metadata = v1::Metadata::new().await?;
-    Ok(metadata.overview())
+        // Return an overview of the restored tmux environment.
+        let metadata = v1::Metadata::new().await?;
+        Ok(metadata.overview())
+    }
 }
 
 /// Association between a pane from the backup with a new target pane id.
