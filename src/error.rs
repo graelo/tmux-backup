@@ -35,7 +35,7 @@ pub enum Error {
     Serde {
         #[from]
         /// Source error,
-        source: serde_yaml::Error,
+        source: serde_json::Error,
     },
 
     /// Some IO error.

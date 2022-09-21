@@ -22,7 +22,7 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
     // Prepare the temp directory.
     let temp_dir = TempDir::new()?;
 
-    // Save sessions & windows into `metadata.yaml` in the temp folder.
+    // Save sessions & windows into `metadata.json` in the temp folder.
     let metadata_task: task::JoinHandle<Result<(PathBuf, PathBuf, u16, u16)>> = {
         let temp_dirpath = temp_dir.path().to_path_buf();
 
@@ -32,10 +32,10 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
 
             let metadata = v1::Metadata::new().await?;
 
-            let yaml = serde_yaml::to_string(&metadata)?;
+            let json = serde_json::to_string(&metadata)?;
 
             let temp_metadata_filepath = temp_dirpath.join(v1::METADATA_FILENAME);
-            fs::write(temp_metadata_filepath.as_path(), yaml).await?;
+            fs::write(temp_metadata_filepath.as_path(), json).await?;
 
             Ok((
                 temp_version_filepath,
