@@ -75,43 +75,84 @@ impl FromStr for Pane {
     }
 }
 
+trait SliceExt {
+    fn trim(&self) -> &Self;
+}
+
+impl SliceExt for [u8] {
+    fn trim(&self) -> &[u8] {
+        fn is_whitespace(c: &u8) -> bool {
+            *c == b'\t' || *c == b' '
+        }
+
+        fn is_not_whitespace(c: &u8) -> bool {
+            !is_whitespace(c)
+        }
+
+        if let Some(first) = self.iter().position(is_not_whitespace) {
+            if let Some(last) = self.iter().rposition(is_not_whitespace) {
+                &self[first..last + 1]
+            } else {
+                unreachable!();
+            }
+        } else {
+            &[]
+        }
+    }
+}
+
 impl Pane {
-    /// Return the entire Pane content as a `String`.
-    ///
-    /// The provided `region` specifies if the visible area is captured, or the
-    /// entire history.
+    /// Return the entire Pane content as a `Vec<u8>`.
     ///
     /// # Note
     ///
-    /// In Tmux, the start line is the line at the top of the pane. The end line
-    /// is the last line at the bottom of the pane.
+    /// The output contains the escape codes, joined lines, and all lines are trimmed after capture
+    /// because tmux does not allow that. In addition, the last line has an additional ascii reset
+    /// escape code because tmux does not capture it.
     ///
-    /// - In normal mode, the index of the start line is always 0. The index of
-    /// the end line is always the pane's height minus one. These do not need to
-    /// be specified when capturing the pane's content.
+    /// If `should_drop_last_line` is `true`, the last line is not captured. This is used only for
+    /// panes with a zsh prompt, in order to avoid polluting the history with new prompts on
+    /// restore.
     ///
-    /// - If navigating history in copy mode, the index of the start line is the
-    /// opposite of the pane's scroll position. For instance a pane of 40 lines,
-    /// scrolled up by 3 lines. It is necessarily in copy mode. Its start line
-    /// index is `-3`. The index of the last line is `(40-1) - 3 = 36`.
-    ///
-    pub async fn capture(&self) -> Result<Vec<u8>> {
+    pub async fn capture(&self, should_drop_last_line: bool) -> Result<Vec<u8>> {
         let args = vec![
             "capture-pane",
             "-t",
             self.id.as_str(),
-            "-J",
-            "-e",
-            "-p",
-            "-S",
-            "-",
-            "-E",
-            "-",
+            "-J", // preserves trailing spaces & joins any wrapped lines
+            "-e", // include escape sequences for text & background
+            "-p", // output goes to stdout
+            "-S", // starting line number
+            "-",  // start of history
+            "-E", // ending line number
+            "-",  // end of history
         ];
 
         let output = Command::new("tmux").args(&args).output().await?;
 
-        Ok(output.stdout)
+        let mut trimmed_lines: Vec<&[u8]> = output
+            .stdout
+            .split(|c| *c == b'\n')
+            .map(|line| line.trim())
+            .collect();
+
+        if should_drop_last_line {
+            trimmed_lines.truncate(trimmed_lines.len() - 1);
+        }
+
+        // Join the lines with `b'\n'`, add reset code to the last line
+        let mut output_trimmed: Vec<u8> = Vec::with_capacity(output.stdout.len());
+        for (idx, &line) in trimmed_lines.iter().enumerate() {
+            output_trimmed.extend_from_slice(line);
+            if idx != trimmed_lines.len() - 1 {
+                output_trimmed.push(b'\n');
+            } else {
+                let reset = "\u{001b}[0m".as_bytes();
+                output_trimmed.extend_from_slice(reset);
+            }
+        }
+
+        Ok(output_trimmed)
     }
 }
 
