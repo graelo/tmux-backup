@@ -110,7 +110,11 @@ impl Pane {
     /// because tmux does not allow that. In addition, the last line has an additional ascii reset
     /// escape code because tmux does not capture it.
     ///
-    pub async fn capture(&self) -> Result<Vec<u8>> {
+    /// If `should_drop_last_line` is `true`, the last line is not captured. This is used only for
+    /// panes with a zsh prompt, in order to avoid polluting the history with new prompts on
+    /// restore.
+    ///
+    pub async fn capture(&self, should_drop_last_line: bool) -> Result<Vec<u8>> {
         let args = vec![
             "capture-pane",
             "-t",
@@ -126,12 +130,17 @@ impl Pane {
 
         let output = Command::new("tmux").args(&args).output().await?;
 
-        let trimmed_lines: Vec<&[u8]> = output
+        let mut trimmed_lines: Vec<&[u8]> = output
             .stdout
             .split(|c| *c == b'\n')
             .map(|line| line.trim())
             .collect();
 
+        if should_drop_last_line {
+            trimmed_lines.truncate(trimmed_lines.len() - 1);
+        }
+
+        // Join the lines with `b'\n'`, add reset code to the last line
         let mut output_trimmed: Vec<u8> = Vec::with_capacity(output.stdout.len());
         for (idx, &line) in trimmed_lines.iter().enumerate() {
             output_trimmed.extend_from_slice(line);
