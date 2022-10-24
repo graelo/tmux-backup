@@ -141,7 +141,6 @@ pub struct Config {
     /// the lastest per month of this year.
     #[clap(
         group = "strategy",
-        short = 'l',
         long = "strategy-classic",
         value_parser,
         env = "TMUX_BACKUP_STRATEGY_CLASSIC"
