@@ -19,6 +19,7 @@ use crate::{
     error::{check_empty_process_output, map_add_intent, Error},
     pane_id::{parse::pane_id, PaneId},
     parse::{boolean, quoted_nonempty_string},
+    utils::SliceExt,
     window_id::WindowId,
     Result,
 };
@@ -75,32 +76,6 @@ impl FromStr for Pane {
     }
 }
 
-trait SliceExt {
-    fn trim(&self) -> &Self;
-}
-
-impl SliceExt for [u8] {
-    fn trim(&self) -> &[u8] {
-        fn is_whitespace(c: &u8) -> bool {
-            *c == b'\t' || *c == b' '
-        }
-
-        fn is_not_whitespace(c: &u8) -> bool {
-            !is_whitespace(c)
-        }
-
-        if let Some(first) = self.iter().position(is_not_whitespace) {
-            if let Some(last) = self.iter().rposition(is_not_whitespace) {
-                &self[first..last + 1]
-            } else {
-                unreachable!();
-            }
-        } else {
-            &[]
-        }
-    }
-}
-
 impl Pane {
     /// Return the entire Pane content as a `Vec<u8>`.
     ///
@@ -110,11 +85,11 @@ impl Pane {
     /// because tmux does not allow that. In addition, the last line has an additional ascii reset
     /// escape code because tmux does not capture it.
     ///
-    /// If `should_drop_last_line` is `true`, the last line is not captured. This is used only for
-    /// panes with a zsh prompt, in order to avoid polluting the history with new prompts on
-    /// restore.
+    /// If `drop_n_last_lines` is greater than 0, the n last line are not captured. This is used
+    /// only for panes with a zsh prompt, in order to avoid polluting the history with new prompts
+    /// on restore.
     ///
-    pub async fn capture(&self, should_drop_last_line: bool) -> Result<Vec<u8>> {
+    pub async fn capture(&self, drop_n_last_lines: usize) -> Result<Vec<u8>> {
         let args = vec![
             "capture-pane",
             "-t",
@@ -133,12 +108,10 @@ impl Pane {
         let mut trimmed_lines: Vec<&[u8]> = output
             .stdout
             .split(|c| *c == b'\n')
-            .map(|line| line.trim())
+            .map(|line| line.trim_trailing())
             .collect();
 
-        if should_drop_last_line {
-            trimmed_lines.truncate(trimmed_lines.len() - 1);
-        }
+        trimmed_lines.truncate(trimmed_lines.len() - drop_n_last_lines);
 
         // Join the lines with `b'\n'`, add reset code to the last line
         let mut output_trimmed: Vec<u8> = Vec::with_capacity(output.stdout.len());

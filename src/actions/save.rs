@@ -92,9 +92,11 @@ async fn save_panes_content<P: AsRef<Path>>(
 
     for pane in panes {
         let dest_dir = destination_dir.as_ref().to_path_buf();
+        // TODO: improve this heuristic, maybe with config
+        let drop_n_last_lines = if pane.command == "zsh" { 1 } else { 0 };
+
         let handle = task::spawn(async move {
-            let should_drop_last_line = pane.command == "zsh";
-            let output = pane.capture(should_drop_last_line).await.unwrap();
+            let output = pane.capture(drop_n_last_lines).await.unwrap();
 
             let filename = format!("pane-{}.txt", pane.id);
             let filepath = dest_dir.join(filename);
