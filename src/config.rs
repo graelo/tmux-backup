@@ -1,12 +1,55 @@
-//! Simple configuration with only `save` and `restore` commands.
+//! Configuration.
 
-use std::env;
 use std::path::PathBuf;
+use std::{env, fmt};
 
-use clap::{ArgAction, ArgGroup, Parser, Subcommand, ValueHint};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum, ValueHint};
 use clap_complete::Shell;
 
 use crate::management::{backup::BackupStatus, compaction::Strategy};
+
+/// Strategy values
+#[derive(Debug, Clone, ValueEnum)]
+pub enum StrategyValues {
+    /// Apply a most-recent strategy, keeping only n backups.
+    MostRecent,
+
+    /// Apply a classic backup strategy.
+    ///
+    /// Keep
+    /// the lastest per hour for the past 24 hours,
+    /// the lastest per day for the past 7 days,
+    /// the lastest per week of the past 4 weeks,
+    /// the lastest per month of this year.
+    Classic,
+}
+
+impl fmt::Display for StrategyValues {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::MostRecent => "most-recent",
+            Self::Classic => "classic",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+/// Strategy configuration.
+#[derive(Debug, clap::Args)]
+pub struct StrategyConfig {
+    #[clap(short = 's', long = "strategy", default_value_t = StrategyValues::MostRecent)]
+    strategy: StrategyValues,
+
+    /// Number of recent backups to keep, for instance 10.
+    #[clap(
+        short = 'n',
+        long,
+        value_name = "NUMBER",
+        value_parser = clap::value_parser!(u16).range(1..),
+        default_value_t = 10,
+    )]
+    num_backups: u16,
+}
 
 /// Catalog subcommands.
 #[derive(Debug, Subcommand)]
@@ -55,6 +98,10 @@ pub enum Command {
     /// one-line report to the Tmux status bar. If you run this command from the terminal, ignore
     /// this flag in order to print the one-line report in the terminal.
     Save {
+        /// Choose a strategy for managing backups.
+        #[command(flatten)]
+        strategy: StrategyConfig,
+
         /// Print a one-line report in the Tmux status bar, otherwise print to stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
@@ -74,6 +121,10 @@ pub enum Command {
     /// one-line report to the Tmux status bar. If you run this command from the terminal, ignore
     /// this flag in order to print the one-line report in the terminal.
     Restore {
+        /// Choose a strategy for managing backups.
+        #[command(flatten)]
+        strategy: StrategyConfig,
+
         /// Print a one-line report in the Tmux status bar, otherwise print to stdout.
         #[clap(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
@@ -85,6 +136,10 @@ pub enum Command {
 
     /// Catalog commands.
     Catalog {
+        /// Choose a strategy for managing backups.
+        #[command(flatten)]
+        strategy: StrategyConfig,
+
         /// Catalog commands.
         #[clap(subcommand)]
         command: CatalogSubcommand,
@@ -109,10 +164,6 @@ pub enum Command {
 #[derive(Debug, Parser)]
 #[clap(author, about, version)]
 #[clap(propagate_version = true)]
-#[clap(group(
-            ArgGroup::new("strategy")
-                .required(true)
-        ))]
 pub struct Config {
     /// Location of backups.
     ///
@@ -121,31 +172,6 @@ pub struct Config {
     #[clap(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath,
         default_value_os_t = default_backup_dirpath())]
     pub backup_dirpath: PathBuf,
-
-    /// Number of recent backups to keep, for instance 10.
-    #[clap(group="strategy",
-        short = 'k',
-        long="strategy-most-recent",
-        value_name = "NUMBER",
-        value_parser = clap::value_parser!(u16).range(1..),
-        env = "TMUX_BACKUP_STRATEGY_MOST_RECENT"
-    )]
-    strategy_most_recent: Option<u16>,
-
-    /// Apply a classic backup strategy.
-    ///
-    /// Keep
-    /// the lastest per hour for the past 24 hours,
-    /// the lastest per day for the past 7 days,
-    /// the lastest per week of the past 4 weeks,
-    /// the lastest per month of this year.
-    #[clap(
-        group = "strategy",
-        long = "strategy-classic",
-        value_parser,
-        env = "TMUX_BACKUP_STRATEGY_CLASSIC"
-    )]
-    strategy_classic: bool,
 
     /// Selection of commands.
     #[clap(subcommand)]
@@ -156,16 +182,16 @@ pub struct Config {
 // Helpers
 //
 
-impl Config {
+impl StrategyConfig {
     /// Compaction Strategy corresponding to the CLI arguments.
     pub fn strategy(&self) -> Strategy {
-        if let Some(k) = self.strategy_most_recent {
-            Strategy::most_recent(k as usize)
-        } else {
-            Strategy::Classic
+        match self.strategy {
+            StrategyValues::MostRecent => Strategy::most_recent(self.num_backups as usize),
+            StrategyValues::Classic => Strategy::Classic,
         }
     }
 }
+
 /// Determine the folder where to save backups.
 ///
 /// If `$XDG_STATE_HOME` is defined, the function returns `$XDG_STATE_HOME/tmux-backup`, otherwise,

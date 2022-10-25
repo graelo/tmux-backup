@@ -43,12 +43,13 @@ impl Catalog {
     /// - The catalog only manages backup files such as `backup-20220804T221153.tar.zst`, other
     /// files are simply ignored (and in principle, should not be present).
     pub async fn new<P: AsRef<Path>>(dirpath: P, strategy: Strategy) -> Result<Catalog> {
-        fs::create_dir_all(dirpath.as_ref()).await?;
+        let dirpath = dirpath.as_ref();
+        fs::create_dir_all(dirpath).await?;
 
-        let backup_files = Self::parse_backup_filenames(dirpath.as_ref()).await?;
+        let backup_files = Self::parse_backup_filenames(dirpath).await?;
 
         let catalog = Catalog {
-            dirpath: dirpath.as_ref().to_path_buf(),
+            dirpath: dirpath.to_path_buf(),
             strategy,
             backups: backup_files,
         };
