@@ -1,60 +1,77 @@
 //! Main runner
 
+use std::path::Path;
+
 use async_std::task;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
 use tmux_backup::{
     actions::{restore, save},
-    config::{CatalogSubcommand, Command, Config},
+    config::{CatalogSubcommand, Command, Config, StrategyConfig},
     management::{archive::v1, catalog::Catalog},
     tmux,
 };
 
-async fn run(config: Config) {
-    let catalog = match Catalog::new(&config.backup_dirpath, config.strategy()).await {
+async fn init_catalog<P: AsRef<Path>>(
+    backup_dirpath: P,
+    strategy_config: StrategyConfig,
+) -> Catalog {
+    match Catalog::new(&backup_dirpath.as_ref(), strategy_config.strategy()).await {
         Ok(catalog) => catalog,
         Err(e) => {
             failure_message(
                 format!(
                     "🛑 Catalog error at `{}`: {}",
-                    config.backup_dirpath.to_string_lossy(),
+                    backup_dirpath.as_ref().to_string_lossy(),
                     e
                 ),
                 Output::Both,
             );
-            return;
+            std::process::exit(1);
         }
-    };
+    }
+}
 
+async fn run(config: Config) {
     match config.command {
-        Command::Catalog { command } => match command {
-            CatalogSubcommand::List {
-                details_flag,
-                only_backup_status,
-                filepaths_flag,
-            } => {
-                catalog
-                    .list(details_flag, only_backup_status, filepaths_flag)
-                    .await
-            }
-            CatalogSubcommand::Compact => match catalog.compact().await {
-                Ok(n) => {
-                    let message = format!("✅ deleted {n} outdated backups");
-                    success_message(message, Output::Stdout)
+        Command::Catalog { strategy, command } => {
+            let catalog = init_catalog(&config.backup_dirpath, strategy).await;
+
+            match command {
+                CatalogSubcommand::List {
+                    details_flag,
+                    only_backup_status,
+                    filepaths_flag,
+                } => {
+                    catalog
+                        .list(details_flag, only_backup_status, filepaths_flag)
+                        .await
                 }
-                Err(e) => failure_message(
-                    format!("🛑 Could not compact backups: {}", e),
-                    Output::Stdout,
-                ),
-            },
-        },
+                CatalogSubcommand::Compact => match catalog.compact().await {
+                    Ok(n) => {
+                        let message = format!("✅ deleted {n} outdated backups");
+                        success_message(message, Output::Stdout)
+                    }
+                    Err(e) => failure_message(
+                        format!("🛑 Could not compact backups: {}", e),
+                        Output::Stdout,
+                    ),
+                },
+            }
+        }
 
         Command::Describe { backup_filepath } => {
             v1::print_description(backup_filepath).await.unwrap()
         }
 
-        Command::Save { to_tmux, compact } => {
+        Command::Save {
+            strategy,
+            to_tmux,
+            compact,
+        } => {
+            let catalog = init_catalog(&config.backup_dirpath, strategy).await;
+
             match save(&catalog.dirpath).await {
                 Ok((backup_filepath, archive_overview)) => {
                     if compact {
@@ -81,9 +98,12 @@ async fn run(config: Config) {
         }
 
         Command::Restore {
+            strategy,
             to_tmux,
             backup_filepath,
         } => {
+            let catalog = init_catalog(&config.backup_dirpath, strategy).await;
+
             // Either the provided filepath, or catalog.latest(), or failure message
             let backup_to_restore = {
                 if let Some(ref backup_filepath) = backup_filepath {

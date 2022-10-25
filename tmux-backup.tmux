@@ -56,7 +56,7 @@ keyswitch=$(tmux show-option -gv @backup-keyswitch)
 keytable=$(tmux show-option -gv @backup-keytable)
 tmux bind-key ${keyswitch} switch-client -T ${keytable}
 
-setup_option "strategy" "-k 10"
+setup_option "strategy" "-s most-recent -n 10"
 strategy=$(tmux show-option -gv @backup-strategy)
 
 #
@@ -66,23 +66,22 @@ strategy=$(tmux show-option -gv @backup-strategy)
 function setup_binding() {
     local key=$1
     local command="$2"
-    # tmux bind-key -T ${keytable} ${key} new-window -d -n ${window_name} "${BINARY} --window-name '"${window_name}"' --reverse --unique-hint ${pattern_arg}"
-    tmux bind-key -T ${keytable} ${key} run-shell "${BINARY} ${strategy} ${command}"
+    tmux bind-key -T ${keytable} ${key} run-shell "${BINARY} ${command}"
 }
 
 function setup_binding_w_popup() {
     local key=$1
     local command="$2"
-    tmux bind-key -T ${keytable} ${key} display-popup -E "tmux new-session -A -s tmux-backup '${BINARY} ${strategy} ${command} ; echo Press any key... && read -k1 -s'"
+    tmux bind-key -T ${keytable} ${key} display-popup -E "tmux new-session -A -s tmux-backup '${BINARY} ${command} ; echo Press any key... && read -k1 -s'"
 }
 
 # prefix + b + b only saves a new backup without compacting the catalog
-setup_binding "b" "save --to-tmux"
+setup_binding "b" "save ${strategy} --to-tmux"
 # prefix + b + s saves a new backup and compacts the catalog
-setup_binding "s" "save --compact --to-tmux"
+setup_binding "s" "save ${strategy} --compact --to-tmux"
 # prefix + b + r restores the most recent backup
-setup_binding "r" "restore --to-tmux"
+setup_binding "r" "restore ${strategy} --to-tmux"
 # prefix + b + l prints the catalog without details
-setup_binding_w_popup "l" "catalog list"
+setup_binding_w_popup "l" "catalog ${strategy} list"
 # prefix + b + L prints the catalog
-setup_binding_w_popup "L" "catalog list --details"
+setup_binding_w_popup "L" "catalog ${strategy} list --details"

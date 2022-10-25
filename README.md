@@ -10,11 +10,11 @@
 
 A backup & restore solution for Tmux sessions.
 
-Version requirement: _rustc 1.50+_
+Version requirement: _rustc 1.56+_
 
 ```toml
 [dependencies]
-tmux-backup = "0.1"
+tmux-backup = "0.3"
 ```
 
 ## Features
@@ -25,7 +25,7 @@ tmux-backup = "0.1"
 - Fast: less than 1 sec for 16 sessions, 45 windows and 80 panes.
 - Show the catalog of backups, with age, file size, content description & archive format
 - 2 strategies are available:
-  - keep the `k` most recent backups
+  - keep the `n` most recent backups
   - classic backup strategy:
     - the lastest backup per hour for the past 24 hours (max 23 backups - exclude the past hour),
     - the lastest backup per day for the past 7 days (max 6 backups - exclude the past 24 hours),
@@ -108,15 +108,10 @@ On linux
 
 ```shell
 curl \
-    https://github.com/graelo/tmux-backup/releases/download/v0.1.0/tmux-backup-x86_64-unknown-linux-gnu.tar.xz \
+    https://github.com/graelo/tmux-backup/releases/download/v0.3.0/tmux-backup-x86_64-unknown-linux-gnu.tar.xz \
     | tar xf - > /usr/local/bin/tmux-backup
 chmod +x /usr/local/bin/tmux-backup
 ```
-
-In your shell profile, add one of the following environment variables
-
-- `TMUX_BACKUP_STRATEGY_MOST_RECENT=10`
-- `TMUX_BACKUP_STRATEGY_CLASSIC=true`
 
 If you use tpm, copy the file `tmux-backup.tmux` to `~/.tmux/plugins/tmux-backup/tmux-backup.tmux` and
 declare the tmux-backup plugin to TPM in your `~/.tmux.conf`:
