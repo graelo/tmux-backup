@@ -211,7 +211,7 @@ pub async fn set_layout(layout: &str, window_id: &WindowId) -> Result<()> {
     let args = vec!["select-layout", "-t", window_id.as_str(), layout];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    check_empty_process_output(output, "select-layout")
+    check_empty_process_output(&output, "select-layout")
 }
 
 /// Select (make active) the window with `window_id`.
@@ -219,7 +219,7 @@ pub async fn select_window(window_id: &WindowId) -> Result<()> {
     let args = vec!["select-window", "-t", window_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    check_empty_process_output(output, "select-window")
+    check_empty_process_output(&output, "select-window")
 }
 
 #[cfg(test)]

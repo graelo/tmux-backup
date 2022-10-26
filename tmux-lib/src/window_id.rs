@@ -46,7 +46,7 @@ pub(crate) mod parse {
 
     pub(crate) fn window_id(input: &str) -> IResult<&str, WindowId> {
         let (input, digit) = preceded(char('@'), digit1)(input)?;
-        let id = format!("@{}", digit);
+        let id = format!("@{digit}");
         Ok((input, WindowId(id)))
     }
 }

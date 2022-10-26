@@ -22,7 +22,7 @@ pub struct PaneId(pub String);
 impl FromStr for PaneId {
     type Err = Error;
 
-    /// Parse into PaneId. The `&str` must start with '%' followed by a `u32`.
+    /// Parse into `PaneId`. The `&str` must start with '%' followed by a `u32`.
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let desc = "PaneId";
         let intent = "#{pane_id}";
@@ -42,6 +42,7 @@ impl From<&u16> for PaneId {
 
 impl PaneId {
     /// Extract a string slice containing the raw representation.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -54,11 +55,11 @@ impl fmt::Display for PaneId {
 }
 
 pub(crate) mod parse {
-    use super::*;
+    use super::{char, digit1, preceded, IResult, PaneId};
 
     pub(crate) fn pane_id(input: &str) -> IResult<&str, PaneId> {
         let (input, digit) = preceded(char('%'), digit1)(input)?;
-        let id = format!("%{}", digit);
+        let id = format!("%{digit}");
         Ok((input, PaneId(id)))
     }
 }

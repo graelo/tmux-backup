@@ -170,7 +170,7 @@ impl fmt::Display for Strategy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Strategy::KeepMostRecent { k } => {
-                write!(f, "KeepMostRecent: {}", k)
+                write!(f, "KeepMostRecent: {k}")
             }
             Strategy::Classic => write!(f, "Classic"),
         }

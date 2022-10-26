@@ -8,11 +8,11 @@
 #
 #   set -g @backup-keytable "foobar"
 #   set -g @backup-keyswitch "z"
-#   set -g @backup-strategy "-k 10"
+#   set -g @backup-strategy "-s most-recent -n 10"
 #
 # and bindings like
 #
-#   bind-key -T foobar l 'tmux-backup -k 10 catalog list'
+#   bind-key -T foobar l 'tmux-backup catalog list'
 #
 # You can also entirely ignore this file (not even source it) and define all
 # options and bindings in your `tmux.conf`.
@@ -76,9 +76,9 @@ function setup_binding_w_popup() {
 }
 
 # prefix + b + b only saves a new backup without compacting the catalog
-setup_binding "b" "save ${strategy} --to-tmux"
+setup_binding "b" "save ${strategy} --ignore-last-lines 1 --to-tmux"
 # prefix + b + s saves a new backup and compacts the catalog
-setup_binding "s" "save ${strategy} --compact --to-tmux"
+setup_binding "s" "save ${strategy} --ignore-last-lines 1 --compact --to-tmux"
 # prefix + b + r restores the most recent backup
 setup_binding "r" "restore ${strategy} --to-tmux"
 # prefix + b + l prints the catalog without details

@@ -30,7 +30,7 @@ impl fmt::Display for StrategyValues {
             Self::MostRecent => "most-recent",
             Self::Classic => "classic",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -109,6 +109,24 @@ pub enum Command {
         /// Delete purgeable backups after saving.
         #[clap(long, action = ArgAction::SetTrue)]
         compact: bool,
+
+        /// Number of lines to ignore during capture if the active command is a shell.
+        ///
+        /// At the time of saving, for each pane where the active command is one of (`zsh`, `bash`,
+        /// `fish`), the shell prompt is waiting for input. If tmux-backup naively captures the
+        /// entire history, on restoring that backup, a new shell prompt will also appear. This
+        /// obviously pollutes history with repeated shell prompts.
+        ///
+        /// If you know the number of lines your shell prompt occupies on screen, set this option
+        /// to that number (simply `1` in my case). These last lines will not be captured. On
+        /// restore, this gives the illusion of history continuity without repetition.
+        #[clap(
+            short = 'i',
+            long = "ignore-last-lines",
+            value_name = "NUMBER",
+            default_value_t = 0
+        )]
+        num_lines_to_drop: u8,
     },
 
     /// Restore the Tmux sessions from a backup file.

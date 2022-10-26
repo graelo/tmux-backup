@@ -3,7 +3,7 @@
 set -e
 
 CRATE=tmux-backup
-MSRV=1.59
+MSRV=1.60
 
 get_rust_version() {
   local array=($(rustc --version));
@@ -28,7 +28,7 @@ if ! check_version $MSRV ; then
 fi
 
 FEATURES=()
-# check_version 1.59 && FEATURES+=(libm)
+# check_version 1.60 && FEATURES+=(libm)
 echo "Testing supported features: ${FEATURES[*]}"
 
 set -x

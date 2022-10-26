@@ -22,9 +22,8 @@ async fn init_catalog<P: AsRef<Path>>(
         Err(e) => {
             failure_message(
                 format!(
-                    "🛑 Catalog error at `{}`: {}",
-                    backup_dirpath.as_ref().to_string_lossy(),
-                    e
+                    "🛑 Catalog error at `{}`: {e}",
+                    backup_dirpath.as_ref().to_string_lossy()
                 ),
                 Output::Both,
             );
@@ -54,7 +53,7 @@ async fn run(config: Config) {
                         success_message(message, Output::Stdout)
                     }
                     Err(e) => failure_message(
-                        format!("🛑 Could not compact backups: {}", e),
+                        format!("🛑 Could not compact backups: {e}"),
                         Output::Stdout,
                     ),
                 },
@@ -69,10 +68,11 @@ async fn run(config: Config) {
             strategy,
             to_tmux,
             compact,
+            num_lines_to_drop,
         } => {
             let catalog = init_catalog(&config.backup_dirpath, strategy).await;
 
-            match save(&catalog.dirpath).await {
+            match save(&catalog.dirpath, num_lines_to_drop as usize).await {
                 Ok((backup_filepath, archive_overview)) => {
                     if compact {
                         // In practice this should never fail: write to the catalog already ensures
@@ -92,7 +92,7 @@ async fn run(config: Config) {
                     success_message(message, to_tmux);
                 }
                 Err(e) => {
-                    failure_message(format!("🛑 Could not save sessions: {}", e), to_tmux);
+                    failure_message(format!("🛑 Could not save sessions: {e}"), to_tmux);
                 }
             };
         }
@@ -124,7 +124,7 @@ async fn run(config: Config) {
                     success_message(message, to_tmux)
                 }
                 Err(e) => {
-                    failure_message(format!("🛑 Could not restore sessions: {}", e), to_tmux);
+                    failure_message(format!("🛑 Could not restore sessions: {e}"), to_tmux);
                 }
             }
         }
