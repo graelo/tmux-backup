@@ -18,7 +18,10 @@ use crate::{management::archive::v1, tmux, Result};
 /// - The `backup_dirpath` folder is assumed to exist (done during catalog initialization).
 /// - Backups have a name similar to `backup-20220731T222948.tar.zst`.
 ///
-pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Overview)> {
+pub async fn save<P: AsRef<Path>>(
+    backup_dirpath: P,
+    num_lines_to_drop: usize,
+) -> Result<(PathBuf, v1::Overview)> {
     // Prepare the temp directory.
     let temp_dir = TempDir::new()?;
 
@@ -53,7 +56,7 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
 
         let panes = tmux::pane::available_panes().await?;
         let num_panes = panes.len() as u16;
-        save_panes_content(panes, &temp_panes_content_dir).await?;
+        save_panes_content(panes, &temp_panes_content_dir, num_lines_to_drop).await?;
 
         (temp_panes_content_dir, num_panes)
     };
@@ -87,13 +90,19 @@ pub async fn save<P: AsRef<Path>>(backup_dirpath: P) -> Result<(PathBuf, v1::Ove
 async fn save_panes_content<P: AsRef<Path>>(
     panes: Vec<tmux::pane::Pane>,
     destination_dir: P,
+    num_lines_to_drop: usize,
 ) -> Result<()> {
     let mut handles = Vec::new();
+    let detected_shells = vec!["zsh", "bash", "fish"];
 
     for pane in panes {
         let dest_dir = destination_dir.as_ref().to_path_buf();
-        // TODO: improve this heuristic, maybe with config
-        let drop_n_last_lines = if pane.command == "zsh" { 1 } else { 0 };
+
+        let drop_n_last_lines = if detected_shells.contains(&&pane.command[..]) {
+            num_lines_to_drop
+        } else {
+            0
+        };
 
         let handle = task::spawn(async move {
             let output = pane.capture(drop_n_last_lines).await.unwrap();

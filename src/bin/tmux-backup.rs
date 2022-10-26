@@ -69,10 +69,11 @@ async fn run(config: Config) {
             strategy,
             to_tmux,
             compact,
+            num_lines_to_drop,
         } => {
             let catalog = init_catalog(&config.backup_dirpath, strategy).await;
 
-            match save(&catalog.dirpath).await {
+            match save(&catalog.dirpath, num_lines_to_drop as usize).await {
                 Ok((backup_filepath, archive_overview)) => {
                     if compact {
                         // In practice this should never fail: write to the catalog already ensures
