@@ -30,7 +30,7 @@ impl fmt::Display for StrategyValues {
             Self::MostRecent => "most-recent",
             Self::Classic => "classic",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

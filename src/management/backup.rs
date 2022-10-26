@@ -75,7 +75,7 @@ impl Backup {
             return "1 minute".into();
         }
 
-        format!("{} seconds", duration_secs)
+        format!("{duration_secs} seconds")
     }
 }
 
