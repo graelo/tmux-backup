@@ -4,7 +4,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! tmux-lib = "0.1"
+//! tmux-lib = "0.2"
 //! ```
 //!
 //! ## Getting started
