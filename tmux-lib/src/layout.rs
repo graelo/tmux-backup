@@ -33,6 +33,7 @@ pub struct WindowLayout {
 
 impl WindowLayout {
     /// Return a flat list of pane ids.
+    #[must_use]
     pub fn pane_ids(&self) -> Vec<u16> {
         let mut acc: Vec<u16> = vec![];
         acc.reserve(1);

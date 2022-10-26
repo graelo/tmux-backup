@@ -108,7 +108,7 @@ impl Pane {
         let mut trimmed_lines: Vec<&[u8]> = output
             .stdout
             .split(|c| *c == b'\n')
-            .map(|line| line.trim_trailing())
+            .map(SliceExt::trim_trailing) // .map(|line| line.trim_trailing())
             .collect();
 
         trimmed_lines.truncate(trimmed_lines.len() - drop_n_last_lines);
@@ -117,11 +117,11 @@ impl Pane {
         let mut output_trimmed: Vec<u8> = Vec::with_capacity(output.stdout.len());
         for (idx, &line) in trimmed_lines.iter().enumerate() {
             output_trimmed.extend_from_slice(line);
-            if idx != trimmed_lines.len() - 1 {
-                output_trimmed.push(b'\n');
-            } else {
+            if idx == trimmed_lines.len() {
                 let reset = "\u{001b}[0m".as_bytes();
                 output_trimmed.extend_from_slice(reset);
+            } else {
+                output_trimmed.push(b'\n');
             }
         }
 
@@ -228,7 +228,7 @@ pub async fn select_pane(pane_id: &PaneId) -> Result<()> {
     let args = vec!["select-pane", "-t", pane_id.as_str()];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    check_empty_process_output(output, "select-pane")
+    check_empty_process_output(&output, "select-pane")
 }
 
 #[cfg(test)]

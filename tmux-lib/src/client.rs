@@ -63,7 +63,11 @@ impl FromStr for Client {
 // ------------------------------
 
 /// Return the current client useful attributes.
-pub async fn current_client() -> Result<Client> {
+///
+/// # Errors
+///
+/// Returns an `io::IOError` in the command failed.
+pub async fn current() -> Result<Client> {
     let args = vec![
         "display-message",
         "-p",

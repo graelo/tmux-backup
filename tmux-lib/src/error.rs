@@ -44,6 +44,11 @@ pub enum Error {
 }
 
 /// Convert a nom error into an owned error and add the parsing intent.
+///
+/// # Errors
+///
+/// This maps to a `Error::ParseError`.
+#[must_use]
 pub fn map_add_intent(
     desc: &'static str,
     intent: &'static str,
@@ -56,8 +61,14 @@ pub fn map_add_intent(
     }
 }
 
+/// Ensure that the output's stdout and stderr are empty, indicating
+/// the command had succeeded.
+///
+/// # Errors
+///
+/// Returns a `Error::UnexpectedTmuxOutput` in case .
 pub fn check_empty_process_output(
-    output: Output,
+    output: &Output,
     intent: &'static str,
 ) -> std::result::Result<(), Error> {
     if !output.stdout.is_empty() || !output.stderr.is_empty() {

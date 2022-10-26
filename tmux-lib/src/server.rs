@@ -21,7 +21,7 @@ pub async fn start(initial_session_name: &str) -> Result<()> {
     let args = vec!["new-session", "-d", "-s", initial_session_name];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    check_empty_process_output(output, "new-session")
+    check_empty_process_output(&output, "new-session")
 }
 
 /// Remove the session named `"[placeholder]"` used to keep the server alive.
@@ -30,7 +30,7 @@ pub async fn kill_session(name: &str) -> Result<()> {
     let args = vec!["kill-session", "-t", &exact_name];
 
     let output = Command::new("tmux").args(&args).output().await?;
-    check_empty_process_output(output, "kill-session")
+    check_empty_process_output(&output, "kill-session")
 }
 
 /// Return the value of a Tmux option. For instance, this can be used to get Tmux's default
