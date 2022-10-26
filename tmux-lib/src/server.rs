@@ -85,7 +85,7 @@ pub async fn default_command() -> Result<String> {
         .map(|cmd| cmd.to_owned())
         .map(|cmd| {
             if cmd.ends_with("bash") {
-                format!("-l {}", cmd)
+                format!("-l {cmd}")
             } else {
                 cmd
             }

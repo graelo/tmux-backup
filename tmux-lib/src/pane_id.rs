@@ -58,7 +58,7 @@ pub(crate) mod parse {
 
     pub(crate) fn pane_id(input: &str) -> IResult<&str, PaneId> {
         let (input, digit) = preceded(char('%'), digit1)(input)?;
-        let id = format!("%{}", digit);
+        let id = format!("%{digit}");
         Ok((input, PaneId(id)))
     }
 }

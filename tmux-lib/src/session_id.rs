@@ -45,7 +45,7 @@ pub(crate) mod parse {
 
     pub fn session_id(input: &str) -> IResult<&str, SessionId> {
         let (input, digit) = preceded(char('$'), digit1)(input)?;
-        let id = format!("${}", digit);
+        let id = format!("${digit}");
         Ok((input, SessionId(id)))
     }
 }
