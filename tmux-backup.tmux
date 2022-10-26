@@ -8,11 +8,11 @@
 #
 #   set -g @backup-keytable "foobar"
 #   set -g @backup-keyswitch "z"
-#   set -g @backup-strategy "-k 10"
+#   set -g @backup-strategy "-s most-recent -n 10"
 #
 # and bindings like
 #
-#   bind-key -T foobar l 'tmux-backup -k 10 catalog list'
+#   bind-key -T foobar l 'tmux-backup catalog list'
 #
 # You can also entirely ignore this file (not even source it) and define all
 # options and bindings in your `tmux.conf`.
