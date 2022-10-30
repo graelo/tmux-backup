@@ -19,7 +19,6 @@ use crate::{
     error::{check_empty_process_output, map_add_intent, Error},
     pane_id::{parse::pane_id, PaneId},
     parse::{boolean, quoted_nonempty_string},
-    utils::SliceExt,
     window_id::WindowId,
     Result,
 };
@@ -81,15 +80,10 @@ impl Pane {
     ///
     /// # Note
     ///
-    /// The output contains the escape codes, joined lines, and all lines are trimmed after capture
-    /// because tmux does not allow that. In addition, the last line has an additional ascii reset
-    /// escape code because tmux does not capture it.
+    /// The output contains the escape codes, joined lines with trailing spaces. This output is
+    /// processed by the function `tmux_lib::utils::cleanup_captured_buffer`.
     ///
-    /// If `drop_n_last_lines` is greater than 0, the n last line are not captured. This is used
-    /// only for panes with a zsh prompt, in order to avoid polluting the history with new prompts
-    /// on restore.
-    ///
-    pub async fn capture(&self, drop_n_last_lines: usize) -> Result<Vec<u8>> {
+    pub async fn capture(&self) -> Result<Vec<u8>> {
         let args = vec![
             "capture-pane",
             "-t",
@@ -105,45 +99,7 @@ impl Pane {
 
         let output = Command::new("tmux").args(&args).output().await?;
 
-        let trimmed_lines: Vec<&[u8]> = Self::buf_trim_trailing(&output.stdout);
-        let mut buffer: Vec<&[u8]> = Self::drop_last_empty_lines(&trimmed_lines);
-        buffer.truncate(buffer.len() - drop_n_last_lines);
-
-        // Join the lines with `b'\n'`, add reset code to the last line
-        let mut final_buffer: Vec<u8> = Vec::with_capacity(output.stdout.len());
-        for (idx, &line) in buffer.iter().enumerate() {
-            final_buffer.extend_from_slice(line);
-
-            let is_last_line = idx == buffer.len() - 1;
-            if is_last_line {
-                let reset = "\u{001b}[0m".as_bytes();
-                final_buffer.extend_from_slice(reset);
-                final_buffer.push(b'\n');
-            } else {
-                final_buffer.push(b'\n');
-            }
-        }
-
-        Ok(final_buffer)
-    }
-
-    /// Trim each line of the buffer.
-    pub(crate) fn buf_trim_trailing(buf: &[u8]) -> Vec<&[u8]> {
-        let trimmed_lines: Vec<&[u8]> = buf
-            .split(|c| *c == b'\n')
-            .map(SliceExt::trim_trailing) // trim each line
-            .collect();
-
-        trimmed_lines
-    }
-
-    /// Drop all the last empty lines.
-    pub(crate) fn drop_last_empty_lines<'a>(lines: &[&'a [u8]]) -> Vec<&'a [u8]> {
-        if let Some(last) = lines.iter().rposition(|line| !line.is_empty()) {
-            lines[0..=last].to_vec()
-        } else {
-            lines.to_vec()
-        }
+        Ok(output.stdout)
     }
 }
 
@@ -295,32 +251,5 @@ mod tests {
         ];
 
         assert_eq!(panes, expected);
-    }
-
-    #[test]
-    fn test_buf_trim_trailing() {
-        let text = "line1\n\nline3   ";
-        let actual = Pane::buf_trim_trailing(text.as_bytes());
-        let expected = vec!["line1".as_bytes(), "".as_bytes(), "line3".as_bytes()];
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_buf_drop_last_empty_lines() {
-        let text = "line1\nline2\n\nline3   ";
-
-        let trimmed_lines = Pane::buf_trim_trailing(text.as_bytes());
-        let actual = Pane::drop_last_empty_lines(&trimmed_lines);
-        let expected = trimmed_lines;
-        assert_eq!(actual, expected);
-
-        //
-
-        let text = "line1\nline2\n\n\n     ";
-
-        let trimmed_lines = Pane::buf_trim_trailing(text.as_bytes());
-        let actual = Pane::drop_last_empty_lines(&trimmed_lines);
-        let expected = vec!["line1".as_bytes(), "line2".as_bytes()];
-        assert_eq!(actual, expected);
     }
 }

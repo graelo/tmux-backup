@@ -7,6 +7,7 @@ use futures::future::join_all;
 use tempfile::TempDir;
 
 use crate::{management::archive::v1, tmux, Result};
+use tmux_lib::utils;
 
 /// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`.
 ///
@@ -105,11 +106,12 @@ async fn save_panes_content<P: AsRef<Path>>(
         };
 
         let handle = task::spawn(async move {
-            let output = pane.capture(drop_n_last_lines).await.unwrap();
+            let stdout = pane.capture().await.unwrap();
+            let cleaned_buffer = utils::cleanup_captured_buffer(&stdout, drop_n_last_lines);
 
             let filename = format!("pane-{}.txt", pane.id);
             let filepath = dest_dir.join(filename);
-            fs::write(filepath, output).await
+            fs::write(filepath, cleaned_buffer).await
         });
         handles.push(handle);
     }
