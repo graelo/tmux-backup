@@ -8,81 +8,22 @@ use clap_complete::Shell;
 
 use crate::management::{backup::BackupStatus, compaction::Strategy};
 
-/// Strategy values
-#[derive(Debug, Clone, ValueEnum)]
-pub enum StrategyValues {
-    /// Apply a most-recent strategy, keeping only n backups.
-    MostRecent,
-
-    /// Apply a classic backup strategy.
+/// Save or restore Tmux sessions.
+#[derive(Debug, Parser)]
+#[clap(author, about, version)]
+#[clap(propagate_version = true)]
+pub struct Config {
+    /// Location of backups.
     ///
-    /// Keep
-    /// the lastest per hour for the past 24 hours,
-    /// the lastest per day for the past 7 days,
-    /// the lastest per week of the past 4 weeks,
-    /// the lastest per month of this year.
-    Classic,
-}
+    /// If unspecified, it falls back on: `$XDG_STATE_HOME/tmux-backup`, then on
+    /// `$HOME/.local/state/tmux-backup`.
+    #[clap(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath,
+        default_value_os_t = default_backup_dirpath())]
+    pub backup_dirpath: PathBuf,
 
-impl fmt::Display for StrategyValues {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::MostRecent => "most-recent",
-            Self::Classic => "classic",
-        };
-        write!(f, "{s}")
-    }
-}
-
-/// Strategy configuration.
-#[derive(Debug, clap::Args)]
-pub struct StrategyConfig {
-    #[clap(short = 's', long = "strategy", default_value_t = StrategyValues::MostRecent)]
-    strategy: StrategyValues,
-
-    /// Number of recent backups to keep, for instance 10.
-    #[clap(
-        short = 'n',
-        long,
-        value_name = "NUMBER",
-        value_parser = clap::value_parser!(u16).range(1..),
-        default_value_t = 10,
-    )]
-    num_backups: u16,
-}
-
-/// Catalog subcommands.
-#[derive(Debug, Subcommand)]
-pub enum CatalogSubcommand {
-    /// Print a list of backups to stdout.
-    ///
-    /// By default, this prints a table of backups, age and status with colors. The flag `--details`
-    /// prints additional columns.
-    ///
-    /// If the flag `--filepaths` is set, only absolute filepaths are printed. This can be used in
-    /// scripting scenarios.
-    ///
-    /// Options `--only purgeable` or `--only retainable` will list only the corresponding backups.
-    /// They will activate the flag `--filepaths` automatically.
-    List {
-        /// Add details columns to the table.
-        ///
-        /// Print number of sessions, windows and panes in the backup and the backup's format
-        /// version. This is slightly slower because it requires each backup file to be partially
-        /// read.
-        #[clap(long = "details", action = ArgAction::SetTrue)]
-        details_flag: bool,
-
-        /// List only backups having this status.
-        #[clap(long = "only", value_enum, value_parser)]
-        only_backup_status: Option<BackupStatus>,
-
-        /// Print filepaths instead of the table format.
-        #[clap(long = "filepaths", action = ArgAction::SetTrue)]
-        filepaths_flag: bool,
-    },
-    /// Apply the catalog's compaction strategy: this deletes all purgable backups.
-    Compact,
+    /// Selection of commands.
+    #[clap(subcommand)]
+    pub command: Command,
 }
 
 /// Indicate whether to save (resp. restore) the Tmux sessions to (resp. from) a backup.
@@ -178,22 +119,83 @@ pub enum Command {
     },
 }
 
-/// Save or restore Tmux sessions.
-#[derive(Debug, Parser)]
-#[clap(author, about, version)]
-#[clap(propagate_version = true)]
-pub struct Config {
-    /// Location of backups.
+/// Catalog subcommands.
+#[derive(Debug, Subcommand)]
+pub enum CatalogSubcommand {
+    /// Print a list of backups to stdout.
     ///
-    /// If unspecified, it falls back on: `$XDG_STATE_HOME/tmux-backup`, then on
-    /// `$HOME/.local/state/tmux-backup`.
-    #[clap(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath,
-        default_value_os_t = default_backup_dirpath())]
-    pub backup_dirpath: PathBuf,
+    /// By default, this prints a table of backups, age and status with colors. The flag `--details`
+    /// prints additional columns.
+    ///
+    /// If the flag `--filepaths` is set, only absolute filepaths are printed. This can be used in
+    /// scripting scenarios.
+    ///
+    /// Options `--only purgeable` or `--only retainable` will list only the corresponding backups.
+    /// They will activate the flag `--filepaths` automatically.
+    List {
+        /// Add details columns to the table.
+        ///
+        /// Print number of sessions, windows and panes in the backup and the backup's format
+        /// version. This is slightly slower because it requires each backup file to be partially
+        /// read.
+        #[clap(long = "details", action = ArgAction::SetTrue)]
+        details_flag: bool,
 
-    /// Selection of commands.
-    #[clap(subcommand)]
-    pub command: Command,
+        /// List only backups having this status.
+        #[clap(long = "only", value_enum, value_parser)]
+        only_backup_status: Option<BackupStatus>,
+
+        /// Print filepaths instead of the table format.
+        #[clap(long = "filepaths", action = ArgAction::SetTrue)]
+        filepaths_flag: bool,
+    },
+
+    /// Apply the catalog's compaction strategy: this deletes all purgable backups.
+    Compact,
+}
+
+/// Strategy values
+#[derive(Debug, Clone, ValueEnum)]
+enum StrategyValues {
+    /// Apply a most-recent strategy, keeping only n backups.
+    MostRecent,
+
+    /// Apply a classic backup strategy.
+    ///
+    /// Keep
+    /// the lastest per hour for the past 24 hours,
+    /// the lastest per day for the past 7 days,
+    /// the lastest per week of the past 4 weeks,
+    /// the lastest per month of this year.
+    Classic,
+}
+
+/// Needed for the CLI help message.
+impl fmt::Display for StrategyValues {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::MostRecent => "most-recent",
+            Self::Classic => "classic",
+        };
+        write!(f, "{s}")
+    }
+}
+
+/// Strategy configuration.
+#[derive(Debug, clap::Args)]
+pub struct StrategyConfig {
+    #[clap(short = 's', long = "strategy", default_value_t = StrategyValues::MostRecent)]
+    strategy: StrategyValues,
+
+    /// Number of recent backups to keep, for instance 10.
+    #[clap(
+        short = 'n',
+        long,
+        value_name = "NUMBER",
+        value_parser = clap::value_parser!(u16).range(1..),
+        default_value_t = 10,
+    )]
+    num_backups: u16,
 }
 
 //
