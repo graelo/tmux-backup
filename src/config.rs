@@ -117,6 +117,13 @@ pub enum Command {
         #[clap(value_parser = clap::value_parser!(Shell))]
         shell: Shell,
     },
+
+    /// Outputs the default tmux plugin config to stdout.
+    ///
+    /// Similar to shell completions, this is done once when installing tmux-backup. Type
+    /// `tmux-backup generate-tmux-plugin-config > ~/.tmux/plugins/tmux-backup.tmux`. and source it
+    /// from your `~/.tmux.conf`. See the README for details.
+    GenerateTmuxPluginConfig,
 }
 
 /// Catalog subcommands.

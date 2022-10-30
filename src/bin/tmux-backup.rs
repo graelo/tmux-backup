@@ -134,6 +134,11 @@ async fn run(config: Config) {
             let name = app.get_name().to_string();
             generate(shell, &mut app, name, &mut std::io::stdout());
         }
+
+        Command::GenerateTmuxPluginConfig => {
+            let text = std::include_str!("../../tmux-backup.tmux");
+            println!("{text}");
+        }
     }
 }
 
