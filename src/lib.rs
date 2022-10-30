@@ -106,7 +106,7 @@
 //!
 //! ```shell
 //! curl \
-//!     https://github.com/graelo/tmux-backup/releases/download/v0.3.0/tmux-backup-x86_64-unknown-linux-gnu.tar.xz \
+//!     https://github.com/graelo/tmux-backup/releases/download/v0.3.1/tmux-backup-x86_64-unknown-linux-gnu.tar.xz \
 //!     | tar xf - > /usr/local/bin/tmux-backup
 //! chmod +x /usr/local/bin/tmux-backup
 //! ```
