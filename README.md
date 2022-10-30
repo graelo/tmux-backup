@@ -69,7 +69,7 @@ By default, the tmux bindings for listing backups are
 - `prefix + b + l` to show the simple catalog
 - `prefix + b + L` to show the detailed catalog (adds the filesize, version & content columns)
 
-Both of them will open a tmux popup.
+Both of these bindings will open a tmux popup showing the catalog content.
 
 ### Save the current tmux environment
 
@@ -90,18 +90,24 @@ Both of these bindings will print the same report as above in the tmux status ba
 Typing `tmux-backup restore` in your shell outside of tmux will
 
 - start a tmux server if none is running
-- restore the sessions
+- restore all sessions from the latest backup
 - but you still have to `tmux attach -t <your-last-session>`
 
 The same command typed in a shell inside tmux will erase session `0` (the default start
 session) and restore your tmux environment in place.
 
+By default, the tmux binding for restoring the latest backup is
+
+- `prefix + b + r` restore sessions from the latest backup
+
 ## Installation
+
+### Installing the binary
 
 On macOS
 
 ```shell
-brew install graelo/homebrew-tap/tmux-backup
+brew install graelo/homebrew-tap/tmux-backup  # will also install shell completions
 ```
 
 On linux
@@ -113,8 +119,29 @@ curl \
 chmod +x /usr/local/bin/tmux-backup
 ```
 
-If you use tpm, copy the file `tmux-backup.tmux` to `~/.tmux/plugins/tmux-backup/tmux-backup.tmux` and
-declare the tmux-backup plugin to TPM in your `~/.tmux.conf`:
+On linux, to install completions, type
+
+```shell
+tmux-backup generate-completion zsh|bash|fish > /path/to/your/completions/folder
+```
+
+### Installing the tmux plugin hook
+
+Type
+
+```shell
+mkdir ~/.tmux/plugins/tmux-backup
+tmux-backup generate-tmux-plugin-config > ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
+```
+
+If you don't use [tpm](https://github.com/tmux-plugins/tpm), just add this to your
+`.tmux.conf`:
+
+```text
+source-file ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
+```
+
+Alternatively, if you use tpm, declare the tmux-backup plugin to TPM in your `~/.tmux.conf`:
 
 ```tmux
 set -g @tpm_plugins '              \
