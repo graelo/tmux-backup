@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
 # This scripts provides a default configuration for tmux-backup options and
 # key bindings. It is run only once at tmux launch.
@@ -27,11 +27,11 @@ BINARY="$(which tmux-backup)"
 #
 
 
-function setup_option() {
-    local opt_name=$1
-    local default_value=$2
-    local current_value=$(tmux show-option -gqv @backup-${opt_name})
-    local value=$([[ ! -z "${current_value}" ]] && echo "${current_value}" || echo "${default_value}")
+setup_option () {
+    opt_name=$1
+    default_value=$2
+    current_value=$(tmux show-option -gqv @backup-${opt_name})
+    value=$([[ ! -z "${current_value}" ]] && echo "${current_value}" || echo "${default_value}")
     tmux set-option -g @backup-${opt_name} ${value}
 }
 
@@ -63,15 +63,15 @@ strategy=$(tmux show-option -gv @backup-strategy)
 # Pattern bindings
 #
 
-function setup_binding() {
-    local key=$1
-    local command="$2"
+setup_binding () {
+    key=$1
+    command="$2"
     tmux bind-key -T ${keytable} ${key} run-shell "${BINARY} ${command}"
 }
 
-function setup_binding_w_popup() {
-    local key=$1
-    local command="$2"
+setup_binding_w_popup () {
+    key=$1
+    command="$2"
     tmux bind-key -T ${keytable} ${key} display-popup -E "tmux new-session -A -s tmux-backup '${BINARY} ${command} ; echo Press any key... && read -k1 -s'"
 }
 
