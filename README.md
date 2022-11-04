@@ -131,7 +131,7 @@ Type
 
 ```shell
 mkdir ~/.tmux/plugins/tmux-backup
-tmux-backup generate-tmux-plugin-config > ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
+tmux-backup init > ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
 ```
 
 If you don't use [tpm](https://github.com/tmux-plugins/tpm), just add this to your
