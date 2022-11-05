@@ -4,11 +4,6 @@
 //!
 //! Version requirement: _rustc 1.60+_
 //!
-//! ```toml
-//! [dependencies]
-//! tmux-backup = "0.3"
-//! ```
-//!
 //! ## Features
 //!
 //! - Backup and restore of your tmux environment:
@@ -109,7 +104,7 @@
 //!
 //! ```shell
 //! curl \
-//!     https://github.com/graelo/tmux-backup/releases/download/v0.3.1/tmux-backup-x86_64-unknown-linux-gnu.tar.xz \
+//!     https://github.com/graelo/tmux-backup/releases/download/v0.4.0/tmux-backup-x86_64-unknown-linux-gnu.tar.xz \
 //!     | tar xf - > /usr/local/bin/tmux-backup
 //! chmod +x /usr/local/bin/tmux-backup
 //! ```
