@@ -1,8 +1,9 @@
 //! Catalog of all backups.
 
-use std::iter;
+use std::borrow::Cow;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
+use std::{env, iter};
 
 use async_std::stream::StreamExt;
 use async_std::{fs, task};
@@ -213,7 +214,19 @@ impl Catalog {
 
     async fn print_table(&self, details_flag: bool) {
         println!("Strategy: {}", &self.strategy);
-        println!("Location: `{}`\n", self.dirpath.to_string_lossy());
+
+        // Try to strip the HOME prefix from self.dirpath, otherwise return self.dirpath.
+        let location: Cow<Path> = {
+            if let Some(remainder) = env::var("HOME")
+                .ok()
+                .and_then(|home_dir| self.dirpath.strip_prefix(home_dir).ok())
+            {
+                Cow::Owned(PathBuf::from("$HOME").join(remainder))
+            } else {
+                Cow::Borrowed(&self.dirpath)
+            }
+        };
+        println!("Location: `{}`\n", location.to_string_lossy());
 
         let Plan {
             purgeable,

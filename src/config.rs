@@ -121,9 +121,9 @@ pub enum Command {
     /// Outputs the default tmux plugin config to stdout.
     ///
     /// Similar to shell completions, this is done once when installing tmux-backup. Type
-    /// `tmux-backup generate-tmux-plugin-config > ~/.tmux/plugins/tmux-backup.tmux`. and source it
+    /// `tmux-backup init > ~/.tmux/plugins/tmux-backup.tmux`. and source it
     /// from your `~/.tmux.conf`. See the README for details.
-    GenerateTmuxPluginConfig,
+    Init,
 }
 
 /// Catalog subcommands.

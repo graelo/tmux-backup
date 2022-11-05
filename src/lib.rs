@@ -2,7 +2,7 @@
 
 //! A backup & restore solution for Tmux sessions.
 //!
-//! Version requirement: _rustc 1.56+_
+//! Version requirement: _rustc 1.60+_
 //!
 //! ```toml
 //! [dependencies]
@@ -28,17 +28,19 @@
 //!
 //! ## Getting started
 //!
-//! After installation, you can either use it from the command line, or via tmux bindings.
+//! After installation (see below), you can either use it from the command line, or via tmux
+//! bindings.
+//!
+//! The catalog is located by default in `$XDG_STATE_HOME/tmux-backup/`, or
+//! §HOME/.state/tmux-backup` otherwise. The default strategy is "most-recent", but you can change
+//! it with `--strategy classic`. Check usage with `tmux-backup --help` for detailed help.
 //!
 //! ### View the catalog of existing backups
-//!
-//! The catalog is located by default in `$XDG_STATE_HOME/tmux-backup/`. Here we use the
-//! most-recent strategy implicitly by setting the env var `TMUX_BACKUP_STRATEGY_MOST_RECENT=10`.
 //!
 //! ```console
 //! $ tmux-backup catalog list --details
 //! Strategy: KeepMostRecent: 10
-//! Location: `/Users/graelo/.local/state/tmux-backup`
+//! Location: `$HOME/.local/state/tmux-backup`
 //!
 //!      NAME                             AGE         STATUS       FILESIZE    VERSION  CONTENT
 //!  11. backup-20220907T224553.tar.zst   2 days      purgeable    644.17 kB   1.0      16 sessions 43 windows 79 panes
@@ -56,7 +58,8 @@
 //! 11 backups: 10 retainable, 1 purgeable
 //! ```
 //!
-//! By default, the tmux bindings for listing backups are
+//! If you installed the plugin config into tmux, then the default tmux bindings for listing
+//! backups are
 //!
 //! - `prefix + b + l` to show the simple catalog
 //! - `prefix + b + L` to show the detailed catalog (adds the filesize, version & content columns)
@@ -123,7 +126,7 @@
 //!
 //! ```shell
 //! mkdir ~/.tmux/plugins/tmux-backup
-//! tmux-backup generate-tmux-plugin-config > ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
+//! tmux-backup init > ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
 //! ```
 //!
 //! If you don't use [tpm](https://github.com/tmux-plugins/tpm), just add this to your
