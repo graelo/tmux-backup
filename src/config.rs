@@ -1,7 +1,7 @@
 //! Configuration.
 
+use std::env;
 use std::path::PathBuf;
-use std::{env, fmt};
 
 use clap::{ArgAction, Parser, Subcommand, ValueEnum, ValueHint};
 use clap_complete::Shell;
@@ -17,12 +17,12 @@ pub struct Config {
     ///
     /// If unspecified, it falls back on: `$XDG_STATE_HOME/tmux-backup`, then on
     /// `$HOME/.local/state/tmux-backup`.
-    #[clap(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath,
+    #[arg(short = 'd', long = "dirpath", value_hint = ValueHint::DirPath,
         default_value_os_t = default_backup_dirpath())]
     pub backup_dirpath: PathBuf,
 
     /// Selection of commands.
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub command: Command,
 }
 
@@ -44,11 +44,11 @@ pub enum Command {
         strategy: StrategyConfig,
 
         /// Print a one-line report in the Tmux status bar, otherwise print to stdout.
-        #[clap(long, action = ArgAction::SetTrue)]
+        #[arg(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
 
         /// Delete purgeable backups after saving.
-        #[clap(long, action = ArgAction::SetTrue)]
+        #[arg(long, action = ArgAction::SetTrue)]
         compact: bool,
 
         /// Number of lines to ignore during capture if the active command is a shell.
@@ -61,7 +61,7 @@ pub enum Command {
         /// If you know the number of lines your shell prompt occupies on screen, set this option
         /// to that number (simply `1` in my case). These last lines will not be captured. On
         /// restore, this gives the illusion of history continuity without repetition.
-        #[clap(
+        #[arg(
             short = 'i',
             long = "ignore-last-lines",
             value_name = "NUMBER",
@@ -85,11 +85,11 @@ pub enum Command {
         strategy: StrategyConfig,
 
         /// Print a one-line report in the Tmux status bar, otherwise print to stdout.
-        #[clap(long, action = ArgAction::SetTrue)]
+        #[arg(long, action = ArgAction::SetTrue)]
         to_tmux: bool,
 
         /// Filepath of the backup to restore, by default, pick latest.
-        #[clap(value_parser)]
+        #[arg(value_parser)]
         backup_filepath: Option<PathBuf>,
     },
 
@@ -100,21 +100,21 @@ pub enum Command {
         strategy: StrategyConfig,
 
         /// Catalog commands.
-        #[clap(subcommand)]
+        #[command(subcommand)]
         command: CatalogSubcommand,
     },
 
     /// Describe the content of a backup file.
     Describe {
         /// Path to the backup file.
-        #[clap(value_parser, value_hint = ValueHint::FilePath)]
+        #[arg(value_parser, value_hint = ValueHint::FilePath)]
         backup_filepath: PathBuf,
     },
 
     /// Print a shell completion script to stdout.
     GenerateCompletion {
         /// Shell for which you want completion.
-        #[clap(value_parser = clap::value_parser!(Shell))]
+        #[arg(value_enum, value_parser = clap::value_parser!(Shell))]
         shell: Shell,
     },
 
@@ -145,15 +145,15 @@ pub enum CatalogSubcommand {
         /// Print number of sessions, windows and panes in the backup and the backup's format
         /// version. This is slightly slower because it requires each backup file to be partially
         /// read.
-        #[clap(long = "details", action = ArgAction::SetTrue)]
+        #[arg(long = "details", action = ArgAction::SetTrue)]
         details_flag: bool,
 
         /// List only backups having this status.
-        #[clap(long = "only", value_enum, value_parser)]
+        #[arg(long = "only", value_enum, value_parser)]
         only_backup_status: Option<BackupStatus>,
 
         /// Print filepaths instead of the table format.
-        #[clap(long = "filepaths", action = ArgAction::SetTrue)]
+        #[arg(long = "filepaths", action = ArgAction::SetTrue)]
         filepaths_flag: bool,
     },
 
@@ -177,25 +177,14 @@ enum StrategyValues {
     Classic,
 }
 
-/// Needed for the CLI help message.
-impl fmt::Display for StrategyValues {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::MostRecent => "most-recent",
-            Self::Classic => "classic",
-        };
-        write!(f, "{s}")
-    }
-}
-
 /// Strategy configuration.
 #[derive(Debug, clap::Args)]
 pub struct StrategyConfig {
-    #[clap(short = 's', long = "strategy", default_value_t = StrategyValues::MostRecent)]
+    #[arg(short = 's', long = "strategy", value_enum, default_value_t = StrategyValues::MostRecent)]
     strategy: StrategyValues,
 
     /// Number of recent backups to keep, for instance 10.
-    #[clap(
+    #[arg(
         short = 'n',
         long,
         value_name = "NUMBER",
