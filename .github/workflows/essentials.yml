@@ -40,9 +40,12 @@ jobs:
              target/
           key: '${{ runner.os }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
 
-      - name: Lint
+      - name: Quality - cargo fmt
         run: |
           cargo fmt --all -- --check
+
+      - name: Quality - cargo clippy
+        run: |
           cargo clippy -- -D warnings
 
       - name: Quality - convco check
@@ -69,20 +72,21 @@ jobs:
           rm -rf ~/.cargo/advisory-db/
           cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
 
-      - name: Install cargo check tools
+      - name: Quality - cargo outdated
         timeout-minutes: 20
-        if: ${{ matrix.rust == 'stable' }}
         run: |
           cargo install --locked cargo-outdated || true
-          # cargo install --locked cargo-udeps || true # needs nightly
-          cargo install --locked cargo-pants || true
-
-      - name: Check
-        if: ${{ matrix.rust == 'stable' }}
-        run: |
-          cargo outdated --exit-code 1
-          # cargo udeps
           rm -rf ~/.cargo/advisory-db
+          cargo outdated --exit-code 1
+
+      # - name: Quality - cargo udeps (needs nightly)
+      #   run: |
+      #     cargo install --locked cargo-udeps || true
+      #     cargo udeps
+
+      - name: Quality - cargo pants
+        run: |
+          cargo install --locked cargo-pants || true
           cargo pants
 
       - name: Build (dev)

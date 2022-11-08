@@ -38,27 +38,53 @@ jobs:
              target/
           key: '${{ runner.os }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
 
-      - name: Lint
+      - name: Quality - cargo fmt
         run: |
           cargo fmt --all -- --check
+
+      - name: Quality - cargo clippy
+        run: |
           cargo clippy -- -D warnings
 
-      # - name: Install cargo check tools
+      # - name: Quality - convco check
+      #   run: |
+      #     git show-ref
+      #     curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
+      #     unzip convco-ubuntu.zip
+      #     chmod +x convco
+      #     ./convco check
+      #     rm convco
+
+      # - name: Quality - cargo deny check
+      #   run: |
+      #     curl -sSfL https://github.com/EmbarkStudios/cargo-deny/releases/download/0.12.2/cargo-deny-0.12.2-x86_64-unknown-linux-musl.tar.gz | tar zx --no-anchored cargo-deny --strip-components=1
+      #     chmod +x cargo-deny
+      #     mv cargo-deny ~/.cargo/bin/
+      #     cargo deny check
+
+      # - name: Quality - cargo audit check
+      #   run: |
+      #     curl -sSfL https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv0.17.3/cargo-audit-x86_64-unknown-linux-musl-v0.17.3.tgz | tar zx --no-anchored cargo-audit --strip-components=1
+      #     chmod +x cargo-audit
+      #     mv cargo-audit ~/.cargo/bin/
+      #     rm -rf ~/.cargo/advisory-db/
+      #     cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+
+      # - name: Quality - cargo outdated
       #   timeout-minutes: 20
-      #   if: ${{ matrix.rust == 'stable' }}
       #   run: |
       #     cargo install --locked cargo-outdated || true
-      #     # cargo install --locked cargo-udeps || true # needs nightly
-      #     cargo install --locked cargo-audit || true
-      #     cargo install --locked cargo-pants || true
-
-      # - name: Check
-      #   if: ${{ matrix.rust == 'stable' }}
-      #   run: |
-      #     cargo outdated --exit-code 1
-      #     # cargo udeps
       #     rm -rf ~/.cargo/advisory-db
-      #     cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+      #     cargo outdated --exit-code 1
+
+      # - name: Quality - cargo udeps (needs nightly)
+      #   run: |
+      #     cargo install --locked cargo-udeps || true
+      #     cargo udeps
+
+      # - name: Quality - cargo pants
+      #   run: |
+      #     cargo install --locked cargo-pants || true
       #     cargo pants
 
       - name: Build (dev)
@@ -110,10 +136,13 @@ jobs:
              target/
           key: '${{ runner.os }}-${{ matrix.target }}-cargo-stable-${{ hashFiles(''**/Cargo.lock'') }}'
 
-      - name: Lint
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy -- -D warnings
+      # - name: Quality - cargo fmt
+      #   run: |
+      #     cargo fmt --all -- --check
+
+      # - name: Quality - cargo clippy
+      #   run: |
+      #     cargo clippy -- -D warnings
 
       # - name: Quality - convco check
       #   run: |
@@ -123,7 +152,6 @@ jobs:
       #     chmod +x convco
       #     ./convco check
       #     rm convco
-      #   shell: bash
 
       # - name: Quality - cargo deny check
       #   run: |
@@ -131,25 +159,31 @@ jobs:
       #     chmod +x cargo-deny
       #     mv cargo-deny ~/.cargo/bin/
       #     cargo deny check
-      #   shell: bash
 
-      # - name: Install cargo check tools
+      # - name: Quality - cargo audit check
+      #   run: |
+      #     curl -sSfL https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv0.17.3/cargo-audit-x86_64-unknown-linux-musl-v0.17.3.tgz | tar zx --no-anchored cargo-audit --strip-components=1
+      #     chmod +x cargo-audit
+      #     mv cargo-audit ~/.cargo/bin/
+      #     rm -rf ~/.cargo/advisory-db/
+      #     cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+
+      # - name: Quality - cargo outdated
       #   timeout-minutes: 20
       #   run: |
       #     cargo install --locked cargo-outdated || true
-      #     # cargo install --locked cargo-udeps || true # needs nightly
-      #     cargo install --locked cargo-audit || true
-      #     cargo install --locked cargo-pants || true
-      #   shell: bash
-
-      # - name: Check
-      #   run: |
-      #     cargo outdated --exit-code 1
-      #     # cargo udeps
       #     rm -rf ~/.cargo/advisory-db
-      #     cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+      #     cargo outdated --exit-code 1
+
+      # - name: Quality - cargo udeps (needs nightly)
+      #   run: |
+      #     cargo install --locked cargo-udeps || true
+      #     cargo udeps
+
+      # - name: Quality - cargo pants
+      #   run: |
+      #     cargo install --locked cargo-pants || true
       #     cargo pants
-      #   shell: bash
 
       - name: Build (dev)
         run: cargo build --all-features
