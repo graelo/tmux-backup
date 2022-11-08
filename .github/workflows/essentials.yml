@@ -9,7 +9,7 @@ on:
 
 jobs:
   test:
-    name: Test
+    name: Quality checks & tests
     runs-on: ubuntu-latest
     strategy:
       matrix:

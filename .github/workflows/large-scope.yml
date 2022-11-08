@@ -8,7 +8,7 @@ on:
 
 jobs:
   test-versions:
-    name: Test version compatibility on Linux
+    name: Tests on Linux
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -97,7 +97,7 @@ jobs:
         run: ./ci/test_full.sh
 
   test-other-platforms:
-    name: Test on other platforms with stable
+    name: Tests on
     runs-on: '${{ matrix.os }}'
     strategy:
       matrix:
@@ -105,17 +105,20 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
             type: unix
+            toolchain: stable
           - os: macos-latest
             target: aarch64-apple-darwin
             type: unix
+            toolchain: stable
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             type: windows
+            toolchain: stable
     steps:
       - name: Rust install
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.toolchain }}
           profile: minimal
           override: true
           target: ${{ matrix.target }}
