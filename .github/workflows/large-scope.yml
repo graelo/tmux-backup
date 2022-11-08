@@ -133,23 +133,23 @@ jobs:
       #     cargo deny check
       #   shell: bash
 
-      - name: Install cargo check tools
-        timeout-minutes: 20
-        run: |
-          cargo install --locked cargo-outdated || true
-          # cargo install --locked cargo-udeps || true # needs nightly
-          cargo install --locked cargo-audit || true
-          cargo install --locked cargo-pants || true
-        shell: bash
+      # - name: Install cargo check tools
+      #   timeout-minutes: 20
+      #   run: |
+      #     cargo install --locked cargo-outdated || true
+      #     # cargo install --locked cargo-udeps || true # needs nightly
+      #     cargo install --locked cargo-audit || true
+      #     cargo install --locked cargo-pants || true
+      #   shell: bash
 
-      - name: Check
-        run: |
-          cargo outdated --exit-code 1
-          # cargo udeps
-          rm -rf ~/.cargo/advisory-db
-          cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
-          cargo pants
-        shell: bash
+      # - name: Check
+      #   run: |
+      #     cargo outdated --exit-code 1
+      #     # cargo udeps
+      #     rm -rf ~/.cargo/advisory-db
+      #     cargo audit --ignore RUSTSEC-2020-0071 # time-rs, but not used by chrono, see https://github.com/chronotope/chrono/issues/602
+      #     cargo pants
+      #   shell: bash
 
       - name: Build (dev)
         run: cargo build --all-features
