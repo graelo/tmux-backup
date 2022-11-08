@@ -35,7 +35,7 @@ After installation (see below), you can either use it from the command line, or 
 bindings.
 
 The catalog is located by default in `$XDG_STATE_HOME/tmux-backup/`, or
-§HOME/.state/tmux-backup` otherwise. The default strategy is "most-recent", but you can change
+`§HOME/.state/tmux-backup` otherwise. The default strategy is "most-recent", but you can change
 it with `--strategy classic`. Check usage with `tmux-backup --help` for detailed help.
 
 ### View the catalog of existing backups
