@@ -192,7 +192,7 @@ pub fn new_backup_filepath<P>(dirpath: P) -> PathBuf
 where
     P: AsRef<Path>,
 {
-    let timestamp_frag = Local::now().format("%Y%m%dT%H%M%S").to_string();
+    let timestamp_frag = Local::now().format("%Y%m%dT%H%M%S%.f").to_string();
     let backup_filename = format!("backup-{timestamp_frag}.tar.zst");
     dirpath.as_ref().join(backup_filename)
 }
