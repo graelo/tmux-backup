@@ -38,17 +38,17 @@
 //! Location: `$HOME/.local/state/tmux-backup`
 //!
 //!      NAME                             AGE         STATUS       FILESIZE    VERSION  CONTENT
-//!  11. backup-20220907T224553.tar.zst   2 days      purgeable    644.17 kB   1.0      16 sessions 43 windows 79 panes
-//!  10. backup-20220907T224926.tar.zst   2 days      retainable   644.38 kB   1.0      16 sessions 43 windows 79 panes
-//!   9. backup-20220908T092341.tar.zst   2 days      retainable   654.76 kB   1.0      16 sessions 43 windows 79 panes
-//!   8. backup-20220909T224742.tar.zst   18 hours    retainable   599.64 kB   1.0      16 sessions 42 windows 77 panes
-//!   7. backup-20220909T225158.tar.zst   18 hours    retainable   600.32 kB   1.0      16 sessions 42 windows 79 panes
-//!   6. backup-20220910T152551.tar.zst   1 hour      retainable   608.79 kB   1.0      16 sessions 43 windows 80 panes
-//!   5. backup-20220910T165118.tar.zst   29 minutes  retainable   614.16 kB   1.0      16 sessions 43 windows 80 panes
-//!   4. backup-20220910T171812.tar.zst   2 minutes   retainable   614.33 kB   1.0      16 sessions 43 windows 80 panes
-//!   3. backup-20220910T172016.tar.zst   11 seconds  retainable   614.44 kB   1.0      16 sessions 43 windows 80 panes
-//!   2. backup-20220910T172019.tar.zst   8 seconds   retainable   614.42 kB   1.0      16 sessions 43 windows 80 panes
-//!   1. backup-20220910T172024.tar.zst   3 seconds   retainable   614.38 kB   1.0      16 sessions 43 windows 80 panes
+//!  11. backup-20220907T224553.156103.tar.zst   2 days      purgeable    644.17 kB   1.0      16 sessions 43 windows 79 panes
+//!  10. backup-20220907T224926.103771.tar.zst   2 days      retainable   644.38 kB   1.0      16 sessions 43 windows 79 panes
+//!   9. backup-20220908T092341.125258.tar.zst   2 days      retainable   654.76 kB   1.0      16 sessions 43 windows 79 panes
+//!   8. backup-20220909T224742.781818.tar.zst   18 hours    retainable   599.64 kB   1.0      16 sessions 42 windows 77 panes
+//!   7. backup-20220909T225158.305403.tar.zst   18 hours    retainable   600.32 kB   1.0      16 sessions 42 windows 79 panes
+//!   6. backup-20220910T152551.807672.tar.zst   1 hour      retainable   608.79 kB   1.0      16 sessions 43 windows 80 panes
+//!   5. backup-20220910T165118.250800.tar.zst   29 minutes  retainable   614.16 kB   1.0      16 sessions 43 windows 80 panes
+//!   4. backup-20220910T171812.893389.tar.zst   2 minutes   retainable   614.33 kB   1.0      16 sessions 43 windows 80 panes
+//!   3. backup-20220910T172016.924711.tar.zst   11 seconds  retainable   614.44 kB   1.0      16 sessions 43 windows 80 panes
+//!   2. backup-20220910T172019.320809.tar.zst   8 seconds   retainable   614.42 kB   1.0      16 sessions 43 windows 80 panes
+//!   1. backup-20220910T172024.141993.tar.zst   3 seconds   retainable   614.38 kB   1.0      16 sessions 43 windows 80 panes
 //!
 //! 11 backups: 10 retainable, 1 purgeable
 //! ```
@@ -65,7 +65,7 @@
 //!
 //! ```console
 //! $ tmux-backup save
-//! ✅ 16 sessions 43 windows 80 panes, persisted to `/Users/graelo/.local/state/tmux-backup/backup-20220910T171812.tar.zst`
+//! ✅ 16 sessions 43 windows 80 panes, persisted to `/Users/graelo/.local/state/tmux-backup/backup-20220910T171812.893389.tar.zst`
 //! ```
 //!
 //! By default, the tmux binding for saving a new backup are

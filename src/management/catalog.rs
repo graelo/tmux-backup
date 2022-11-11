@@ -188,7 +188,7 @@ impl Catalog {
     async fn parse_backup_filenames<P: AsRef<Path>>(dirpath: P) -> Result<Vec<Backup>> {
         let mut backups: Vec<Backup> = vec![];
 
-        let pattern = r#".*backup-(\d{8}T\d{6})\.tar\.zst"#;
+        let pattern = r#".*backup-(\d{8}T\d{6})\.\d{6}\.tar\.zst"#;
         let matcher = Regex::new(pattern).unwrap();
 
         let mut entries = fs::read_dir(dirpath.as_ref()).await?;
@@ -198,7 +198,7 @@ impl Catalog {
             if let Some(captures) = matcher.captures(&path.to_string_lossy()) {
                 let date_str = &captures[1];
                 let creation_date =
-                    NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S").unwrap();
+                    NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S%.f").unwrap();
                 let backup = Backup {
                     filepath: path.into(),
                     creation_date,
