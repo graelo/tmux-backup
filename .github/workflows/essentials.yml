@@ -16,11 +16,9 @@ jobs:
         rust: [stable]
     steps:
       - name: Rust install
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          profile: minimal
-          override: true
           components: rustfmt, clippy
 
       - name: Checkout
