@@ -90,8 +90,7 @@ impl Metadata {
                 }
                 if version != FORMAT_VERSION {
                     return Err(Error::ArchiveVersion(format!(
-                        "Unsupported format version: `{}`",
-                        version
+                        "Unsupported format version: `{version}`",
                     )));
                 }
             } else if entry.path().unwrap().to_string_lossy() == METADATA_FILENAME {
