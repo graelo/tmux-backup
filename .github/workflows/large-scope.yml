@@ -16,11 +16,9 @@ jobs:
 
     steps:
       - name: Rust install
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          profile: minimal
-          override: true
           components: rustfmt, clippy
 
       - name: Checkout
@@ -116,11 +114,9 @@ jobs:
             toolchain: stable
     steps:
       - name: Rust install
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          profile: minimal
-          override: true
           target: ${{ matrix.target }}
           components: rustfmt, clippy
 
