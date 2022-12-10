@@ -14,7 +14,7 @@ documentation = "https://docs.rs/tmux-backup"
 
 keywords = ["tmux", "tmux-plugin", "tmux-resurrect", "backup"]
 categories = ["command-line-utilities"]
-exclude = ["/.github", "/ci", "/.travis.yml", "/appveyor.yml"]
+exclude = ["/.github"]
 
 [[bin]]
 name = "tmux-backup"
