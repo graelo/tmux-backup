@@ -241,7 +241,7 @@ impl Catalog {
         let yellow = "\u{001b}[33m";
 
         // 45, 44, ..., 1
-        let indices = RangeInclusive::new(1, statuses.len()).into_iter().rev();
+        let indices = RangeInclusive::new(1, statuses.len()).rev();
 
         if details_flag {
             // Table header
