@@ -246,7 +246,7 @@ impl Catalog {
         if details_flag {
             // Table header
             println!(
-                "{:4} {:32} {:11} {:12} {:11} {:8} {:8}",
+                "{:4} {:37} {:11} {:12} {:11} {:8} {:8}",
                 "", "NAME", "AGE", "STATUS", "FILESIZE", "VERSION", "CONTENT"
             );
 
@@ -284,7 +284,7 @@ impl Catalog {
             }
         } else {
             // Table header
-            println!("{:4} {:32} {:11} {:11}", "", "NAME", "AGE", "STATUS");
+            println!("{:4} {:37} {:11} {:11}", "", "NAME", "AGE", "STATUS");
 
             // Build & print table rows
             for (index, (backup, status)) in iter::zip(indices, statuses) {
