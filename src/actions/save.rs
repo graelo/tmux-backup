@@ -94,7 +94,7 @@ async fn save_panes_content<P: AsRef<Path>>(
     num_lines_to_drop: usize,
 ) -> Result<()> {
     let mut handles = Vec::new();
-    let detected_shells = vec!["zsh", "bash", "fish"];
+    let detected_shells = ["zsh", "bash", "fish"];
 
     for pane in panes {
         let dest_dir = destination_dir.as_ref().to_path_buf();

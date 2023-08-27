@@ -188,7 +188,7 @@ impl Catalog {
     async fn parse_backup_filenames<P: AsRef<Path>>(dirpath: P) -> Result<Vec<Backup>> {
         let mut backups: Vec<Backup> = vec![];
 
-        let pattern = r#".*backup-(\d{8}T\d{6})\.\d{6}\.tar\.zst"#;
+        let pattern = r".*backup-(\d{8}T\d{6})\.\d{6}\.tar\.zst";
         let matcher = Regex::new(pattern).unwrap();
 
         let mut entries = fs::read_dir(dirpath.as_ref()).await?;
