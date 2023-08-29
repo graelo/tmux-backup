@@ -22,7 +22,7 @@ async fn init_catalog<P: AsRef<Path>>(
         Err(e) => {
             failure_message(
                 format!(
-                    "🛑 Catalog error at `{}`: {e}",
+                    "🛑 Catalog cannot be created from `{}`: {e}",
                     backup_dirpath.as_ref().to_string_lossy()
                 ),
                 Output::Both,

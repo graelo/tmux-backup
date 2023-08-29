@@ -2,7 +2,7 @@
 name = "tmux-backup"
 version = "0.5.3"
 edition = "2021"
-rust-version = "1.64.0"
+rust-version = "1.70.0"
 description = "A backup & restore solution for Tmux sessions."
 readme = "README.md"
 
@@ -27,13 +27,13 @@ clap_complete = "4.0.3"
 thiserror = "1"
 
 regex = "1.4"
-itertools = "0.10.3" # waiting for https://doc.rust-lang.org/std/primitive.slice.html#method.group_by
+itertools = "0.11.0" # waiting for https://doc.rust-lang.org/std/primitive.slice.html#method.group_by
 si-scale = "0.2"
 
 futures = "0.3"
 async-std = { version = "1", features = ["unstable"] }
 
-tmux-lib = { version = "0.2.1" }
+tmux-lib = { version = "0.3.0" }
 
 # archive ser/deser
 tempfile = "3"
