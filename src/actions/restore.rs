@@ -27,11 +27,13 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
     v1::unpack(backup_filepath.as_ref(), temp_dir.path()).await?;
     let panes_content_dir = temp_dir.path().join("panes-content");
 
+    // Start tmux if needed.
     let not_in_tmux = std::env::var("TMUX").is_err();
     if not_in_tmux {
         tmux::server::start(PLACEHOLDER_SESSION_NAME).await?;
     }
 
+    // Get the default command used to start panes.
     let default_command = tmux::server::default_command().await?;
 
     // Restore sessions, windows and panes.
