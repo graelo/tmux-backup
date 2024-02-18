@@ -52,16 +52,7 @@ jobs:
           curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
           unzip convco-ubuntu.zip
           chmod +x convco
-          # Get the commit message of the last commit
-          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-          echo "Latest commit: $COMMIT_MESSAGE"
-          # Check if the commit is a merge commit
-          if [[ "$COMMIT_MESSAGE" =~ ^Merge ]]; then
-            echo "Merge commit detected, skipping first parent"
-            ./convco check --first-parent HEAD
-          else
-            ./convco check
-          fi
+          ./convco check
           rm convco
 
       - name: Quality - cargo deny check
