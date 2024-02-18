@@ -77,8 +77,7 @@ impl Metadata {
         let mut version = String::new();
         version.reserve(4);
 
-        let mut bytes = vec![];
-        bytes.reserve(8 * 1024);
+        let mut bytes = Vec::with_capacity(8 * 1024);
 
         for mut entry in tar.entries()?.flatten() {
             if entry.path().unwrap().to_string_lossy() == VERSION_FILENAME {
