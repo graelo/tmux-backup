@@ -52,7 +52,7 @@ jobs:
           curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
           unzip convco-ubuntu.zip
           chmod +x convco
-          ./convco check
+          ./convco check --first-parent HEAD
           rm convco
 
       - name: Quality - cargo deny check
