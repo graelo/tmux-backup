@@ -49,6 +49,7 @@ jobs:
       - name: Quality - convco check
         run: |
           git show-ref
+          echo Commit message: "$(git log -1 --pretty=%B)"
           curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
           unzip convco-ubuntu.zip
           chmod +x convco
