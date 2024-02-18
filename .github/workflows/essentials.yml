@@ -59,7 +59,7 @@ jobs:
           if [[ "$COMMIT_MESSAGE" =~ "^Merge" ]]; then
             echo "Merge commit detected, skipping convco check."
           else
-            convco check
+            ./convco check
           fi
           rm convco
 
