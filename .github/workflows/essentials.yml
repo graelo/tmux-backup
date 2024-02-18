@@ -54,8 +54,9 @@ jobs:
           chmod +x convco
           # Get the commit message of the last commit
           COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          echo "Latest commit: $COMMIT_MESSAGE"
           # Check if the commit is a merge commit
-          if [[ "$COMMIT_MESSAGE" =~ ^Merge ]]; then
+          if [[ "$COMMIT_MESSAGE" =~ "^Merge" ]]; then
             echo "Merge commit detected, skipping convco check."
           else
             convco check
