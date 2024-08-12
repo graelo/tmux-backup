@@ -19,7 +19,7 @@
 //!     - the lastest backup per week of the past 4 weeks (max 3 backups - exclude the past week),
 //!     - the lastest backup per month of this year (max 11 backups - exclude the past month).
 //! - Because you decide where backups are stored, you can use both strategies, combining the
-//! benefits of high-frequency backups and on demand backups like in tmux-resurrect.
+//!   benefits of high-frequency backups and on demand backups like in tmux-resurrect.
 //!
 //! ## Getting started
 //!
