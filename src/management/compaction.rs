@@ -91,7 +91,7 @@ impl Strategy {
                 let last_24h_per_hour: Vec<_> = backups
                     .iter()
                     .filter(|&b| b.creation_date > _24h_ago)
-                    .group_by(|&b| b.creation_date.hour())
+                    .chunk_by(|&b| b.creation_date.hour())
                     .into_iter()
                     .map(|(_key, group)| group.collect::<Vec<_>>())
                     .filter_map(|group| group.last().cloned())
@@ -101,7 +101,7 @@ impl Strategy {
                 let last_7d_per_day: Vec<_> = backups
                     .iter()
                     .filter(|&b| _24h_ago > b.creation_date && b.creation_date >= _7d_ago)
-                    .group_by(|&b| b.creation_date.day())
+                    .chunk_by(|&b| b.creation_date.day())
                     .into_iter()
                     .map(|(_key, group)| group.collect::<Vec<_>>())
                     .filter_map(|group| group.last().cloned())
@@ -111,7 +111,7 @@ impl Strategy {
                 let last_4w_per_isoweek: Vec<_> = backups
                     .iter()
                     .filter(|&b| _7d_ago > b.creation_date && b.creation_date >= _4w_ago)
-                    .group_by(|&b| b.creation_date.iso_week())
+                    .chunk_by(|&b| b.creation_date.iso_week())
                     .into_iter()
                     .map(|(_key, group)| group.collect::<Vec<_>>())
                     .filter_map(|group| group.last().cloned())
@@ -121,7 +121,7 @@ impl Strategy {
                 let last_year_per_month: Vec<_> = backups
                     .iter()
                     .filter(|&b| _4w_ago > b.creation_date && b.creation_date >= _year_ago)
-                    .group_by(|&b| b.creation_date.month())
+                    .chunk_by(|&b| b.creation_date.month())
                     .into_iter()
                     .map(|(_key, group)| group.collect::<Vec<_>>())
                     .filter_map(|group| group.last().cloned())
