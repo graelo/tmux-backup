@@ -2,7 +2,7 @@
 
 [![crate](https://img.shields.io/crates/v/tmux-backup.svg)](https://crates.io/crates/tmux-backup)
 [![documentation](https://docs.rs/tmux-backup/badge.svg)](https://docs.rs/tmux-backup)
-[![minimum rustc 1.50](https://img.shields.io/badge/rustc-1.50+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.74](https://img.shields.io/badge/rustc-1.74+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![rust 2021 edition](https://img.shields.io/badge/edition-2021-blue.svg)](https://doc.rust-lang.org/edition-guide/rust-2021/index.html)
 [![build status](https://github.com/graelo/tmux-backup/actions/workflows/essentials.yml/badge.svg)](https://github.com/graelo/tmux-backup/actions/workflows/essentials.yml)
 
@@ -10,7 +10,7 @@
 
 A backup & restore solution for Tmux sessions.
 
-Version requirement: _rustc 1.70+_
+Version requirement: _rustc 1.74+_
 
 ## Features
 
