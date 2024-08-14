@@ -102,7 +102,8 @@ jobs:
       - name: Extract version
         id: extract-version
         run: |
-          printf "::set-output name=%s::%s\n" tag-name "${GITHUB_REF#refs/tags/}"
+          echo "tag-name=${GITHUB_REF#refs/tags/}" >> ${GITHUB_OUTPUT}
+
 
       - name: Download convco
         run: |
@@ -113,7 +114,7 @@ jobs:
 
       - name: Use convco to create the changelog
         run: |
-          ./convco changelog --max-versions 1 --include-hidden-sections > CHANGELOG.md
+          ./convco changelog -c .convco --max-versions 1 --include-hidden-sections > CHANGELOG.md
           rm convco convco-ubuntu.zip
 
       - uses: actions/download-artifact@v4
