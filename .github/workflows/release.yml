@@ -17,7 +17,7 @@ jobs:
             rust: stable
             suffix: ''
             archive_ext: zip
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
             rust: stable
             suffix: ''
@@ -40,10 +40,10 @@ jobs:
           components: rustfmt, clippy
 
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache crates from crates.io
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         continue-on-error: false
         with:
           path: |
@@ -79,7 +79,7 @@ jobs:
         shell: bash
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
           path: ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
@@ -94,7 +94,7 @@ jobs:
       - prepare-artifacts
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # convco needs all history to create the changelog
           fetch-depth: 0
@@ -116,16 +116,16 @@ jobs:
           ./convco changelog --max-versions 1 --include-hidden-sections > CHANGELOG.md
           rm convco convco-ubuntu.zip
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-x86_64-unknown-linux-gnu.tar.xz
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-aarch64-apple-darwin.zip
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-x86_64-apple-darwin.zip
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-x86_64-pc-windows-msvc.zip
 
