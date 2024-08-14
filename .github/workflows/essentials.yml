@@ -24,7 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: ${{ github.event.pull_request.commits }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          # fetch-depth: ${{ github.event.pull_request.commits }}
 
       - name: Cache crates from crates.io
         uses: actions/cache@v4
@@ -53,7 +55,8 @@ jobs:
           curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
           unzip convco-ubuntu.zip
           chmod +x convco
-          ./convco check
+          ./convco --version
+          ./convco check -c .convco
           rm convco
 
       - name: Quality - cargo deny check

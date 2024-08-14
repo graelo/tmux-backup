@@ -50,7 +50,8 @@ jobs:
       #     curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
       #     unzip convco-ubuntu.zip
       #     chmod +x convco
-      #     ./convco check
+      #     ./convco --version
+      #     ./convco check -c .convco
       #     rm convco
 
       # - name: Quality - cargo deny check
@@ -149,7 +150,8 @@ jobs:
       #     curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
       #     unzip convco-ubuntu.zip
       #     chmod +x convco
-      #     ./convco check
+      #     ./convco --version
+      #     ./convco check -c .convco
       #     rm convco
 
       # - name: Quality - cargo deny check
