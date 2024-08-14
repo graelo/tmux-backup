@@ -58,7 +58,7 @@ jobs:
         run: cargo build --release
 
       - name: Compress to zip (macOS)
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'macos-13' }}
         run:
           zip -A ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
 
