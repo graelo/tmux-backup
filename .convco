@@ -9,7 +9,7 @@
     {"type": "perf", "section": "Performance Improvements"},
     {"type": "test", "hidden": true}
   ],
-  "mergePattern": "^Merge branch '.*'$",
+  "mergePattern": "^Merge '.*'$",
   "mergeCorrespondence": ["subject"],
   "headerPattern": "^(\w*)(?:\((.*)\))?: (.*)$",
   "headerCorrespondence": ["type", "scope", "subject"]
