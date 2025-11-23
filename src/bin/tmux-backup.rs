@@ -4,7 +4,6 @@ use std::path::Path;
 
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
-use smol;
 
 use tmux_backup::{
     actions::{restore, save},
