@@ -1,31 +1,31 @@
 name: Release
 on:
   push:
-   tags:
-     - 'v*'
+    tags:
+      - "v*"
 
 jobs:
   prepare-artifacts:
     name: Prepare release artifacts
     # if: github.ref == 'refs/heads/main'
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
             rust: stable
-            suffix: ''
+            suffix: ""
             archive_ext: zip
           - os: macos-13
             target: x86_64-apple-darwin
             rust: stable
-            suffix: ''
+            suffix: ""
             archive_ext: zip
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             rust: stable
-            suffix: ''
+            suffix: ""
             archive_ext: tar.xz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -39,38 +39,37 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
 
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Cache crates from crates.io
         uses: actions/cache@v4
         continue-on-error: false
         with:
           path: |
-             ~/.cargo/bin/
-             ~/.cargo/registry/index/
-             ~/.cargo/registry/cache/
-             ~/.cargo/git/db/
-             target/
-          key: '${{ runner.os }}-${{ matrix.target }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-${{ matrix.target }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles('**/Cargo.lock') }}"
 
       - name: Build Release
         run: cargo build --release
 
       - name: Compress to zip (macOS)
         if: ${{ matrix.os == 'macos-latest' || matrix.os == 'macos-13' }}
-        run:
-          zip -A ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
+        run: zip -A ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
 
       - name: Compress to zip (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
-        run:
-          Compress-Archive target/release/${{ github.event.repository.name }}${{ matrix.suffix }} ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
+        run: Compress-Archive target/release/${{ github.event.repository.name }}${{ matrix.suffix }} ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
 
       - name: Compress to tar.xz (Linux)
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        run:
-          tar Jcf ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
+        run: tar Jcf ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
 
       - name: List files
         run: |
@@ -103,7 +102,6 @@ jobs:
         id: extract-version
         run: |
           echo "tag-name=${GITHUB_REF#refs/tags/}" >> ${GITHUB_OUTPUT}
-
 
       - name: Download convco
         run: |
