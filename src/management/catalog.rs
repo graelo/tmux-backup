@@ -94,7 +94,7 @@ impl Catalog {
     }
 
     /// Simulate the compaction strategy: list the backup files to delete, and the ones to keep.
-    pub fn plan(&self) -> Plan {
+    pub fn plan(&self) -> Plan<'_> {
         self.strategy.plan(&self.backups)
     }
 
