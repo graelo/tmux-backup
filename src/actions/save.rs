@@ -2,8 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
-use async_std::{fs, task};
+use async_fs as fs;
 use futures::future::join_all;
+use smol;
 use tempfile::TempDir;
 
 use crate::{management::archive::v1, tmux, Result};
@@ -27,10 +28,10 @@ pub async fn save<P: AsRef<Path>>(
     let temp_dir = TempDir::new()?;
 
     // Save sessions & windows into `metadata.json` in the temp folder.
-    let metadata_task: task::JoinHandle<Result<(PathBuf, PathBuf, u16, u16)>> = {
+    let metadata_task: smol::Task<Result<(PathBuf, PathBuf, u16, u16)>> = {
         let temp_dirpath = temp_dir.path().to_path_buf();
 
-        task::spawn(async move {
+        smol::spawn(async move {
             let temp_version_filepath = temp_dirpath.join(v1::VERSION_FILENAME);
             fs::write(&temp_version_filepath, v1::FORMAT_VERSION).await?;
 
@@ -105,7 +106,7 @@ async fn save_panes_content<P: AsRef<Path>>(
             0
         };
 
-        let handle = task::spawn(async move {
+        let handle = smol::spawn(async move {
             let stdout = pane.capture().await.unwrap();
             let cleaned_buffer = utils::cleanup_captured_buffer(&stdout, drop_n_last_lines);
 

@@ -5,12 +5,13 @@ use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 use std::{env, iter};
 
-use async_std::stream::StreamExt;
-use async_std::{fs, task};
+use async_fs as fs;
 use chrono::{Local, NaiveDateTime};
 use futures::future::join_all;
+use futures::stream::StreamExt;
 use regex::Regex;
 use si_scale::helpers::bytes2;
+use smol;
 
 use crate::{
     management::{
@@ -94,7 +95,7 @@ impl Catalog {
     }
 
     /// Simulate the compaction strategy: list the backup files to delete, and the ones to keep.
-    pub fn plan(&self) -> Plan {
+    pub fn plan(&self) -> Plan<'_> {
         self.strategy.plan(&self.backups)
     }
 
@@ -200,7 +201,7 @@ impl Catalog {
                 let creation_date =
                     NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S%.f").unwrap();
                 let backup = Backup {
-                    filepath: path.into(),
+                    filepath: path,
                     creation_date,
                 };
                 backups.push(backup);
@@ -255,7 +256,7 @@ impl Catalog {
                 .iter()
                 .map(|&(backup, _)| {
                     let backup_filepath = backup.filepath.clone();
-                    task::spawn(async move { v1::Metadata::read_file(backup_filepath).await })
+                    smol::spawn(async move { v1::Metadata::read_file(backup_filepath).await })
                 })
                 .collect();
             let metadatas: Result<Vec<_>> = join_all(tasks).await.into_iter().collect();

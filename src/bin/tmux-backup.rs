@@ -2,7 +2,6 @@
 
 use std::path::Path;
 
-use async_std::task;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
@@ -144,7 +143,7 @@ async fn run(config: Config) {
 
 fn main() {
     let config = Config::parse();
-    task::block_on(run(config));
+    smol::block_on(run(config));
 }
 
 enum Output {

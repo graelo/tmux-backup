@@ -6,8 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use async_std::task;
 use futures::future::join_all;
+use smol;
 use tempfile::TempDir;
 
 use crate::{
@@ -62,7 +62,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         let panes_content_dirpath = panes_content_dir.clone();
         let default_command = default_command.clone();
 
-        let handle = task::spawn(async move {
+        let handle = smol::spawn(async move {
             restore_session(
                 session,
                 related_windows,
