@@ -18,7 +18,15 @@ use crate::{
 };
 
 /// Name of the placeholder session.
+///
+/// This session is created temporarily when starting tmux from outside a tmux environment.
+/// It's deleted after the restore completes.
 const PLACEHOLDER_SESSION_NAME: &str = "[placeholder]";
+
+/// Check if we're currently running inside a tmux session.
+fn is_inside_tmux() -> bool {
+    std::env::var("TMUX").is_ok()
+}
 
 /// Restore all sessions, windows & panes from the backup file.
 pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
@@ -28,7 +36,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
     let panes_content_dir = temp_dir.path().join("panes-content");
 
     // Start tmux if needed.
-    let not_in_tmux = std::env::var("TMUX").is_err();
+    let not_in_tmux = !is_inside_tmux();
     if not_in_tmux {
         tmux::server::start(PLACEHOLDER_SESSION_NAME).await?;
     }
@@ -210,4 +218,100 @@ async fn restore_session(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod constants {
+        use super::*;
+
+        #[test]
+        fn placeholder_session_name_is_bracketed() {
+            // The placeholder name uses brackets to make it visually distinct
+            // and unlikely to collide with user session names
+            assert!(PLACEHOLDER_SESSION_NAME.starts_with('['));
+            assert!(PLACEHOLDER_SESSION_NAME.ends_with(']'));
+        }
+
+        #[test]
+        fn placeholder_session_name_is_not_empty() {
+            assert!(!PLACEHOLDER_SESSION_NAME.is_empty());
+            // Should have content between the brackets
+            assert!(PLACEHOLDER_SESSION_NAME.len() > 2);
+        }
+    }
+
+    mod tmux_detection {
+        use super::*;
+
+        #[test]
+        fn is_inside_tmux_reflects_environment() {
+            // This test documents the behavior - it checks the TMUX env var
+            // The actual result depends on the test environment
+            let expected = std::env::var("TMUX").is_ok();
+            assert_eq!(is_inside_tmux(), expected);
+        }
+    }
+
+    mod pair_struct {
+        use super::*;
+        use std::path::PathBuf;
+        use std::str::FromStr;
+        use tmux::pane_id::PaneId;
+
+        fn make_test_pane(id: &str, command: &str, is_active: bool) -> Pane {
+            Pane {
+                id: PaneId::from_str(id).unwrap(),
+                index: 0,
+                is_active,
+                title: "test".to_string(),
+                dirpath: PathBuf::from("/tmp"),
+                command: command.to_string(),
+            }
+        }
+
+        #[test]
+        fn pair_can_be_cloned() {
+            let pane = make_test_pane("%1", "zsh", true);
+
+            let pair = Pair {
+                source: pane.clone(),
+                target: PaneId::from_str("%2").unwrap(),
+            };
+
+            let cloned = pair.clone();
+            assert_eq!(cloned.source.id, pair.source.id);
+            assert_eq!(cloned.target, pair.target);
+        }
+
+        #[test]
+        fn pair_is_debug_printable() {
+            let pane = make_test_pane("%1", "bash", false);
+
+            let pair = Pair {
+                source: pane,
+                target: PaneId::from_str("%5").unwrap(),
+            };
+
+            // Just verify it doesn't panic - Debug is derived
+            let debug_str = format!("{:?}", pair);
+            assert!(debug_str.contains("Pair"));
+        }
+
+        #[test]
+        fn pair_preserves_source_pane_properties() {
+            let pane = make_test_pane("%42", "nvim", true);
+
+            let pair = Pair {
+                source: pane,
+                target: PaneId::from_str("%99").unwrap(),
+            };
+
+            assert_eq!(pair.source.command, "nvim");
+            assert!(pair.source.is_active);
+            assert_eq!(pair.target.as_str(), "%99");
+        }
+    }
 }

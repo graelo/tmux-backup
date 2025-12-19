@@ -240,3 +240,196 @@ pub async fn unpack<P: AsRef<Path>>(
 
     tar.unpack(dest_dirpath)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use regex::Regex;
+
+    mod backup_filepath_pattern {
+        use super::*;
+
+        fn matches(path: &str) -> bool {
+            let pattern = backup_filepath_pattern();
+            Regex::new(pattern).unwrap().is_match(path)
+        }
+
+        fn extract_timestamp(path: &str) -> Option<String> {
+            let pattern = backup_filepath_pattern();
+            let re = Regex::new(pattern).unwrap();
+            re.captures(path).map(|c| c[1].to_string())
+        }
+
+        #[test]
+        fn matches_standard_backup_filename() {
+            assert!(matches("backup-20220910T172024.141993.tar.zst"));
+        }
+
+        #[test]
+        fn matches_with_absolute_path() {
+            assert!(matches(
+                "/home/user/.local/state/tmux-backup/backup-20220910T172024.141993.tar.zst"
+            ));
+        }
+
+        #[test]
+        fn matches_with_relative_path() {
+            assert!(matches("./backups/backup-20220910T172024.141993.tar.zst"));
+        }
+
+        #[test]
+        fn extracts_timestamp_without_microseconds() {
+            let ts = extract_timestamp("backup-20220910T172024.141993.tar.zst");
+            assert_eq!(ts, Some("20220910T172024".to_string()));
+        }
+
+        #[test]
+        fn rejects_missing_extension() {
+            assert!(!matches("backup-20220910T172024.141993.tar"));
+            assert!(!matches("backup-20220910T172024.141993"));
+        }
+
+        #[test]
+        fn rejects_wrong_prefix() {
+            assert!(!matches("snapshot-20220910T172024.141993.tar.zst"));
+            assert!(!matches("20220910T172024.141993.tar.zst"));
+        }
+
+        #[test]
+        fn rejects_malformed_timestamp() {
+            // Missing T separator
+            assert!(!matches("backup-20220910172024.141993.tar.zst"));
+            // Wrong date format
+            assert!(!matches("backup-2022-09-10T17:20:24.141993.tar.zst"));
+            // Too short
+            assert!(!matches("backup-20220910T1720.141993.tar.zst"));
+        }
+
+        #[test]
+        fn rejects_missing_microseconds() {
+            assert!(!matches("backup-20220910T172024.tar.zst"));
+        }
+
+        #[test]
+        fn accepts_various_valid_timestamps() {
+            // Midnight
+            assert!(matches("backup-20240101T000000.000000.tar.zst"));
+            // End of day
+            assert!(matches("backup-20241231T235959.999999.tar.zst"));
+            // Leap year date
+            assert!(matches("backup-20240229T120000.123456.tar.zst"));
+        }
+    }
+
+    mod new_backup_filepath {
+        use super::*;
+
+        #[test]
+        fn generates_path_in_given_directory() {
+            let path = new_backup_filepath("/my/backup/dir");
+            assert!(path.starts_with("/my/backup/dir"));
+        }
+
+        #[test]
+        fn generated_filename_has_correct_extension() {
+            let path = new_backup_filepath("/tmp");
+            let filename = path.file_name().unwrap().to_string_lossy();
+            assert!(filename.ends_with(".tar.zst"));
+        }
+
+        #[test]
+        fn generated_filename_starts_with_backup() {
+            let path = new_backup_filepath("/tmp");
+            let filename = path.file_name().unwrap().to_string_lossy();
+            assert!(filename.starts_with("backup-"));
+        }
+
+        #[test]
+        fn generated_path_matches_pattern() {
+            let path = new_backup_filepath("/tmp");
+            let pattern = backup_filepath_pattern();
+            let re = Regex::new(pattern).unwrap();
+            assert!(re.is_match(&path.to_string_lossy()));
+        }
+
+        #[test]
+        fn accepts_path_with_trailing_slash() {
+            let path = new_backup_filepath("/tmp/");
+            assert!(path.starts_with("/tmp"));
+        }
+
+        #[test]
+        fn works_with_pathbuf() {
+            let dir = PathBuf::from("/var/backups");
+            let path = new_backup_filepath(dir);
+            assert!(path.starts_with("/var/backups"));
+        }
+    }
+
+    mod overview_display {
+        use super::*;
+
+        #[test]
+        fn formats_counts_correctly() {
+            let overview = Overview {
+                version: "1.0".to_string(),
+                num_sessions: 3,
+                num_windows: 12,
+                num_panes: 47,
+            };
+
+            let output = format!("{overview}");
+            assert_eq!(output, "3 sessions 12 windows 47 panes");
+        }
+
+        #[test]
+        fn handles_singular_counts() {
+            let overview = Overview {
+                version: "1.0".to_string(),
+                num_sessions: 1,
+                num_windows: 1,
+                num_panes: 1,
+            };
+
+            // Note: The current implementation doesn't pluralize
+            let output = format!("{overview}");
+            assert_eq!(output, "1 sessions 1 windows 1 panes");
+        }
+
+        #[test]
+        fn handles_zero_counts() {
+            let overview = Overview {
+                version: "1.0".to_string(),
+                num_sessions: 0,
+                num_windows: 0,
+                num_panes: 0,
+            };
+
+            let output = format!("{overview}");
+            assert_eq!(output, "0 sessions 0 windows 0 panes");
+        }
+    }
+
+    mod constants {
+        use super::*;
+
+        #[test]
+        fn format_version_is_semver_like() {
+            // Ensure version looks like "X.Y" or similar
+            assert!(FORMAT_VERSION.contains('.'));
+            assert!(!FORMAT_VERSION.is_empty());
+        }
+
+        #[test]
+        fn panes_dir_name_is_reasonable() {
+            assert!(!PANES_DIR_NAME.is_empty());
+            assert!(!PANES_DIR_NAME.contains('/'));
+            assert!(!PANES_DIR_NAME.contains('\\'));
+        }
+
+        #[test]
+        fn metadata_filename_is_json() {
+            assert!(METADATA_FILENAME.ends_with(".json"));
+        }
+    }
+}
