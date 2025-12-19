@@ -22,10 +22,10 @@ jobs:
           components: rustfmt, clippy
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cache crates from crates.io
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         continue-on-error: false
         with:
           path: |
@@ -34,7 +34,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: '${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}"
 
       - name: Quality - cargo fmt
         run: |
@@ -122,10 +122,10 @@ jobs:
           components: rustfmt, clippy
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cache crates from crates.io
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         continue-on-error: false
         with:
           path: |
@@ -134,7 +134,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: '${{ runner.os }}-${{ matrix.target }}-cargo-stable-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-${{ matrix.target }}-cargo-stable-${{ hashFiles('**/Cargo.lock') }}"
 
       # - name: Quality - cargo fmt
       #   run: |
