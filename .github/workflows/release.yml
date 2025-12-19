@@ -27,11 +27,6 @@ jobs:
             rust: stable
             suffix: ""
             archive_ext: tar.xz
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            rust: stable
-            suffix: .exe
-            archive_ext: zip
     steps:
       - name: Rust install
         uses: dtolnay/rust-toolchain@master
@@ -40,12 +35,12 @@ jobs:
           components: rustfmt, clippy
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Cache crates from crates.io
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         continue-on-error: false
         with:
           path: |
@@ -62,10 +57,6 @@ jobs:
       - name: Compress to zip (macOS)
         if: ${{ matrix.os == 'macos-latest' || matrix.os == 'macos-13' }}
         run: zip -A ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
-
-      - name: Compress to zip (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: Compress-Archive target/release/${{ github.event.repository.name }}${{ matrix.suffix }} ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
 
       - name: Compress to tar.xz (Linux)
         if: ${{ matrix.os == 'ubuntu-latest' }}
@@ -93,7 +84,7 @@ jobs:
       - prepare-artifacts
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # convco needs all history to create the changelog
           fetch-depth: 0
