@@ -2,7 +2,7 @@
 
 [![crate](https://img.shields.io/crates/v/tmux-backup.svg)](https://crates.io/crates/tmux-backup)
 [![documentation](https://docs.rs/tmux-backup/badge.svg)](https://docs.rs/tmux-backup)
-[![minimum rustc 1.74](https://img.shields.io/badge/rustc-1.74+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.78](https://img.shields.io/badge/rustc-1.78+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![rust 2021 edition](https://img.shields.io/badge/edition-2021-blue.svg)](https://doc.rust-lang.org/edition-guide/rust-2021/index.html)
 [![build status](https://github.com/graelo/tmux-backup/actions/workflows/essentials.yml/badge.svg)](https://github.com/graelo/tmux-backup/actions/workflows/essentials.yml)
 
@@ -10,7 +10,7 @@
 
 A backup & restore solution for Tmux sessions.
 
-Version requirement: _rustc 1.74+_
+Version requirement: _rustc 1.78+_
 
 ## Features
 
@@ -27,7 +27,7 @@ Version requirement: _rustc 1.74+_
     - the lastest backup per week of the past 4 weeks (max 3 backups - exclude the past week),
     - the lastest backup per month of this year (max 11 backups - exclude the past month).
 - Because you decide where backups are stored, you can use both strategies, combining the
-benefits of high-frequency backups and on demand backups like in tmux-resurrect.
+  benefits of high-frequency backups and on demand backups like in tmux-resurrect.
 
 ## Getting started
 

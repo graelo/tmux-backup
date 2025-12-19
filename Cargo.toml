@@ -2,7 +2,7 @@
 name = "tmux-backup"
 version = "0.5.8"
 edition = "2021"
-rust-version = "1.74.0"
+rust-version = "1.78.0"
 description = "A backup & restore solution for Tmux sessions."
 readme = "README.md"
 
