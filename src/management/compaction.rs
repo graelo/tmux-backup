@@ -188,3 +188,209 @@ pub struct Plan<'a> {
     /// Sorted list of backup files along with their status (purgeable/retainable).
     pub statuses: Vec<(&'a Backup, BackupStatus)>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+    use std::path::PathBuf;
+
+    /// Create a backup at the given date/time. The path encodes the datetime for easy debugging.
+    fn backup_at(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> Backup {
+        let dt = NaiveDate::from_ymd_opt(year, month, day)
+            .unwrap()
+            .and_hms_opt(hour, min, sec)
+            .unwrap();
+        Backup {
+            filepath: PathBuf::from(format!(
+                "/backups/backup-{}.tar.zst",
+                dt.format("%Y%m%dT%H%M%S")
+            )),
+            creation_date: dt,
+        }
+    }
+
+    /// Generate a sequence of backups, one per hour, starting from a base datetime.
+    fn generate_hourly_backups(count: usize) -> Vec<Backup> {
+        (0..count)
+            .map(|i| {
+                let hour = i % 24;
+                let day = 1 + (i / 24);
+                backup_at(2024, 6, day as u32, hour as u32, 0, 0)
+            })
+            .collect()
+    }
+
+    mod keep_most_recent_strategy {
+        use super::*;
+
+        #[test]
+        fn empty_catalog_produces_empty_plan() {
+            let strategy = Strategy::most_recent(5);
+            let backups: Vec<Backup> = vec![];
+
+            let plan = strategy.plan(&backups);
+
+            assert!(plan.purgeable.is_empty());
+            assert!(plan.retainable.is_empty());
+            assert!(plan.statuses.is_empty());
+        }
+
+        #[test]
+        fn single_backup_when_k_is_one() {
+            let strategy = Strategy::most_recent(1);
+            let backups = vec![backup_at(2024, 6, 15, 10, 0, 0)];
+
+            let plan = strategy.plan(&backups);
+
+            assert!(plan.purgeable.is_empty());
+            assert_eq!(plan.retainable.len(), 1);
+        }
+
+        #[test]
+        fn single_backup_when_k_exceeds_count() {
+            let strategy = Strategy::most_recent(10);
+            let backups = vec![backup_at(2024, 6, 15, 10, 0, 0)];
+
+            let plan = strategy.plan(&backups);
+
+            // Should keep the one backup we have, not fail
+            assert!(plan.purgeable.is_empty());
+            assert_eq!(plan.retainable.len(), 1);
+        }
+
+        #[test]
+        fn keeps_exactly_k_most_recent() {
+            let strategy = Strategy::most_recent(3);
+            let backups = vec![
+                backup_at(2024, 6, 15, 8, 0, 0),  // oldest - purgeable
+                backup_at(2024, 6, 15, 9, 0, 0),  // purgeable
+                backup_at(2024, 6, 15, 10, 0, 0), // retainable
+                backup_at(2024, 6, 15, 11, 0, 0), // retainable
+                backup_at(2024, 6, 15, 12, 0, 0), // newest - retainable
+            ];
+
+            let plan = strategy.plan(&backups);
+
+            assert_eq!(plan.purgeable.len(), 2);
+            assert_eq!(plan.retainable.len(), 3);
+
+            // The oldest two should be purgeable
+            assert_eq!(plan.purgeable[0].creation_date.hour(), 8);
+            assert_eq!(plan.purgeable[1].creation_date.hour(), 9);
+
+            // The newest three should be retainable
+            assert_eq!(plan.retainable[0].creation_date.hour(), 10);
+            assert_eq!(plan.retainable[1].creation_date.hour(), 11);
+            assert_eq!(plan.retainable[2].creation_date.hour(), 12);
+        }
+
+        #[test]
+        fn statuses_preserve_original_order() {
+            let strategy = Strategy::most_recent(2);
+            let backups = vec![
+                backup_at(2024, 6, 15, 8, 0, 0),
+                backup_at(2024, 6, 15, 9, 0, 0),
+                backup_at(2024, 6, 15, 10, 0, 0),
+                backup_at(2024, 6, 15, 11, 0, 0),
+            ];
+
+            let plan = strategy.plan(&backups);
+
+            // Statuses should be in the same order as input
+            assert_eq!(plan.statuses.len(), 4);
+            assert!(matches!(plan.statuses[0].1, BackupStatus::Purgeable));
+            assert!(matches!(plan.statuses[1].1, BackupStatus::Purgeable));
+            assert!(matches!(plan.statuses[2].1, BackupStatus::Retainable));
+            assert!(matches!(plan.statuses[3].1, BackupStatus::Retainable));
+        }
+
+        #[test]
+        fn k_equals_count_keeps_all() {
+            let strategy = Strategy::most_recent(3);
+            let backups = vec![
+                backup_at(2024, 6, 15, 8, 0, 0),
+                backup_at(2024, 6, 15, 9, 0, 0),
+                backup_at(2024, 6, 15, 10, 0, 0),
+            ];
+
+            let plan = strategy.plan(&backups);
+
+            assert!(plan.purgeable.is_empty());
+            assert_eq!(plan.retainable.len(), 3);
+        }
+
+        #[test]
+        fn k_zero_purges_all() {
+            let strategy = Strategy::most_recent(0);
+            let backups = vec![
+                backup_at(2024, 6, 15, 8, 0, 0),
+                backup_at(2024, 6, 15, 9, 0, 0),
+            ];
+
+            let plan = strategy.plan(&backups);
+
+            assert_eq!(plan.purgeable.len(), 2);
+            assert!(plan.retainable.is_empty());
+        }
+
+        #[test]
+        fn handles_large_catalog() {
+            let strategy = Strategy::most_recent(10);
+            let backups = generate_hourly_backups(100);
+
+            let plan = strategy.plan(&backups);
+
+            assert_eq!(plan.purgeable.len(), 90);
+            assert_eq!(plan.retainable.len(), 10);
+
+            // Verify the retained ones are the most recent
+            for retained in &plan.retainable {
+                // The last 10 backups (indices 90-99)
+                assert!(backups[90..].contains(retained));
+            }
+        }
+    }
+
+    mod strategy_display {
+        use super::*;
+
+        #[test]
+        fn keep_most_recent_shows_count() {
+            let strategy = Strategy::most_recent(42);
+            assert_eq!(format!("{strategy}"), "KeepMostRecent: 42");
+        }
+
+        #[test]
+        fn classic_shows_name() {
+            let strategy = Strategy::Classic;
+            assert_eq!(format!("{strategy}"), "Classic");
+        }
+    }
+
+    mod strategy_constructors {
+        use super::*;
+
+        #[test]
+        fn most_recent_stores_k() {
+            let strategy = Strategy::most_recent(7);
+            match strategy {
+                Strategy::KeepMostRecent { k } => assert_eq!(k, 7),
+                _ => panic!("Expected KeepMostRecent variant"),
+            }
+        }
+    }
+
+    // Note: The Classic strategy uses `Local::now()` internally, making it
+    // non-deterministic and difficult to unit test reliably. To properly test
+    // Classic, consider refactoring `plan()` to accept a `now` parameter,
+    // or create an integration test with a controlled time environment.
+    //
+    // The Classic strategy logic groups backups by:
+    // - Hour (last 24h)
+    // - Day (last 7 days, excluding last 24h)
+    // - Week (last 4 weeks, excluding last 7 days)
+    // - Month (last year, excluding last 4 weeks)
+    //
+    // Each group keeps only the most recent backup within that time window.
+}

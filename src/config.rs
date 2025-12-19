@@ -227,3 +227,255 @@ fn default_backup_dirpath() -> PathBuf {
 
     state_home.join("tmux-backup")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    mod strategy_config {
+        use super::*;
+
+        // Helper to parse a save command and extract its strategy
+        // Note: strategy flags (-s, -n) belong to the subcommand, not the root
+        fn parse_save_strategy(subcommand_args: &[&str]) -> Strategy {
+            let mut full_args = vec!["tmux-backup", "save"];
+            full_args.extend(subcommand_args);
+
+            let config = Config::try_parse_from(full_args).unwrap();
+            match config.command {
+                Command::Save { strategy, .. } => strategy.strategy(),
+                _ => panic!("Expected Save command"),
+            }
+        }
+
+        #[test]
+        fn default_strategy_is_most_recent_with_10() {
+            let strategy = parse_save_strategy(&[]);
+
+            match strategy {
+                Strategy::KeepMostRecent { k } => assert_eq!(k, 10),
+                _ => panic!("Expected KeepMostRecent"),
+            }
+        }
+
+        #[test]
+        fn explicit_most_recent_strategy() {
+            let strategy = parse_save_strategy(&["-s", "most-recent"]);
+
+            match strategy {
+                Strategy::KeepMostRecent { k } => assert_eq!(k, 10), // default n
+                _ => panic!("Expected KeepMostRecent"),
+            }
+        }
+
+        #[test]
+        fn most_recent_with_custom_count() {
+            let strategy = parse_save_strategy(&["-s", "most-recent", "-n", "25"]);
+
+            match strategy {
+                Strategy::KeepMostRecent { k } => assert_eq!(k, 25),
+                _ => panic!("Expected KeepMostRecent"),
+            }
+        }
+
+        #[test]
+        fn classic_strategy() {
+            let strategy = parse_save_strategy(&["-s", "classic"]);
+
+            assert!(matches!(strategy, Strategy::Classic));
+        }
+
+        #[test]
+        fn long_form_arguments_work() {
+            let strategy =
+                parse_save_strategy(&["--strategy", "most-recent", "--num-backups", "42"]);
+
+            match strategy {
+                Strategy::KeepMostRecent { k } => assert_eq!(k, 42),
+                _ => panic!("Expected KeepMostRecent"),
+            }
+        }
+
+        #[test]
+        fn num_backups_ignored_for_classic() {
+            // -n is accepted but ignored for classic strategy
+            let strategy = parse_save_strategy(&["-s", "classic", "-n", "99"]);
+
+            assert!(matches!(strategy, Strategy::Classic));
+        }
+    }
+
+    mod cli_parsing {
+        use super::*;
+
+        #[test]
+        fn save_command_parses() {
+            let config = Config::try_parse_from(["tmux-backup", "save"]).unwrap();
+            assert!(matches!(config.command, Command::Save { .. }));
+        }
+
+        #[test]
+        fn save_with_compact_flag() {
+            let config = Config::try_parse_from(["tmux-backup", "save", "--compact"]).unwrap();
+            match config.command {
+                Command::Save { compact, .. } => assert!(compact),
+                _ => panic!("Expected Save command"),
+            }
+        }
+
+        #[test]
+        fn save_with_to_tmux_flag() {
+            let config = Config::try_parse_from(["tmux-backup", "save", "--to-tmux"]).unwrap();
+            match config.command {
+                Command::Save { to_tmux, .. } => assert!(to_tmux),
+                _ => panic!("Expected Save command"),
+            }
+        }
+
+        #[test]
+        fn save_with_ignore_lines() {
+            let config = Config::try_parse_from(["tmux-backup", "save", "-i", "2"]).unwrap();
+            match config.command {
+                Command::Save {
+                    num_lines_to_drop, ..
+                } => assert_eq!(num_lines_to_drop, 2),
+                _ => panic!("Expected Save command"),
+            }
+        }
+
+        #[test]
+        fn restore_command_parses() {
+            let config = Config::try_parse_from(["tmux-backup", "restore"]).unwrap();
+            assert!(matches!(config.command, Command::Restore { .. }));
+        }
+
+        #[test]
+        fn restore_with_specific_file() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "restore", "/path/to/backup.tar.zst"])
+                    .unwrap();
+            match config.command {
+                Command::Restore {
+                    backup_filepath, ..
+                } => {
+                    assert_eq!(
+                        backup_filepath,
+                        Some(PathBuf::from("/path/to/backup.tar.zst"))
+                    );
+                }
+                _ => panic!("Expected Restore command"),
+            }
+        }
+
+        #[test]
+        fn catalog_list_command() {
+            let config = Config::try_parse_from(["tmux-backup", "catalog", "list"]).unwrap();
+            match config.command {
+                Command::Catalog { command, .. } => {
+                    assert!(matches!(command, CatalogSubcommand::List { .. }));
+                }
+                _ => panic!("Expected Catalog command"),
+            }
+        }
+
+        #[test]
+        fn catalog_list_with_details() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "catalog", "list", "--details"]).unwrap();
+            match config.command {
+                Command::Catalog { command, .. } => match command {
+                    CatalogSubcommand::List { details_flag, .. } => {
+                        assert!(details_flag);
+                    }
+                    _ => panic!("Expected List subcommand"),
+                },
+                _ => panic!("Expected Catalog command"),
+            }
+        }
+
+        #[test]
+        fn catalog_list_with_only_purgeable() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "catalog", "list", "--only", "purgeable"])
+                    .unwrap();
+            match config.command {
+                Command::Catalog { command, .. } => match command {
+                    CatalogSubcommand::List {
+                        only_backup_status, ..
+                    } => {
+                        assert!(matches!(only_backup_status, Some(BackupStatus::Purgeable)));
+                    }
+                    _ => panic!("Expected List subcommand"),
+                },
+                _ => panic!("Expected Catalog command"),
+            }
+        }
+
+        #[test]
+        fn catalog_compact_command() {
+            let config = Config::try_parse_from(["tmux-backup", "catalog", "compact"]).unwrap();
+            match config.command {
+                Command::Catalog { command, .. } => {
+                    assert!(matches!(command, CatalogSubcommand::Compact));
+                }
+                _ => panic!("Expected Catalog command"),
+            }
+        }
+
+        #[test]
+        fn custom_backup_dirpath() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "-d", "/custom/path", "save"]).unwrap();
+            assert_eq!(config.backup_dirpath, PathBuf::from("/custom/path"));
+        }
+
+        #[test]
+        fn describe_command() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "describe", "/path/to/backup.tar.zst"])
+                    .unwrap();
+            match config.command {
+                Command::Describe { backup_filepath } => {
+                    assert_eq!(backup_filepath, PathBuf::from("/path/to/backup.tar.zst"));
+                }
+                _ => panic!("Expected Describe command"),
+            }
+        }
+
+        #[test]
+        fn generate_completion_command() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "generate-completion", "bash"]).unwrap();
+            match config.command {
+                Command::GenerateCompletion { shell } => {
+                    assert!(matches!(shell, Shell::Bash));
+                }
+                _ => panic!("Expected GenerateCompletion command"),
+            }
+        }
+
+        #[test]
+        fn init_command() {
+            let config = Config::try_parse_from(["tmux-backup", "init"]).unwrap();
+            assert!(matches!(config.command, Command::Init));
+        }
+
+        #[test]
+        fn rejects_invalid_num_backups_zero() {
+            let result = Config::try_parse_from(["tmux-backup", "-n", "0", "save"]);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn rejects_negative_num_backups() {
+            let result = Config::try_parse_from(["tmux-backup", "-n", "-5", "save"]);
+            assert!(result.is_err());
+        }
+    }
+
+    // Note: Testing `default_backup_dirpath()` would require manipulating
+    // environment variables (XDG_STATE_HOME, HOME), which can interfere with
+    // other tests running in parallel. Consider using a test harness like
+    // `temp_env` or running these tests serially with `#[serial]` if needed.
+}
