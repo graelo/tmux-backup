@@ -133,7 +133,7 @@ struct Pair {
 /// This strategy is faster than creating a placeholder window and removing it at the end (checked
 /// multiple times).
 async fn restore_session(
-    session: Session,
+    mut session: Session,
     session_windows: Vec<Window>,
     panes_per_window: Vec<Vec<Pane>>,
     panes_content_dir: PathBuf,
@@ -154,13 +154,16 @@ async fn restore_session(
 
         let (new_window_id, new_pane_id) = {
             if index == 0 {
-                let (_new_session_id, new_window_id, new_pane_id) = tmux::session::new_session(
+                let (new_session_id, new_window_id, new_pane_id) = tmux::session::new_session(
                     &session,
                     src_window,
                     first_pane,
                     Some(&pane_command),
                 )
                 .await?;
+                // Update session with the newly created session ID so that
+                // subsequent new_window() calls target the correct session.
+                session.id = new_session_id;
                 (new_window_id, new_pane_id)
             } else {
                 tmux::window::new_window(&session, src_window, first_pane, Some(&pane_command))
