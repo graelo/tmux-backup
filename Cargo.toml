@@ -28,13 +28,13 @@ thiserror = "2"
 
 regex = "1.4"
 itertools = "0.14" # waiting for https://doc.rust-lang.org/std/primitive.slice.html#method.group_by
-si-scale = "0.2"
+si-scale = "0.3"
 
 futures = "0.3"
 smol = "2.0"
 async-fs = "2.1"
 
-tmux-lib = { version = "0.4.0" }
+tmux-lib = { version = "0.4" }
 
 # archive ser/deser
 tempfile = "3"
@@ -70,3 +70,5 @@ codegen-units = 1
 # costs performance, so let’s skip stack traces and the ability to catch panics
 # for reduced code size and better cache usage:
 panic = "abort"
+
+strip = true
