@@ -958,9 +958,9 @@ dependencies = [
 
 [[package]]
 name = "tmux-lib"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5607421cdfd3e0edc14d799e76dd09bfe251fb464f047c48d66741ddd10d15a4"
+checksum = "6e978608a00f19bfb492a7c1065071e2a7ebf953a604a47c1a03f00ae8fe9064"
 dependencies = [
  "nom",
  "serde",
