@@ -1022,7 +1022,7 @@ dependencies = [
 
 [[package]]
 name = "tmux-backup"
-version = "0.5.10"
+version = "0.5.11"
 dependencies = [
  "async-fs",
  "chrono",
