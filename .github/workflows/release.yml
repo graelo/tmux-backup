@@ -64,7 +64,7 @@ jobs:
         run: zip -A ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
 
       - name: Compress to tar.xz (Linux)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
         run: tar Jcf ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
 
       - name: List files
@@ -97,7 +97,7 @@ jobs:
       - name: Extract version
         id: extract-version
         run: |
-          echo "tag-name=${GITHUB_REF#refs/tags/}" >> ${GITHUB_OUTPUT}
+          echo "tag-name=${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
 
       - name: Download convco
         run: |
@@ -114,6 +114,9 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: ${{ github.event.repository.name }}-x86_64-unknown-linux-gnu.tar.xz
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ github.event.repository.name }}-aarch64-unknown-linux-gnu.tar.xz
       - uses: actions/download-artifact@v8
         with:
           name: ${{ github.event.repository.name }}-aarch64-apple-darwin.zip
