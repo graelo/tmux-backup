@@ -6,6 +6,9 @@ on:
     branches:
       - main
   pull_request:
+  pull_request_target:
+    types:
+      - labeled
 
 jobs:
   test:
@@ -68,17 +71,6 @@ jobs:
           mv cargo-deny ~/.cargo/bin/
           cargo deny check
 
-      - name: Quality - cargo outdated
-        timeout-minutes: 20
-        run: |
-          VERSION=$(curl -s https://api.github.com/repos/kbknapp/cargo-outdated/releases/latest | jq -r '.tag_name')
-          curl -sSfL "https://github.com/kbknapp/cargo-outdated/releases/download/${VERSION}/cargo-outdated-${VERSION#v}-x86_64-unknown-linux-musl.tar.gz" | \
-            tar zx
-          chmod +x cargo-outdated
-          mv cargo-outdated ~/.cargo/bin/
-          rm -rf ~/.cargo/advisory-db
-          cargo outdated --exit-code 1
-
       # - name: Quality - cargo udeps (needs nightly)
       #   run: |
       #     cargo install --locked cargo-udeps || true
@@ -97,3 +89,28 @@ jobs:
 
       - name: Test
         run: ./ci/test_full.sh
+
+  check-outdated:
+    name: Check outdated dependencies
+    runs-on: ubuntu-latest
+
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'pull_request_target' &&
+       github.event.label.name == 'check-outdated')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Quality - cargo outdated
+        timeout-minutes: 20
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/kbknapp/cargo-outdated/releases/latest | jq -r '.tag_name')
+          curl -sSfL "https://github.com/kbknapp/cargo-outdated/releases/download/${VERSION}/cargo-outdated-${VERSION#v}-x86_64-unknown-linux-musl.tar.gz" | \
+            tar zx
+          chmod +x cargo-outdated
+          mv cargo-outdated ~/.cargo/bin/
+          rm -rf ~/.cargo/advisory-db
+          cargo outdated --exit-code 1
