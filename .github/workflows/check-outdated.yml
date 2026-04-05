@@ -20,8 +20,10 @@ jobs:
 
       - name: Quality - cargo outdated
         timeout-minutes: 20
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION=$(curl -s https://api.github.com/repos/kbknapp/cargo-outdated/releases/latest | jq -r '.tag_name')
+          VERSION=$(gh api repos/kbknapp/cargo-outdated/releases/latest --jq '.tag_name')
           curl -sSfL "https://github.com/kbknapp/cargo-outdated/releases/download/${VERSION}/cargo-outdated-${VERSION#v}-x86_64-unknown-linux-musl.tar.gz" | \
             tar zx
           chmod +x cargo-outdated
