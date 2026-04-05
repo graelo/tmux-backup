@@ -18,25 +18,32 @@ Version requirement: _rustc 1.78+_
   - tmux sessions windows, panes, with layout, titles & pane history
   - current and last session.
 - Fast: less than 1 sec for 16 sessions, 45 windows and 80 panes.
-- Show the catalog of backups, with age, file size, content description & archive format
+- Show the catalog of backups, with age, file size, content description &
+  archive format
 - 2 strategies are available:
   - keep the `n` most recent backups
   - classic backup strategy:
-    - the lastest backup per hour for the past 24 hours (max 23 backups - exclude the past hour),
-    - the lastest backup per day for the past 7 days (max 6 backups - exclude the past 24 hours),
-    - the lastest backup per week of the past 4 weeks (max 3 backups - exclude the past week),
-    - the lastest backup per month of this year (max 11 backups - exclude the past month).
-- Because you decide where backups are stored, you can use both strategies, combining the
-  benefits of high-frequency backups and on demand backups like in tmux-resurrect.
+    - the lastest backup per hour for the past 24 hours (max 23 backups -
+      exclude the past hour),
+    - the lastest backup per day for the past 7 days (max 6 backups - exclude
+      the past 24 hours),
+    - the lastest backup per week of the past 4 weeks (max 3 backups - exclude
+      the past week),
+    - the lastest backup per month of this year (max 11 backups - exclude the
+      past month).
+- Because you decide where backups are stored, you can use both strategies,
+  combining the benefits of high-frequency backups and on demand backups like
+  in tmux-resurrect.
 
 ## Getting started
 
-After installation (see below), you can either use it from the command line, or via tmux
-bindings.
+After installation (see below), you can either use it from the command line, or
+via tmux bindings.
 
 The catalog is located by default in `$XDG_STATE_HOME/tmux-backup/`, or
-`§HOME/.state/tmux-backup` otherwise. The default strategy is "most-recent", but you can change
-it with `--strategy classic`. Check usage with `tmux-backup --help` for detailed help.
+`§HOME/.state/tmux-backup` otherwise. The default strategy is "most-recent", but
+you can change it with `--strategy classic`. Check usage with
+`tmux-backup --help` for detailed help.
 
 ### View the catalog of existing backups
 
@@ -61,11 +68,12 @@ Location: `$HOME/.local/state/tmux-backup`
 11 backups: 10 retainable, 1 purgeable
 ```
 
-If you installed the plugin config into tmux, then the default tmux bindings for listing
-backups are
+If you installed the plugin config into tmux, then the default tmux bindings for
+listing backups are
 
 - `prefix + b + l` to show the simple catalog
-- `prefix + b + L` to show the detailed catalog (adds the filesize, version & content columns)
+- `prefix + b + L` to show the detailed catalog (adds the filesize, version &
+  content columns)
 
 Both of these bindings will open a tmux popup showing the catalog content.
 
@@ -81,7 +89,8 @@ By default, the tmux binding for saving a new backup are
 - `prefix + b + s` save and compact (delete purgeable backups)
 - `prefix + b + b` save but not compact the catalog
 
-Both of these bindings will print the same report as above in the tmux status bar.
+Both of these bindings will print the same report as above in the tmux status
+bar.
 
 ### Restore from a backup
 
@@ -91,8 +100,8 @@ Typing `tmux-backup restore` in your shell outside of tmux will
 - restore all sessions from the latest backup
 - but you still have to `tmux attach -t <your-last-session>`
 
-The same command typed in a shell inside tmux will erase session `0` (the default start
-session) and restore your tmux environment in place.
+The same command typed in a shell inside tmux will erase session `0` (the
+default start session) and restore your tmux environment in place.
 
 By default, the tmux binding for restoring the latest backup is
 
@@ -132,14 +141,15 @@ mkdir ~/.tmux/plugins/tmux-backup
 tmux-backup init > ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
 ```
 
-If you don't use [tpm](https://github.com/tmux-plugins/tpm), just add this to your
-`.tmux.conf`:
+If you don't use [tpm](https://github.com/tmux-plugins/tpm), just add this to
+your `.tmux.conf`:
 
 ```text
 source-file ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
 ```
 
-Alternatively, if you use tpm, declare the tmux-backup plugin to TPM in your `~/.tmux.conf`:
+Alternatively, if you use tpm, declare the tmux-backup plugin to TPM in your
+`~/.tmux.conf`:
 
 ```tmux
 set -g @tpm_plugins '              \
@@ -152,12 +162,14 @@ set -g @tpm_plugins '              \
 '
 ```
 
-The next time you start tmux, the `tmux-backup.tmux` configuration will be loaded.
+The next time you start tmux, the `tmux-backup.tmux` configuration will be
+loaded.
 
 ## Caveats
 
 - This is a beta version
-- Does not handle multiple clients: help is welcome if you have clear scenarios for this.
+- Does not handle multiple clients: help is welcome if you have clear
+  scenarios for this.
 - Does not handle session groups: help is also welcome.
 
 ## License
