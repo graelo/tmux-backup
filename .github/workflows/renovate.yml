@@ -1,0 +1,23 @@
+# Runs Renovate to check for dependency updates.
+# Triggers weekly on Monday mornings, or manually via workflow_dispatch.
+
+name: Renovate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * 1' # every Monday at 07:00 UTC
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@b67590ea780158ccd13192c22a3655a5231f869d # v46.1.8
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
+          configurationFile: renovate.json
