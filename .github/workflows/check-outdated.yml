@@ -1,6 +1,6 @@
 # Runs cargo-outdated when the `check-outdated` label is added to a PR
 
-name: Check outdated dependencies
+name: Outdated
 on:
   workflow_dispatch:
   pull_request_target:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   check-outdated:
-    name: Check outdated dependencies
+    name: Check outdated deps
     runs-on: ubuntu-latest
     if: github.event.label.name == 'check-outdated'
     steps:
