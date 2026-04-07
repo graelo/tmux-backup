@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::Error, tmux, Result};
+use crate::{Result, error::Error, tmux};
 
 /// Version of the archive format.
 pub const FORMAT_VERSION: &str = "1.0";

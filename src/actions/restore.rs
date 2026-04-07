@@ -11,10 +11,10 @@ use smol;
 use tempfile::TempDir;
 
 use crate::{
+    Result,
     error::Error,
     management::archive::v1,
     tmux::{self, pane::Pane, session::Session, window::Window},
-    Result,
 };
 
 /// Name of the placeholder session.
