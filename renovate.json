@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "cargo": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "Group all patch updates into one PR",
+      "matchUpdateTypes": "patch",
+      "groupName": "patch updates"
+    },
+    {
+      "description": "Group all minor updates into one PR",
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "groupName": "minor updates"
+    }
+  ],
+  "schedule": [
+    "before 9am on monday"
+  ]
+}

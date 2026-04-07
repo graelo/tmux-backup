@@ -7,7 +7,7 @@ use futures::future::join_all;
 use smol;
 use tempfile::TempDir;
 
-use crate::{management::archive::v1, tmux, Result};
+use crate::{Result, management::archive::v1, tmux};
 use tmux_lib::utils;
 
 /// Shell commands that are recognized for prompt line dropping.

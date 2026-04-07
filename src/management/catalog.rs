@@ -14,12 +14,12 @@ use si_scale::helpers::bytes2;
 use smol;
 
 use crate::{
+    Result,
     management::{
         archive::v1,
         backup::{Backup, BackupStatus},
         compaction::{Plan, Strategy},
     },
-    Result,
 };
 
 /// Catalog of all backups.
@@ -280,8 +280,8 @@ impl Catalog {
                 let version = &metadata.version;
 
                 println!(
-                        "{index:3}. {color}{filename:32}{reset} {age:11} {color}{status:12}{reset} {filesize:11} {version:8} {overview:8}"
-                    );
+                    "{index:3}. {color}{filename:32}{reset} {age:11} {color}{status:12}{reset} {filesize:11} {version:8} {overview:8}"
+                );
             }
         } else {
             // Table header
