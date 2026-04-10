@@ -3,6 +3,7 @@
   "extends": [
     "config:recommended"
   ],
+  "gitAuthor": "Renovate Bot <84066822+graelo@users.noreply.github.com>",
   "labels": [
     "dependencies"
   ],
