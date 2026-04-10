@@ -127,15 +127,17 @@ jobs:
           name: ${{ github.event.repository.name }}-x86_64-apple-darwin.zip
 
       - uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           artifacts: '*.zip,*.tar.xz'
           bodyFile: 'CHANGELOG.md'
-          token: ${{ secrets.GITHUB_TOKEN }}
 
   homebrew:
     name: Bump Homebrew formula
     # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: read
     needs:
