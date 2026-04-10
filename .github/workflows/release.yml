@@ -4,11 +4,15 @@ on:
     tags:
       - 'v*'
 
+permissions: {}
+
 jobs:
   prepare-artifacts:
     name: Prepare release artifacts
     # if: github.ref == 'refs/heads/main'
     runs-on: '${{ matrix.os }}'
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -43,18 +47,26 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 1
-
+          persist-credentials: false
 
       - name: Build Release
         run: cargo build --release
 
       - name: Compress to zip (macOS)
         if: ${{ matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel' }}
-        run: zip -A ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          TARGET: ${{ matrix.target }}
+          ARCHIVE_EXT: ${{ matrix.archive_ext }}
+        run: zip -A "${REPO_NAME}-${TARGET}.${ARCHIVE_EXT}" "target/release/${REPO_NAME}"
 
       - name: Compress to tar.xz (Linux)
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
-        run: tar Jcf ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }} target/release/${{ github.event.repository.name }}
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          TARGET: ${{ matrix.target }}
+          ARCHIVE_EXT: ${{ matrix.archive_ext }}
+        run: tar Jcf "${REPO_NAME}-${TARGET}.${ARCHIVE_EXT}" "target/release/${REPO_NAME}"
 
       - name: List files
         run: |
@@ -82,6 +94,7 @@ jobs:
         with:
           # convco needs all history to create the changelog
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Extract version
         id: extract-version
@@ -123,6 +136,8 @@ jobs:
     name: Bump Homebrew formula
     # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs:
       - release
     steps:
