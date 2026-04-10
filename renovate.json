@@ -10,6 +10,9 @@
   "cargo": {
     "enabled": true
   },
+  "vulnerabilityAlerts": {
+    "enabled": false
+  },
   "packageRules": [
     {
       "description": "Group all patch updates into one PR",
