@@ -237,7 +237,6 @@ mod tests {
 
         #[test]
         fn placeholder_session_name_is_not_empty() {
-            assert!(!PLACEHOLDER_SESSION_NAME.is_empty());
             // Should have content between the brackets
             assert!(PLACEHOLDER_SESSION_NAME.len() > 2);
         }
@@ -296,7 +295,7 @@ mod tests {
             };
 
             // Just verify it doesn't panic - Debug is derived
-            let debug_str = format!("{:?}", pair);
+            let debug_str = format!("{pair:?}");
             assert!(debug_str.contains("Pair"));
         }
 
