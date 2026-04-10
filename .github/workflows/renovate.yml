@@ -18,6 +18,8 @@ jobs:
 
       - name: Run Renovate
         uses: renovatebot/github-action@b67590ea780158ccd13192c22a3655a5231f869d # v46.1.8
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}
           configurationFile: renovate.json
