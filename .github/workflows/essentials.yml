@@ -7,10 +7,14 @@ on:
       - main
   pull_request:
 
+permissions: {}
+
 jobs:
   test:
     name: Quality checks & tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         rust: [stable]
@@ -27,6 +31,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           # fetch-depth: ${{ github.event.pull_request.commits }}
+          persist-credentials: false
 
       - name: Cache crates from crates.io
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
