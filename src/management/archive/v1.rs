@@ -417,12 +417,11 @@ mod tests {
         fn format_version_is_semver_like() {
             // Ensure version looks like "X.Y" or similar
             assert!(FORMAT_VERSION.contains('.'));
-            assert!(!FORMAT_VERSION.is_empty());
         }
 
         #[test]
         fn panes_dir_name_is_reasonable() {
-            assert!(!PANES_DIR_NAME.is_empty());
+            assert_eq!(PANES_DIR_NAME, "panes-content");
             assert!(!PANES_DIR_NAME.contains('/'));
             assert!(!PANES_DIR_NAME.contains('\\'));
         }

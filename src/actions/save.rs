@@ -231,10 +231,5 @@ mod tests {
             assert!(DETECTED_SHELLS.contains(&"bash"));
             assert!(DETECTED_SHELLS.contains(&"fish"));
         }
-
-        #[test]
-        fn detected_shells_is_not_empty() {
-            assert!(!DETECTED_SHELLS.is_empty());
-        }
     }
 }
