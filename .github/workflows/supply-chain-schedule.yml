@@ -16,16 +16,9 @@ jobs:
       contents: read
     uses: ./.github/workflows/cargo-audit.yml
 
-  zizmor:
+  ci-security:
     permissions:
       security-events: write
       contents: read
       actions: read
-    uses: ./.github/workflows/zizmor.yml
-
-  poutine:
-    permissions:
-      security-events: write
-      contents: read
-      actions: read
-    uses: ./.github/workflows/poutine.yml
+    uses: ./.github/workflows/ci-security.yml

@@ -101,20 +101,11 @@ jobs:
       contents: read
     uses: ./.github/workflows/cargo-audit.yml
 
-  zizmor:
+  ci-security:
     needs: changes
     if: needs.changes.outputs.workflows == 'true'
     permissions:
       security-events: write
       contents: read
       actions: read
-    uses: ./.github/workflows/zizmor.yml
-
-  poutine:
-    needs: changes
-    if: needs.changes.outputs.workflows == 'true'
-    permissions:
-      security-events: write
-      contents: read
-      actions: read
-    uses: ./.github/workflows/poutine.yml
+    uses: ./.github/workflows/ci-security.yml

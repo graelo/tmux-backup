@@ -1,0 +1,48 @@
+# Reusable workflow: CI/CD supply chain security audits.
+
+name: CI Security
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: Zizmor
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+
+  poutine:
+    name: Poutine
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Run poutine
+        uses: boostsecurityio/poutine-action@84c0a0d32e8d57ae12651222be1eb15351429228 # v0.15.2
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@3b1a19a80ab047f35cbb237b5bd9bdc1e14f166c # v3
+        with:
+          sarif_file: results.sarif
+          category: poutine
