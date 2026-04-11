@@ -93,6 +93,10 @@ jobs:
               - 'Cargo.lock'
             workflows:
               - '.github/workflows/**'
+              - '.github/actions/**'
+              - '.poutine.yml'
+              - '.zizmor.yml'
+              - 'renovate.json'
 
   cargo-audit:
     needs: changes
