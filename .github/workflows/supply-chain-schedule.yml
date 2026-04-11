@@ -22,3 +22,10 @@ jobs:
       contents: read
       actions: read
     uses: ./.github/workflows/zizmor.yml
+
+  poutine:
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    uses: ./.github/workflows/poutine.yml
