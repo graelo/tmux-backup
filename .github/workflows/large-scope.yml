@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Rust install
-        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master # zizmor: ignore[superfluous-actions]
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
@@ -40,7 +40,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: '${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Quality - cargo fmt
         run: |
@@ -77,7 +77,7 @@ jobs:
             toolchain: stable
     steps:
       - name: Rust install
-        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master # zizmor: ignore[superfluous-actions]
         with:
           toolchain: ${{ matrix.toolchain }}
           target: ${{ matrix.target }}
@@ -98,7 +98,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: '${{ runner.os }}-${{ matrix.target }}-cargo-stable-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-stable-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build (dev)
         run: cargo build --all-features

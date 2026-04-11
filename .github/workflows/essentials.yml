@@ -20,7 +20,7 @@ jobs:
         rust: [stable]
     steps:
       - name: Rust install
-        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master # zizmor: ignore[superfluous-actions]
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
@@ -43,7 +43,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: '${{ runner.os }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-hash-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Quality - cargo fmt
         run: |
@@ -64,27 +64,6 @@ jobs:
           ./convco check -c .convco
           rm convco
 
-      - name: Quality - cargo deny check
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION=$(gh api repos/EmbarkStudios/cargo-deny/releases/latest --jq '.tag_name')
-          curl -sSfL "https://github.com/EmbarkStudios/cargo-deny/releases/download/${VERSION}/cargo-deny-${VERSION}-x86_64-unknown-linux-musl.tar.gz" | \
-            tar zx --no-anchored cargo-deny --strip-components=1
-          chmod +x cargo-deny
-          mv cargo-deny ~/.cargo/bin/
-          cargo deny check
-
-      # - name: Quality - cargo udeps (needs nightly)
-      #   run: |
-      #     cargo install --locked cargo-udeps || true
-      #     cargo udeps
-
-      - name: Quality - cargo pants
-        run: |
-          cargo install --locked cargo-pants || true
-          cargo pants
-
       - name: Build (dev)
         run: cargo build --all-features
 
@@ -94,18 +73,39 @@ jobs:
       - name: Test
         run: ./ci/test_full.sh
 
-  zizmor:
-    name: GHA Supply Chain Security
+  changes:
+    name: Detect changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      cargo_lock: ${{ steps.filter.outputs.cargo_lock }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: |
+            cargo_lock:
+              - 'Cargo.lock'
+            workflows:
+              - '.github/workflows/**'
+
+  cargo-audit:
+    needs: changes
+    if: needs.changes.outputs.cargo_lock == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/cargo-audit.yml
+
+  ci-security:
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true'
     permissions:
       security-events: write
       contents: read
       actions: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-
-      - name: Run zizmor
-        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+    uses: ./.github/workflows/ci-security.yml
