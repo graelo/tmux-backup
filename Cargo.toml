@@ -1,6 +1,6 @@
 [package]
 name = "tmux-backup"
-version = "0.5.12"
+version = "0.5.13"
 edition = "2024"
 rust-version = "1.88.0"
 description = "A backup & restore solution for Tmux sessions."
