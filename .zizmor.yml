@@ -1,4 +1,7 @@
 rules:
   superfluous-actions:
     ignore:
-      - dtolnay/rust-toolchain
+      - cargo-audit.yml
+      - essentials.yml
+      - large-scope.yml
+      - release.yml
