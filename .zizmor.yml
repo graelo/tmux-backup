@@ -1,0 +1,7 @@
+rules:
+  superfluous-actions:
+    ignore:
+      - cargo-audit.yml
+      - essentials.yml
+      - large-scope.yml
+      - release.yml
