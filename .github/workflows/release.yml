@@ -86,6 +86,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     needs:
       - prepare-artifacts
     steps:
@@ -135,6 +137,11 @@ jobs:
             --title "${TAG_NAME}" \
             --notes-file CHANGELOG.md \
             ./*.zip ./*.tar.xz
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: '*.zip,*.tar.xz'
 
   homebrew:
     name: Bump Homebrew formula
