@@ -153,6 +153,15 @@ jobs:
     needs:
       - release
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: graelo
+          repositories: homebrew-tap
+
       - name: Extract version
         id: extract-version
         run: |
@@ -163,7 +172,6 @@ jobs:
         with:
           formula-name: tmux-backup
           homebrew-tap: graelo/homebrew-tap
-          # base-branch: main
           create-pullrequest: true
           download-url: https://github.com/graelo/tmux-backup/archive/refs/tags/${{ steps.extract-version.outputs.tag-name }}.tar.gz
           commit-message: |
@@ -171,4 +179,4 @@ jobs:
 
             Created by https://github.com/mislav/bump-homebrew-formula-action
         env:
-          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+          COMMITTER_TOKEN: ${{ steps.app-token.outputs.token }}
