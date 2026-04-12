@@ -172,6 +172,7 @@ jobs:
         with:
           formula-name: tmux-backup
           homebrew-tap: graelo/homebrew-tap
+          push-to: graelo/homebrew-tap
           create-pullrequest: true
           download-url: https://github.com/graelo/tmux-backup/archive/refs/tags/${{ steps.extract-version.outputs.tag-name }}.tar.gz
           commit-message: |
