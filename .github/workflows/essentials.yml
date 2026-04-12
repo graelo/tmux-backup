@@ -95,7 +95,7 @@ jobs:
               - '.github/workflows/**'
               - '.github/actions/**'
               - '.poutine.yml'
-              - '.zizmor.yml'
+              - '.github/zizmor.yml'
               - 'renovate.json'
 
   cargo-audit:
