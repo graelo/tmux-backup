@@ -34,6 +34,7 @@ jobs:
           persist-credentials: false
 
       - name: Cache crates from crates.io
+        if: github.event_name == 'pull_request'
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         continue-on-error: false
         with:
