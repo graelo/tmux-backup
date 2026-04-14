@@ -26,7 +26,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -35,7 +35,7 @@ jobs:
 
       - name: Cache crates from crates.io
         if: github.event_name == 'pull_request'
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         continue-on-error: false
         with:
           path: |
@@ -83,7 +83,7 @@ jobs:
       cargo_lock: ${{ steps.filter.outputs.cargo_lock }}
       workflows: ${{ steps.filter.outputs.workflows }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - id: filter
@@ -91,6 +91,7 @@ jobs:
         with:
           filters: |
             cargo_lock:
+              - 'Cargo.toml'
               - 'Cargo.lock'
             workflows:
               - '.github/workflows/**'
