@@ -52,12 +52,11 @@ jobs:
 
       - name: Quality - cargo clippy
         run: |
-          cargo clippy -- -D warnings
+          cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Quality - convco check
         run: |
           git show-ref
-          echo Commit message: "$(git log -1 --pretty=%B)"
           curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
           unzip convco-ubuntu.zip
           chmod +x convco
