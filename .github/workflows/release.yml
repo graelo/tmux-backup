@@ -9,8 +9,7 @@ permissions: {}
 jobs:
   prepare-artifacts:
     name: Prepare release artifacts
-    # if: github.ref == 'refs/heads/main'
-    runs-on: '${{ matrix.os }}'
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
     strategy:
@@ -40,7 +39,7 @@ jobs:
       - name: Rust install
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Checkout
@@ -83,7 +82,6 @@ jobs:
 
   release:
     name: Create a GitHub Release
-    # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -92,7 +90,7 @@ jobs:
     needs:
       - prepare-artifacts
     steps:
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # convco needs all history to create the changelog
@@ -146,7 +144,6 @@ jobs:
 
   homebrew:
     name: Bump Homebrew formula
-    # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: release
     permissions:

@@ -1,5 +1,5 @@
 # Runs Renovate to check for dependency updates.
-# Triggers weekly on Monday mornings, or manually via workflow_dispatch.
+# Triggers weekly on Friday afternoons, or manually via workflow_dispatch.
 
 name: Renovate
 
