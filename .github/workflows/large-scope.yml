@@ -16,7 +16,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        rust: [1.88.0, beta, nightly]
+        rust: [1.95.0, beta, nightly]
 
     steps:
       - name: Rust install

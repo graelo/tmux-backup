@@ -2,8 +2,8 @@
 
 [![crate](https://img.shields.io/crates/v/tmux-backup.svg)](https://crates.io/crates/tmux-backup)
 [![documentation](https://docs.rs/tmux-backup/badge.svg)](https://docs.rs/tmux-backup)
-[![minimum rustc 1.88](https://img.shields.io/badge/rustc-1.88+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
-[![rust 2021 edition](https://img.shields.io/badge/edition-2021-blue.svg)](https://doc.rust-lang.org/edition-guide/rust-2021/index.html)
+[![minimum rustc 1.95](https://img.shields.io/badge/rustc-1.95+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![rust 2024 edition](https://img.shields.io/badge/edition-2024-blue.svg)](https://doc.rust-lang.org/edition-guide/rust-2024/index.html)
 [![build status](https://github.com/graelo/tmux-backup/actions/workflows/essentials.yml/badge.svg)](https://github.com/graelo/tmux-backup/actions/workflows/essentials.yml)
 
 <!-- cargo-sync-readme start -->
