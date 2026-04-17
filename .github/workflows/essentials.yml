@@ -95,7 +95,7 @@ jobs:
             workflows:
               - '.github/workflows/**'
               - '.github/actions/**'
-              - '.poutine.yml'
+              - '.github/poutine.yml'
               - '.github/zizmor.yml'
               - 'renovate.json'
 
