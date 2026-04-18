@@ -1,1 +1,4 @@
 /target
+
+# Downloaded binary (install-binary.sh)
+/.installed-version
