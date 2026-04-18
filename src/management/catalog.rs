@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::{env, iter};
 
 use async_fs as fs;
@@ -189,14 +190,14 @@ impl Catalog {
     async fn parse_backup_filenames<P: AsRef<Path>>(dirpath: P) -> Result<Vec<Backup>> {
         let mut backups: Vec<Backup> = vec![];
 
-        let pattern = v1::backup_filepath_pattern();
-        let matcher = Regex::new(pattern).unwrap();
+        static BACKUP_RE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(v1::backup_filepath_pattern()).unwrap());
 
         let mut entries = fs::read_dir(dirpath.as_ref()).await?;
         while let Some(entry) = entries.next().await {
             let entry = entry?;
             let path = entry.path();
-            if let Some(captures) = matcher.captures(&path.to_string_lossy()) {
+            if let Some(captures) = BACKUP_RE.captures(&path.to_string_lossy()) {
                 let date_str = &captures[1];
                 let creation_date =
                     NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S%.f").unwrap();
@@ -218,9 +219,8 @@ impl Catalog {
 
         // Try to strip the HOME prefix from self.dirpath, otherwise return self.dirpath.
         let location: Cow<Path> = {
-            if let Some(remainder) = env::var("HOME")
-                .ok()
-                .and_then(|home_dir| self.dirpath.strip_prefix(home_dir).ok())
+            if let Ok(home_dir) = env::var("HOME")
+                && let Ok(remainder) = self.dirpath.strip_prefix(&home_dir)
             {
                 Cow::Owned(PathBuf::from("$HOME").join(remainder))
             } else {
