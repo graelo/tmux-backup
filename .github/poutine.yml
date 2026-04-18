@@ -9,3 +9,4 @@ skip:
       - pkg:githubactions/boostsecurityio/poutine-action
       - pkg:githubactions/mislav/bump-homebrew-formula-action
       - pkg:githubactions/renovatebot/github-action
+      - pkg:githubactions/taiki-e/install-action
