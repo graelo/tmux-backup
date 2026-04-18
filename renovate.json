@@ -10,6 +10,7 @@
   "cargo": {
     "enabled": true
   },
+  "platformAutomerge": true,
   "packageRules": [
     {
       "description": "Pin GitHub Actions to commit SHAs for supply chain safety",
