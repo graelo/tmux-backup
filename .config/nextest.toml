@@ -2,11 +2,17 @@
 # https://nexte.st/docs/configuration/
 
 [profile.default]
+# Number of retries for failing tests (0 = no retries)
 retries = 0
+# Use all available CPUs
 test-threads = "num-cpus"
+# Continue running other tests when one fails
 fail-fast = false
+# Warn about slow tests after 60s, terminate after 2 periods (120s)
 slow-timeout = { period = "60s", terminate-after = 2 }
 
 [profile.ci]
+# Retry flaky tests in CI
 retries = 2
+# Stop on first failure in CI to get faster feedback
 fail-fast = true
