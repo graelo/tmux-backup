@@ -1,7 +1,9 @@
-# Runs Renovate to check for dependency updates.
-# Triggers weekly at 19:00 UTC, or manually via workflow_dispatch.
+# Scheduled Renovate run via GitHub App token.
+#
+# Local:
+#   act workflow_dispatch -W .github/workflows/schedule-renovate.yml
 
-name: Renovate
+name: 'Schedule: Renovate'
 
 on:
   workflow_dispatch:
@@ -10,15 +12,20 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   renovate:
-    name: Renovate
+    name: Run Renovate
     runs-on: ubuntu-latest
     environment: renovate
     permissions:
       contents: write
       issues: write
       pull-requests: write
+
     steps:
       - name: Generate GitHub App token
         id: app-token
