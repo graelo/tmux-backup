@@ -4,7 +4,7 @@ rules:
   # which is intentional for multi-version matrix builds.
   superfluous-actions:
     ignore:
-      - cargo-audit.yml
-      - essentials.yml
-      - large-scope.yml
+      - _cargo-audit.yml
+      - ci-essentials.yml
+      - ci-compatibility-matrix.yml
       - release.yml
