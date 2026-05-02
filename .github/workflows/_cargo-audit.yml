@@ -1,4 +1,7 @@
 # Reusable workflow: dependency audit via cargo-deny and cargo-pants.
+#
+# Local (standalone):
+#   act workflow_call -W .github/workflows/_cargo-audit.yml
 
 name: Cargo Audit
 
@@ -14,7 +17,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Rust install
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
           toolchain: stable
@@ -24,7 +27,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Cache crates from crates.io
+      - name: Cache crates
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         continue-on-error: false
         with:
@@ -36,7 +39,7 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-stable-audit-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: cargo deny check
+      - name: Security – cargo deny
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -47,7 +50,7 @@ jobs:
           mv cargo-deny ~/.cargo/bin/
           cargo deny check
 
-      - name: cargo pants
+      - name: Security – cargo pants
         run: |
           cargo install --locked cargo-pants || true
           cargo pants
