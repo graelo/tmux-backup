@@ -215,7 +215,7 @@ impl Catalog {
     }
 
     async fn print_table(&self, details_flag: bool) {
-        println!("Strategy: {}", &self.strategy);
+        println!("Strategy: {}", self.strategy);
 
         // Try to strip the HOME prefix from self.dirpath, otherwise return self.dirpath.
         let location: Cow<Path> = {
