@@ -117,13 +117,24 @@ On macOS
 brew install graelo/homebrew-tap/tmux-backup  # will also install shell completions
 ```
 
-On linux
+On linux, grab the standalone binary for your architecture from the
+[latest release](https://github.com/graelo/tmux-backup/releases/latest)
+(`x86_64-unknown-linux-musl` or `aarch64-unknown-linux-musl`):
 
 ```shell
-curl \
-    https://github.com/graelo/tmux-backup/releases/download/v0.4.0/tmux-backup-x86_64-unknown-linux-gnu.tar.xz \
-    | tar xf - > /usr/local/bin/tmux-backup
+curl -L -o /usr/local/bin/tmux-backup \
+    https://github.com/graelo/tmux-backup/releases/latest/download/tmux-backup-x86_64-unknown-linux-musl
 chmod +x /usr/local/bin/tmux-backup
+```
+
+Or download the archive — it bundles the binary together with the README
+and license files. Pick the version explicitly:
+
+```shell
+VERSION=v0.5.16  # adjust to the desired release
+curl -L https://github.com/graelo/tmux-backup/releases/download/"${VERSION}"/tmux-backup-"${VERSION}"-x86_64-unknown-linux-musl.tar.xz \
+    | tar -xJ
+sudo install -m 755 tmux-backup-"${VERSION}"-x86_64-unknown-linux-musl/tmux-backup /usr/local/bin/
 ```
 
 On linux, to install completions, type
@@ -131,6 +142,25 @@ On linux, to install completions, type
 ```shell
 tmux-backup generate-completion zsh|bash|fish > /path/to/your/completions/folder
 ```
+
+### Verifying release artifacts
+
+Every release artifact ships a build provenance attestation signed by
+GitHub Actions. Verify a download before installing with the
+[GitHub CLI](https://cli.github.com/):
+
+```shell
+# Standalone binary
+gh attestation verify tmux-backup-x86_64-unknown-linux-musl \
+    --repo graelo/tmux-backup
+
+# Archive
+gh attestation verify tmux-backup-v0.5.16-x86_64-unknown-linux-musl.tar.xz \
+    --repo graelo/tmux-backup
+```
+
+Both `.zip` and `.tar.xz` archives plus the standalone binaries for every
+target are covered.
 
 ### Installing the tmux plugin hook
 

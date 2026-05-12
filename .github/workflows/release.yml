@@ -22,10 +22,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+      id-token: write
+      attestations: write
     defaults:
       run:
         shell: bash
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -71,31 +74,54 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: cargo build --release --target "${TARGET}"
 
-      - name: Package – compress (zip)
-        if: matrix.archive_ext == 'zip'
+      - name: Package
         env:
-          REPO_NAME: ${{ github.event.repository.name }}
           TARGET: ${{ matrix.target }}
-          ARCHIVE_EXT: ${{ matrix.archive_ext }}
+          ARCHIVE_FORMAT: ${{ matrix.archive_ext }}
+          TAG: ${{ github.ref_name }}
+          BIN: ${{ github.event.repository.name }}
         run: |
-          cp "target/${TARGET}/release/${REPO_NAME}" .
-          zip -A "${REPO_NAME}-${TARGET}.${ARCHIVE_EXT}" "${REPO_NAME}"
+          set -euo pipefail
+          SRC="target/${TARGET}/release/${BIN}"
 
-      - name: Package – compress (tar.xz)
-        if: matrix.archive_ext == 'tar.xz'
-        env:
-          REPO_NAME: ${{ github.event.repository.name }}
-          TARGET: ${{ matrix.target }}
-          ARCHIVE_EXT: ${{ matrix.archive_ext }}
-        run: |
-          cp "target/${TARGET}/release/${REPO_NAME}" .
-          tar Jcf "${REPO_NAME}-${TARGET}.${ARCHIVE_EXT}" "${REPO_NAME}"
+          STANDALONE="${BIN}-${TARGET}"
+          cp "${SRC}" "${STANDALONE}"
+
+          PKG_DIR="${BIN}-${TAG}-${TARGET}"
+          mkdir "${PKG_DIR}"
+          cp "${SRC}" "${PKG_DIR}/"
+          cp README.md LICENSE-APACHE LICENSE-MIT "${PKG_DIR}/"
+
+          if [[ "${ARCHIVE_FORMAT}" == "zip" ]]; then
+            ARCHIVE_FILE="${PKG_DIR}.zip"
+            zip -r "${ARCHIVE_FILE}" "${PKG_DIR}"
+          else
+            ARCHIVE_FILE="${PKG_DIR}.tar.xz"
+            tar -cJf "${ARCHIVE_FILE}" "${PKG_DIR}"
+          fi
+
+          echo "STANDALONE=${STANDALONE}" >> "${GITHUB_ENV}"
+          echo "ARCHIVE_FILE=${ARCHIVE_FILE}" >> "${GITHUB_ENV}"
+
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            ${{ env.STANDALONE }}
+            ${{ env.ARCHIVE_FILE }}
+
+      - name: Upload – standalone
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ env.STANDALONE }}
+          path: ${{ env.STANDALONE }}
+          retention-days: 1
 
       - name: Upload – archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
-          path: ${{ github.event.repository.name }}-${{ matrix.target }}.${{ matrix.archive_ext }}
+          name: ${{ env.ARCHIVE_FILE }}
+          path: ${{ env.ARCHIVE_FILE }}
           retention-days: 1
 
   release:
@@ -104,8 +130,6 @@ jobs:
     environment: release
     permissions:
       contents: write
-      id-token: write
-      attestations: write
     needs:
       - prepare-artifacts
     steps:
@@ -133,22 +157,11 @@ jobs:
           ./convco changelog -c .convco --max-versions 1 --include-hidden-sections > CHANGELOG.md
           rm convco convco-ubuntu.zip
 
-      - name: Download – archive (x86_64-unknown-linux-musl)
+      - name: Download artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: ${{ github.event.repository.name }}-x86_64-unknown-linux-musl.tar.xz
-      - name: Download – archive (aarch64-unknown-linux-musl)
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: ${{ github.event.repository.name }}-aarch64-unknown-linux-musl.tar.xz
-      - name: Download – archive (aarch64-apple-darwin)
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: ${{ github.event.repository.name }}-aarch64-apple-darwin.zip
-      - name: Download – archive (x86_64-apple-darwin)
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: ${{ github.event.repository.name }}-x86_64-apple-darwin.zip
+          path: artifacts
+          merge-multiple: true
 
       - name: Create GitHub release
         env:
@@ -158,12 +171,7 @@ jobs:
           gh release create "${TAG_NAME}" \
             --title "${TAG_NAME}" \
             --notes-file CHANGELOG.md \
-            ./*.zip ./*.tar.xz
-
-      - name: Attest provenance
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
-        with:
-          subject-path: '*.zip,*.tar.xz'
+            ./artifacts/*
 
   homebrew:
     name: Bump Homebrew formula
