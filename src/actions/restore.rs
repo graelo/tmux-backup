@@ -100,7 +100,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         tmux::server::kill_session(PLACEHOLDER_SESSION_NAME).await?;
         println!(
             "Attach to your last session with `tmux attach -t {}`",
-            &metadata.client.session_name
+            metadata.client.session_name
         );
 
         // Return an overview of the archived tmux environment, which is identical, in principle,
@@ -157,7 +157,7 @@ async fn restore_session(
         let pane_command = format!(
             "cat {} ; exec {}",
             content_filepath.to_string_lossy(),
-            &default_command
+            default_command
         );
 
         let (new_window_id, new_pane_id) = {
@@ -192,7 +192,7 @@ async fn restore_session(
             let pane_command = format!(
                 "cat {} ; exec {}",
                 content_filepath.to_string_lossy(),
-                &default_command
+                default_command
             );
 
             let new_pane_id =

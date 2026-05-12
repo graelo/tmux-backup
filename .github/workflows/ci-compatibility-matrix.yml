@@ -78,20 +78,25 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
     strategy:
       matrix:
         include:
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
-            type: unix
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
             toolchain: stable
           - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            type: unix
+            target: aarch64-unknown-linux-musl
+            toolchain: stable
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
             toolchain: stable
           - os: macos-latest
             target: aarch64-apple-darwin
-            type: unix
             toolchain: stable
     steps:
       - name: Install Rust
@@ -100,6 +105,10 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           targets: ${{ matrix.target }}
           components: rustfmt, clippy
+
+      - name: Install musl-tools (Linux)
+        if: contains(matrix.target, '-musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
