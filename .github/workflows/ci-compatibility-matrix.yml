@@ -84,6 +84,7 @@ jobs:
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
