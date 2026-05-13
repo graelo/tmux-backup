@@ -3,6 +3,7 @@
 # Local:
 #   act push -W .github/workflows/release.yml -j prepare-artifacts
 #   act push -W .github/workflows/release.yml -j release
+#   act push -W .github/workflows/release.yml -j homebrew
 
 name: Release
 on:
@@ -31,53 +32,46 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            rust: stable
-            suffix: ''
-            archive_ext: zip
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
-            rust: stable
-            suffix: ''
-            archive_ext: zip
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            rust: stable
-            suffix: ''
-            archive_ext: tar.xz
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-musl
-            rust: stable
-            suffix: ''
-            archive_ext: tar.xz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            archive: tar.xz
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+            archive: tar.xz
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            archive: tar.xz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.xz
     steps:
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
-        with:
-          toolchain: ${{ matrix.rust }}
-          targets: ${{ matrix.target }}
-          components: rustfmt, clippy
-
-      - name: Install musl-tools (Linux)
-        if: contains(matrix.target, '-musl')
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
-
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Install musl-tools (Linux)
+        if: contains(matrix.target, 'linux-musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
       - name: Build (release)
         env:
           TARGET: ${{ matrix.target }}
-        run: cargo build --release --locked --target "${TARGET}"
+        run: cargo build --locked --release --target "${TARGET}"
 
-      - name: Package
+      - name: Stage binary and archive
         env:
           TARGET: ${{ matrix.target }}
-          ARCHIVE_FORMAT: ${{ matrix.archive_ext }}
+          ARCHIVE_FORMAT: ${{ matrix.archive }}
           TAG: ${{ github.ref_name }}
           BIN: ${{ github.event.repository.name }}
         run: |
@@ -90,11 +84,11 @@ jobs:
           PKG_DIR="${BIN}-${TAG}-${TARGET}"
           mkdir "${PKG_DIR}"
           cp "${SRC}" "${PKG_DIR}/"
-          cp README.md LICENSE-APACHE LICENSE-MIT "${PKG_DIR}/"
+          cp README.md LICENSE* "${PKG_DIR}/" 2>/dev/null || true
 
           if [[ "${ARCHIVE_FORMAT}" == "zip" ]]; then
             ARCHIVE_FILE="${PKG_DIR}.zip"
-            zip -r "${ARCHIVE_FILE}" "${PKG_DIR}"
+            7z a "${ARCHIVE_FILE}" "${PKG_DIR}" >/dev/null
           else
             ARCHIVE_FILE="${PKG_DIR}.tar.xz"
             tar -cJf "${ARCHIVE_FILE}" "${PKG_DIR}"
@@ -140,21 +134,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Extract version
-        id: extract-version
-        run: |
-          echo "tag-name=${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
-
       - name: Install convco
         run: |
-          git show-ref
           curl -sSfLO https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip
           unzip convco-ubuntu.zip
           chmod +x convco
 
       - name: Generate changelog
         run: |
-          ./convco changelog -c .convco --max-versions 1 --include-hidden-sections > CHANGELOG.md
+          ./convco changelog -c .convco --max-versions 1 > CHANGELOG.md
           rm convco convco-ubuntu.zip
 
       - name: Download artifacts
