@@ -8,6 +8,33 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.5.17] - 2026-05-13
+
+### Changed
+
+- Bump MSRV to 1.95; apply `LazyLock`, let-chains, and other Rust 1.80–1.95
+  features
+- Switch the test runner to `cargo-nextest` (with a dedicated `ci` profile)
+- Add `install-binary.sh` so the tmux plugin can fetch the standalone release
+  binary on demand
+- Adopt the github-actions-playbook layout for CI: prefixed workflow names
+  (`ci-*`, `schedule-*`, `_*`), reusable supply-chain audits, conventional
+  job/step names, and a tighter compatibility matrix
+- Update `tmux-lib` to 0.5
+- Bump dependencies
+
+### Security
+
+- Pin every cargo invocation in CI to `--locked` so a stale `Cargo.lock`
+  fails the build instead of silently resolving fresh dependencies
+- Renovate now respects `minimumReleaseAge: 3 days` and uses a GitHub App
+  identity (`graelo-ci-bot`) with grouped patch/minor automerge
+
+### Fixed
+
+- Clippy: drop useless borrows in format args
+- Renovate schedule fixed to run weekly on Fridays
+
 ## [0.5.16] - 2026-04-17
 
 ### Changed
@@ -289,7 +316,8 @@ Initial public release.
 - Strategy configuration via environment variables
 - `show_options()` and `session_path` capture through tmux
 
-[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.16...HEAD
+[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.17...HEAD
+[0.5.17]: https://github.com/graelo/tmux-backup/compare/v0.5.16...v0.5.17
 [0.5.16]: https://github.com/graelo/tmux-backup/compare/v0.5.15...v0.5.16
 [0.5.15]: https://github.com/graelo/tmux-backup/compare/v0.5.14...v0.5.15
 [0.5.14]: https://github.com/graelo/tmux-backup/compare/v0.5.13...v0.5.14
