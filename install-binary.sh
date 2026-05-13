@@ -69,13 +69,12 @@ install() {
         x86_64|amd64) arch="x86_64" ;; arm64|aarch64) arch="aarch64" ;; *) die "Unsupported arch: $(uname -m). Install manually: ${RELEASES_URL}" ;;
     esac
 
-    # Build expected asset name
+    # Build expected standalone-binary asset name
     local asset
-    if [[ "$os" == "darwin" ]]; then
-        asset="${BINARY}-${arch}-apple-darwin.zip"
-    else
-        asset="${BINARY}-${arch}-unknown-linux-musl.tar.xz"
-    fi
+    case "$os" in
+        darwin) asset="${BINARY}-${arch}-apple-darwin" ;;
+        linux)  asset="${BINARY}-${arch}-unknown-linux-musl" ;;
+    esac
 
     # Get download URL from GitHub API
     local api_url="https://api.github.com/repos/${REPO}/releases/latest"
@@ -86,34 +85,9 @@ install() {
     url=$(echo "$release_info" | grep -o "\"browser_download_url\":[[:space:]]*\"[^\"]*${asset}\"" | sed 's/.*"\(http[^"]*\)".*/\1/')
     [[ -n "$url" ]] || die "No binary found for ${os}-${arch}. Install manually: ${RELEASES_URL}"
 
-    # Download and extract
+    # Download standalone binary directly to destination
     log "Downloading ${asset}..."
-    local tmp="${SCRIPT_DIR}/${asset}"
-    download "$url" "$tmp" || die "Download failed"
-
-    if [[ "$asset" == *.zip ]]; then
-        unzip -qo "$tmp" -d "$SCRIPT_DIR"
-    else
-        tar -xf "$tmp" -C "$SCRIPT_DIR"
-    fi
-    rm -f "$tmp"
-
-    # Find and move binary to expected location
-    local found=""
-    for candidate in "${SCRIPT_DIR}/${BINARY}" "${SCRIPT_DIR}/target/release/${BINARY}" "${SCRIPT_DIR}/release/${BINARY}"; do
-        [[ -f "$candidate" ]] && found="$candidate" && break
-    done
-    [[ -n "$found" ]] || die "Binary not found after extraction"
-
-    if [[ "$found" != "$BINARY_PATH" ]]; then
-        mv "$found" "$BINARY_PATH"
-        # Clean up leftover empty directories
-        local d; d=$(dirname "$found")
-        while [[ "$d" != "$SCRIPT_DIR" ]] && [[ -d "$d" ]]; do
-            rmdir "$d" 2>/dev/null || break
-            d=$(dirname "$d")
-        done
-    fi
+    download "$url" "$BINARY_PATH" || die "Download failed"
     chmod +x "$BINARY_PATH"
 
     # Record installed version
