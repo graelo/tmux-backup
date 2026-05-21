@@ -1,8 +1,8 @@
 # Compatibility testing: multi-version and multi-platform matrix.
 #
 # Local:
-#   act push -W .github/workflows/ci-compatibility-matrix.yml -j test-all-versions
-#   act push -W .github/workflows/ci-compatibility-matrix.yml -j test-all-platforms
+#   act push -W .github/workflows/ci-compatibility-matrix.yml -j test-rust-versions
+#   act push -W .github/workflows/ci-compatibility-matrix.yml -j test-platforms
 
 name: 'CI: Compatibility Matrix'
 
@@ -18,8 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-all-versions:
-    name: ubuntu-latest (${{ matrix.rust }})
+  test-rust-versions:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,8 +63,7 @@ jobs:
       - name: Test
         run: ./ci/test_full.sh
 
-  test-all-platforms:
-    name: ${{ matrix.target }}
+  test-platforms:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
