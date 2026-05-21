@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.5.20] - 2026-05-21
+
+### Changed
+
+- Release workflow: pass `--prerelease="${IS_PRERELEASE}"` as a single quoted
+  bool expansion (gh accepts `--prerelease=true|false` via cobra/pflag),
+  dropping the prior `PRERELEASE_FLAG` ternary + unquoted expansion. No
+  shellcheck SC2086 trip, no word-splitting tricks
+
 ## [0.5.19] - 2026-05-21
 
 ### Changed
@@ -347,7 +356,8 @@ Initial public release.
 - Strategy configuration via environment variables
 - `show_options()` and `session_path` capture through tmux
 
-[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.19...HEAD
+[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.20...HEAD
+[0.5.20]: https://github.com/graelo/tmux-backup/compare/v0.5.19...v0.5.20
 [0.5.19]: https://github.com/graelo/tmux-backup/compare/v0.5.18...v0.5.19
 [0.5.18]: https://github.com/graelo/tmux-backup/compare/v0.5.17...v0.5.18
 [0.5.17]: https://github.com/graelo/tmux-backup/compare/v0.5.16...v0.5.17
