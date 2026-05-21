@@ -154,8 +154,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
+          PRERELEASE_FLAG: ${{ contains(github.ref, '-') && '--prerelease' || '' }}
         run: |
           gh release create "${TAG_NAME}" \
+            ${PRERELEASE_FLAG} \
             --title "${TAG_NAME}" \
             --notes-file CHANGELOG.md \
             ./artifacts/*
