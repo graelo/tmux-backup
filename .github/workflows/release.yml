@@ -177,6 +177,8 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: graelo
           repositories: homebrew-tap
+          permission-contents: write
+          permission-pull-requests: write
 
       - name: Extract version
         id: extract-version
