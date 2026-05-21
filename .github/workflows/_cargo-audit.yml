@@ -52,5 +52,5 @@ jobs:
 
       - name: Security – cargo pants
         run: |
-          cargo install --locked cargo-pants || true
+          cargo install --locked cargo-pants || command -v cargo-pants
           cargo pants
