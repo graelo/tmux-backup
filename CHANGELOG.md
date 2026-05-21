@@ -8,6 +8,28 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.5.18] - 2026-05-21
+
+### Changed
+
+- Align matrix jobs across CI workflows with the github-actions-playbook
+  conventions (consistent job/step naming, tighter scope)
+- Bump dependencies (Cargo patches and GitHub Actions SHA pins via Renovate)
+
+### Fixed
+
+- Release workflow: replace the broken `mislav/bump-homebrew-formula-action`
+  with Homebrew's built-in `brew bump-formula-pr`. The third-party action
+  rejected GitHub's new HTTP 303 codeload redirects, breaking the tap bump
+  on every release (upstream issue
+  [mislav/bump-homebrew-formula-action#340](https://github.com/mislav/bump-homebrew-formula-action/issues/340))
+
+### Security
+
+- Pin explicit `permissions` blocks on jobs that use
+  `create-github-app-token`, applying least-privilege to release and
+  Renovate workflows
+
 ## [0.5.17] - 2026-05-13
 
 ### Changed
@@ -316,7 +338,8 @@ Initial public release.
 - Strategy configuration via environment variables
 - `show_options()` and `session_path` capture through tmux
 
-[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.17...HEAD
+[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.18...HEAD
+[0.5.18]: https://github.com/graelo/tmux-backup/compare/v0.5.17...v0.5.18
 [0.5.17]: https://github.com/graelo/tmux-backup/compare/v0.5.16...v0.5.17
 [0.5.16]: https://github.com/graelo/tmux-backup/compare/v0.5.15...v0.5.16
 [0.5.15]: https://github.com/graelo/tmux-backup/compare/v0.5.14...v0.5.15

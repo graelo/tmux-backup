@@ -168,6 +168,10 @@ jobs:
       contents: read
     needs:
       - release
+    if: ${{ !contains(github.ref, '-') }} # skip prereleases (-rc, -alpha, -beta, -test, ...)
+    env:
+      TAP_REPO: graelo/homebrew-tap
+      FORMULA_NAME: tmux-backup
     steps:
       - name: Generate GitHub App token
         id: app-token
@@ -180,23 +184,34 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
-      - name: Extract version
-        id: extract-version
+      - name: Configure Homebrew, git, and gh for the bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          echo "tag-name=${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
+          # Linuxbrew is preinstalled on ubuntu-latest; put it on PATH for later steps.
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          echo "/home/linuxbrew/.linuxbrew/bin" >> "${GITHUB_PATH}"
+
+          # Tap our formula so `brew bump-formula-pr` can locate it by name.
+          brew tap "${TAP_REPO}"
+
+          # Configure git to push with the app token, and set the bot identity
+          # so the commit is attributed to graelo-ci-bot[bot].
+          gh auth setup-git
+          git config --global user.name  'graelo-ci-bot[bot]'
+          git config --global user.email '274240725+graelo-ci-bot[bot]@users.noreply.github.com'
 
       - name: Bump Homebrew formula
-        uses: mislav/bump-homebrew-formula-action@ccf2332299a883f6af50a1d2d41e5df7904dd769 # v4.1
-        if: '!contains(github.ref, ''-'')' # skip prereleases
-        with:
-          formula-name: tmux-backup
-          homebrew-tap: graelo/homebrew-tap
-          push-to: graelo/homebrew-tap
-          create-pullrequest: true
-          download-url: https://github.com/graelo/tmux-backup/archive/refs/tags/${{ steps.extract-version.outputs.tag-name }}.tar.gz
-          commit-message: |
-            {{formulaName}} {{version}}
-
-            Created by https://github.com/mislav/bump-homebrew-formula-action
         env:
-          COMMITTER_TOKEN: ${{ steps.app-token.outputs.token }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+          HOMEBREW_NO_ANALYTICS: '1'
+          HOMEBREW_NO_ENV_HINTS: '1'
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          brew bump-formula-pr \
+            --no-browse \
+            --no-fork \
+            --url="https://github.com/graelo/tmux-backup/archive/refs/tags/${TAG_NAME}.tar.gz" \
+            "${TAP_REPO}/${FORMULA_NAME}"

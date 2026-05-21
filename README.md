@@ -131,7 +131,7 @@ Or download the archive — it bundles the binary together with the README
 and license files. Pick the version explicitly:
 
 ```shell
-VERSION=v0.5.16  # adjust to the desired release
+VERSION=v0.5.18  # adjust to the desired release
 curl -L https://github.com/graelo/tmux-backup/releases/download/"${VERSION}"/tmux-backup-"${VERSION}"-x86_64-unknown-linux-musl.tar.xz \
     | tar -xJ
 sudo install -m 755 tmux-backup-"${VERSION}"-x86_64-unknown-linux-musl/tmux-backup /usr/local/bin/
@@ -155,7 +155,7 @@ gh attestation verify tmux-backup-x86_64-unknown-linux-musl \
     --repo graelo/tmux-backup
 
 # Archive
-gh attestation verify tmux-backup-v0.5.16-x86_64-unknown-linux-musl.tar.xz \
+gh attestation verify tmux-backup-v0.5.18-x86_64-unknown-linux-musl.tar.xz \
     --repo graelo/tmux-backup
 ```
 
