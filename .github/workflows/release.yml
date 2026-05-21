@@ -172,6 +172,9 @@ jobs:
     env:
       TAP_REPO: graelo/homebrew-tap
       FORMULA_NAME: tmux-backup
+      BOT_NAME: 'graelo-ci-bot[bot]'
+      BOT_USER_ID: '274240725'
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
     steps:
       - name: Generate GitHub App token
         id: app-token
@@ -196,10 +199,10 @@ jobs:
           brew tap "${TAP_REPO}"
 
           # Configure git to push with the app token, and set the bot identity
-          # so the commit is attributed to graelo-ci-bot[bot].
+          # so the commit is attributed to ${BOT_NAME}.
           gh auth setup-git
-          git config --global user.name  'graelo-ci-bot[bot]'
-          git config --global user.email '274240725+graelo-ci-bot[bot]@users.noreply.github.com'
+          git config --global user.name  "${BOT_NAME}"
+          git config --global user.email "${BOT_USER_ID}+${BOT_NAME}@users.noreply.github.com"
 
       - name: Bump Homebrew formula
         env:
@@ -213,5 +216,5 @@ jobs:
           brew bump-formula-pr \
             --no-browse \
             --no-fork \
-            --url="https://github.com/graelo/tmux-backup/archive/refs/tags/${TAG_NAME}.tar.gz" \
+            --url="${REPO_URL}/archive/refs/tags/${TAG_NAME}.tar.gz" \
             "${TAP_REPO}/${FORMULA_NAME}"
