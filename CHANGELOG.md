@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.5.19] - 2026-05-21
+
+### Changed
+
+- Release workflow: accept pre-release tags (`v*.*.*-rc*`, `-beta*`, etc.) in
+  addition to stable `vX.Y.Z` tags
+- Hoist hardcoded values in the Homebrew formula bump job into workflow `env`
+  vars for easier maintenance
+
 ## [0.5.18] - 2026-05-21
 
 ### Changed
@@ -338,7 +347,8 @@ Initial public release.
 - Strategy configuration via environment variables
 - `show_options()` and `session_path` capture through tmux
 
-[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.18...HEAD
+[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.19...HEAD
+[0.5.19]: https://github.com/graelo/tmux-backup/compare/v0.5.18...v0.5.19
 [0.5.18]: https://github.com/graelo/tmux-backup/compare/v0.5.17...v0.5.18
 [0.5.17]: https://github.com/graelo/tmux-backup/compare/v0.5.16...v0.5.17
 [0.5.16]: https://github.com/graelo/tmux-backup/compare/v0.5.15...v0.5.16
