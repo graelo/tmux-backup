@@ -25,7 +25,7 @@ clap_complete = "4.6.0"
 
 thiserror = "2"
 
-itertools = "0.14"  # waiting for https://doc.rust-lang.org/std/primitive.slice.html#method.group_by
+itertools = "0.15"  # waiting for https://doc.rust-lang.org/std/primitive.slice.html#method.group_by
 regex = "1.12"
 si-scale = "0.3"
 
