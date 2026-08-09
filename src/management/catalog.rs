@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 use std::{env, iter};
 
 use async_fs as fs;
-use chrono::{Local, NaiveDateTime};
+use chrono::{DateTime, Local, NaiveDateTime};
 use futures::future::join_all;
 use futures::stream::StreamExt;
 use regex::Regex;
@@ -18,7 +18,7 @@ use crate::{
     Result,
     management::{
         archive::v1,
-        backup::{Backup, BackupStatus},
+        backup::{Autosave, Backup, BackupStatus},
         compaction::{Plan, Strategy},
     },
 };
@@ -33,6 +33,9 @@ pub struct Catalog {
 
     /// Sorted list of all backups (oldest to newest).
     pub backups: Vec<Backup>,
+
+    /// Rolling autosave archive, excluded from retention and compaction.
+    pub autosave: Option<Autosave>,
 }
 
 // Public API
@@ -50,11 +53,13 @@ impl Catalog {
         fs::create_dir_all(dirpath).await?;
 
         let backup_files = Self::parse_backup_filenames(dirpath).await?;
+        let autosave = Self::parse_autosave(dirpath).await?;
 
         let catalog = Catalog {
             dirpath: dirpath.to_path_buf(),
             strategy,
             backups: backup_files,
+            autosave,
         };
 
         Ok(catalog)
@@ -65,16 +70,19 @@ impl Catalog {
     /// This returns a new catalog with the updated content.
     pub async fn refresh(self) -> Result<Catalog> {
         let backups = Self::parse_backup_filenames(self.dirpath.as_path()).await?;
+        let autosave = Self::parse_autosave(self.dirpath.as_path()).await?;
         Ok(Catalog {
             dirpath: self.dirpath,
             strategy: self.strategy,
             backups,
+            autosave,
         })
     }
 
     /// Update the catalog's list of backups with the current content of `dirpath`.
     pub async fn refresh_mut(&mut self) -> Result<()> {
         self.backups = Self::parse_backup_filenames(self.dirpath.as_path()).await?;
+        self.autosave = Self::parse_autosave(self.dirpath.as_path()).await?;
         Ok(())
     }
 
@@ -93,6 +101,21 @@ impl Catalog {
     /// Because backups are sorted from oldest to most recent, both strategies agree on this.
     pub fn latest(&self) -> Option<&Backup> {
         self.backups.last()
+    }
+
+    /// Filepath of the newest archive that can be restored.
+    ///
+    /// This compares the latest ordinary backup with the rolling autosave archive. An autosave
+    /// wins ties, which makes a just-written autosave preferred over a same-instant backup.
+    pub fn latest_for_restore(&self) -> Option<&Path> {
+        match (self.latest(), self.autosave.as_ref()) {
+            (Some(backup), Some(autosave)) if backup.creation_date > autosave.modified_at => {
+                Some(backup.filepath.as_path())
+            }
+            (_, Some(autosave)) => Some(autosave.filepath.as_path()),
+            (Some(backup), None) => Some(backup.filepath.as_path()),
+            (None, None) => None,
+        }
     }
 
     /// Simulate the compaction strategy: list the backup files to delete, and the ones to keep.
@@ -199,19 +222,40 @@ impl Catalog {
             let path = entry.path();
             if let Some(captures) = BACKUP_RE.captures(&path.to_string_lossy()) {
                 let date_str = &captures[1];
-                let creation_date =
-                    NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S%.f").unwrap();
-                let backup = Backup {
-                    filepath: path,
-                    creation_date,
-                };
-                backups.push(backup);
+                if let Ok(creation_date) =
+                    NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S%.f")
+                {
+                    backups.push(Backup {
+                        filepath: path,
+                        creation_date,
+                    });
+                }
             }
         }
 
         backups.sort_unstable_by_key(|b| b.creation_date);
 
         Ok(backups)
+    }
+
+    /// Return the rolling autosave archive, if present.
+    async fn parse_autosave<P: AsRef<Path>>(dirpath: P) -> Result<Option<Autosave>> {
+        let filepath = v1::autosave_filepath(dirpath);
+        let metadata = match fs::metadata(&filepath).await {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+
+        if !metadata.is_file() {
+            return Ok(None);
+        }
+
+        let modified_at = DateTime::<Local>::from(metadata.modified()?).naive_local();
+        Ok(Some(Autosave {
+            filepath,
+            modified_at,
+        }))
     }
 
     async fn print_table(&self, details_flag: bool) {
@@ -227,15 +271,20 @@ impl Catalog {
                 Cow::Borrowed(&self.dirpath)
             }
         };
-        println!("Location: `{}`\n", location.to_string_lossy());
+        println!("Location: `{}`", location.to_string_lossy());
+
+        let now = Local::now().naive_local();
+        match &self.autosave {
+            Some(autosave) => println!("Auto-save: {} ago", autosave.age(now)),
+            None => println!("Auto-save: none"),
+        }
+        println!();
 
         let Plan {
             purgeable,
             retainable,
             statuses,
         } = self.plan();
-
-        let now = Local::now().naive_local();
 
         let reset = "\u{001b}[0m";
         let green = "\u{001b}[32m";
@@ -308,5 +357,99 @@ impl Catalog {
             retainable.len(),
             purgeable.len(),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Timelike;
+    use tempfile::TempDir;
+
+    fn catalog(dir: &TempDir) -> Catalog {
+        smol::block_on(Catalog::new(dir.path(), Strategy::most_recent(1))).unwrap()
+    }
+
+    #[test]
+    fn autosave_is_tracked_separately_from_backups() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(
+            dir.path().join("backup-20240101T120000.123456.tar.zst"),
+            "backup",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join(v1::AUTOSAVE_FILENAME), "autosave").unwrap();
+
+        let catalog = catalog(&dir);
+
+        assert_eq!(catalog.len(), 1);
+        assert!(catalog.autosave.is_some());
+        let plan = catalog.plan();
+        assert_eq!(plan.retainable.len(), 1);
+        assert!(plan.purgeable.is_empty());
+    }
+
+    #[test]
+    fn autosave_is_selected_when_newer_than_backup() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(
+            dir.path().join("backup-20000101T120000.123456.tar.zst"),
+            "backup",
+        )
+        .unwrap();
+        let autosave_filepath = v1::autosave_filepath(dir.path());
+        std::fs::write(&autosave_filepath, "autosave").unwrap();
+
+        let catalog = catalog(&dir);
+
+        assert_eq!(
+            catalog.latest_for_restore(),
+            Some(autosave_filepath.as_path())
+        );
+    }
+
+    #[test]
+    fn backup_is_selected_when_newer_than_autosave() {
+        let dir = TempDir::new().unwrap();
+        let backup_filepath = dir.path().join("backup-20990101T120000.123456.tar.zst");
+        std::fs::write(&backup_filepath, "backup").unwrap();
+        std::fs::write(dir.path().join(v1::AUTOSAVE_FILENAME), "autosave").unwrap();
+
+        let catalog = catalog(&dir);
+
+        assert_eq!(
+            catalog.latest_for_restore(),
+            Some(backup_filepath.as_path())
+        );
+    }
+
+    #[test]
+    fn backup_timestamp_retains_microseconds() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(
+            dir.path().join("backup-20240101T120000.123456.tar.zst"),
+            "backup",
+        )
+        .unwrap();
+
+        let catalog = catalog(&dir);
+
+        assert_eq!(
+            catalog.latest().unwrap().creation_date.nanosecond(),
+            123_456_000
+        );
+    }
+
+    #[test]
+    fn malformed_or_suffixed_backup_names_are_ignored() {
+        let dir = TempDir::new().unwrap();
+        for filename in [
+            "backup-20241301T120000.123456.tar.zst",
+            "backup-20240101T120000.123456.tar.zst.bak",
+        ] {
+            std::fs::write(dir.path().join(filename), "not a backup").unwrap();
+        }
+
+        assert!(catalog(&dir).is_empty());
     }
 }

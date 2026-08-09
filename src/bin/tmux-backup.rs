@@ -2,12 +2,15 @@
 
 use std::path::Path;
 
+use async_fs as fs;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
 use tmux_backup::{
-    actions::{restore, save},
-    config::{CatalogSubcommand, Command, Config, StrategyConfig},
+    actions::{
+        AutosaveContext, autosave, autosave_context, display_autosave_message, restore, save,
+    },
+    config::{AutosaveTmuxOutput, CatalogSubcommand, Command, Config, StrategyConfig},
     management::{archive::v1, catalog::Catalog},
     tmux,
 };
@@ -96,6 +99,53 @@ async fn run(config: Config) {
             };
         }
 
+        Command::Autosave {
+            to_tmux,
+            num_lines_to_drop,
+        } => {
+            let context = match autosave_context(to_tmux.is_some()).await {
+                Ok(context) => context,
+                Err(e) => {
+                    failure_message(
+                        format!("🛑 Could not prepare autosave: {e}"),
+                        Output::Stdout,
+                    );
+                    return;
+                }
+            };
+
+            if let Err(e) = fs::create_dir_all(&config.backup_dirpath).await {
+                autosave_failure(
+                    format!("🛑 Could not create autosave directory: {e}"),
+                    to_tmux,
+                    &context,
+                );
+                return;
+            }
+
+            match autosave(
+                &config.backup_dirpath,
+                num_lines_to_drop as usize,
+                context.clone(),
+            )
+            .await
+            {
+                Ok((backup_filepath, archive_overview)) => autosave_success(
+                    format!(
+                        "✅ {archive_overview}, auto-saved to `{}`",
+                        backup_filepath.to_string_lossy()
+                    ),
+                    to_tmux,
+                    &context,
+                ),
+                Err(e) => autosave_failure(
+                    format!("🛑 Could not autosave sessions: {e}"),
+                    to_tmux,
+                    &context,
+                ),
+            }
+        }
+
         Command::Restore {
             strategy,
             to_tmux,
@@ -103,12 +153,12 @@ async fn run(config: Config) {
         } => {
             let catalog = init_catalog(&config.backup_dirpath, strategy).await;
 
-            // Either the provided filepath, or catalog.latest(), or failure message
+            // Either the provided filepath, or newest ordinary backup/autosave, or failure.
             let backup_to_restore = {
                 if let Some(ref backup_filepath) = backup_filepath {
                     backup_filepath.as_path()
-                } else if let Some(backup) = catalog.latest() {
-                    &backup.filepath
+                } else if let Some(backup_filepath) = catalog.latest_for_restore() {
+                    backup_filepath
                 } else {
                     failure_message("🛑 No available backup to restore".to_string(), to_tmux);
                     return;
@@ -160,6 +210,29 @@ impl From<bool> for Output {
             Output::Stdout
         }
     }
+}
+
+fn autosave_success(
+    message: String,
+    to_tmux: Option<AutosaveTmuxOutput>,
+    context: &AutosaveContext,
+) {
+    match to_tmux {
+        Some(AutosaveTmuxOutput::All) => display_autosave_message(context, &message),
+        None | Some(AutosaveTmuxOutput::Errors) => println!("{message}"),
+    }
+}
+
+fn autosave_failure(
+    message: String,
+    to_tmux: Option<AutosaveTmuxOutput>,
+    context: &AutosaveContext,
+) {
+    eprintln!("{message}");
+    if to_tmux.is_some() {
+        display_autosave_message(context, &message);
+    }
+    std::process::exit(1);
 }
 
 fn success_message<O: Into<Output>>(message: String, output: O) {

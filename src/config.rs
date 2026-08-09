@@ -70,6 +70,25 @@ pub enum Command {
         num_lines_to_drop: u8,
     },
 
+    /// Save a rolling autosave archive for recovery.
+    ///
+    /// This always replaces `autosave.tar.zst` in the backup folder. It is excluded from retention
+    /// and compaction, and is intended for an external scheduler.
+    Autosave {
+        /// Print errors, or all reports, in the Tmux status bar.
+        #[arg(long, value_enum)]
+        to_tmux: Option<AutosaveTmuxOutput>,
+
+        /// Number of lines to ignore during capture if the active command is a shell.
+        #[arg(
+            short = 'i',
+            long = "ignore-last-lines",
+            value_name = "NUMBER",
+            default_value_t = 0
+        )]
+        num_lines_to_drop: u8,
+    },
+
     /// Restore the Tmux sessions from a backup file.
     ///
     /// Sessions, windows and panes geometry + content are read from the backup marked as "current"
@@ -124,6 +143,16 @@ pub enum Command {
     /// `tmux-backup init > ~/.tmux/plugins/tmux-backup.tmux`. and source it
     /// from your `~/.tmux.conf`. See the README for details.
     Init,
+}
+
+/// Reporting mode for autosaves triggered from an external scheduler.
+#[derive(Debug, Clone, ValueEnum)]
+pub enum AutosaveTmuxOutput {
+    /// Report errors to both stderr and the Tmux status bar.
+    Errors,
+
+    /// Report successful saves to Tmux as well as errors.
+    All,
 }
 
 /// Catalog subcommands.
@@ -341,6 +370,57 @@ mod tests {
                     num_lines_to_drop, ..
                 } => assert_eq!(num_lines_to_drop, 2),
                 _ => panic!("Expected Save command"),
+            }
+        }
+
+        #[test]
+        fn autosave_command_parses() {
+            let config = Config::try_parse_from(["tmux-backup", "autosave"]).unwrap();
+            assert!(matches!(config.command, Command::Autosave { .. }));
+        }
+
+        #[test]
+        fn autosave_with_ignore_lines() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "autosave", "--ignore-last-lines", "2"])
+                    .unwrap();
+            match config.command {
+                Command::Autosave {
+                    num_lines_to_drop, ..
+                } => assert_eq!(num_lines_to_drop, 2),
+                _ => panic!("Expected Autosave command"),
+            }
+        }
+
+        #[test]
+        fn autosave_with_tmux_errors() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "autosave", "--to-tmux", "errors"]).unwrap();
+            match config.command {
+                Command::Autosave { to_tmux, .. } => {
+                    assert!(matches!(to_tmux, Some(AutosaveTmuxOutput::Errors)));
+                }
+                _ => panic!("Expected Autosave command"),
+            }
+        }
+
+        #[test]
+        fn autosave_with_tmux_all() {
+            let config =
+                Config::try_parse_from(["tmux-backup", "autosave", "--to-tmux", "all"]).unwrap();
+            match config.command {
+                Command::Autosave { to_tmux, .. } => {
+                    assert!(matches!(to_tmux, Some(AutosaveTmuxOutput::All)));
+                }
+                _ => panic!("Expected Autosave command"),
+            }
+        }
+
+        #[test]
+        fn autosave_rejects_save_only_options() {
+            for option in ["--compact", "--strategy", "--num-backups"] {
+                let result = Config::try_parse_from(["tmux-backup", "autosave", option]);
+                assert!(result.is_err(), "Expected {option} to be rejected");
             }
         }
 

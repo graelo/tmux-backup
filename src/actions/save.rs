@@ -114,7 +114,7 @@ fn lines_to_drop_for_pane(pane_command: &str, num_lines_to_drop: usize) -> usize
 }
 
 /// For each provided pane, retrieve the content and save it into `destination_dir`.
-async fn save_panes_content<P: AsRef<Path>>(
+pub(crate) async fn save_panes_content<P: AsRef<Path>>(
     panes: Vec<tmux::pane::Pane>,
     destination_dir: P,
     num_lines_to_drop: usize,
@@ -126,18 +126,41 @@ async fn save_panes_content<P: AsRef<Path>>(
         let drop_n_last_lines = lines_to_drop_for_pane(&pane.command, num_lines_to_drop);
 
         let handle = smol::spawn(async move {
-            let stdout = pane.capture().await.unwrap();
-            let cleaned_buffer = utils::cleanup_captured_buffer(&stdout, drop_n_last_lines);
+            let stdout = pane.capture().await?;
+            let cleaned_buffer = cleanup_captured_buffer(&stdout, drop_n_last_lines);
 
             let filename = format!("pane-{}.txt", pane.id);
             let filepath = dest_dir.join(filename);
-            fs::write(filepath, cleaned_buffer).await
+            fs::write(filepath, cleaned_buffer).await?;
+            Ok(())
         });
         handles.push(handle);
     }
 
-    join_all(handles).await;
+    join_all(handles)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>>>()?;
     Ok(())
+}
+
+/// Clean a captured pane buffer while safely limiting the number of trailing lines to drop.
+fn cleanup_captured_buffer(buffer: &[u8], requested_drop_count: usize) -> Vec<u8> {
+    let available_line_count = captured_line_count(buffer);
+    utils::cleanup_captured_buffer(buffer, requested_drop_count.min(available_line_count))
+}
+
+/// Return the number of lines retained by tmux-lib before it drops requested trailing lines.
+fn captured_line_count(buffer: &[u8]) -> usize {
+    let lines: Vec<_> = buffer
+        .split(|byte| *byte == b'\n')
+        .map(|line| line.trim_ascii_end())
+        .collect();
+
+    lines
+        .iter()
+        .rposition(|line| !line.is_empty())
+        .map_or(lines.len(), |last_nonempty| last_nonempty + 1)
 }
 
 #[cfg(test)]
@@ -195,6 +218,24 @@ mod tests {
             assert!(!is_shell_command("ZSH"));
             assert!(!is_shell_command("BASH"));
             assert!(!is_shell_command("Fish"));
+        }
+    }
+
+    mod buffer_cleanup {
+        use super::*;
+
+        #[test]
+        fn clamps_dropped_lines_to_short_buffer() {
+            let cleaned = cleanup_captured_buffer(b"one line\n", 10);
+
+            assert!(cleaned.is_empty());
+        }
+
+        #[test]
+        fn handles_an_empty_buffer() {
+            let cleaned = cleanup_captured_buffer(b"", 1);
+
+            assert!(cleaned.is_empty());
         }
     }
 
