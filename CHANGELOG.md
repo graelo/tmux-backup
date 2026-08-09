@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `autosave` command for scheduler-driven rolling recovery archives, atomically replacing
+  `autosave.tar.zst` with optional Tmux error reporting
+- Catalog status for the separate autosave archive; it is excluded from retention and compaction,
+  and default restore selects the newer ordinary backup or autosave
+
 ## [0.5.20] - 2026-05-21
 
 ### Changed
