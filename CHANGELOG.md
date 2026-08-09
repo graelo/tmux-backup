@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-09
+
 ### Added
 
 - `autosave` command for scheduler-driven rolling recovery archives, atomically replacing
@@ -363,7 +365,8 @@ Initial public release.
 - Strategy configuration via environment variables
 - `show_options()` and `session_path` capture through tmux
 
-[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.5.20...HEAD
+[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/graelo/tmux-backup/compare/v0.5.20...v0.6.0
 [0.5.20]: https://github.com/graelo/tmux-backup/compare/v0.5.19...v0.5.20
 [0.5.19]: https://github.com/graelo/tmux-backup/compare/v0.5.18...v0.5.19
 [0.5.18]: https://github.com/graelo/tmux-backup/compare/v0.5.17...v0.5.18
