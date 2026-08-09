@@ -2,7 +2,7 @@
 
 //! A backup & restore solution for Tmux sessions.
 //!
-//! Version requirement: _rustc 1.88+_
+//! Version requirement: _rustc 1.95+_
 //!
 //! ## Features
 //!
@@ -11,6 +11,7 @@
 //!   - current and last session.
 //! - Fast: less than 1 sec for 16 sessions, 45 windows and 80 panes.
 //! - Show the catalog of backups, with age, file size, content description & archive format
+//! - Maintain one rolling autosave archive for recovery, independently of retention
 //! - 2 strategies are available:
 //!   - keep the `n` most recent backups
 //!   - classic backup strategy:
@@ -36,6 +37,7 @@
 //! $ tmux-backup catalog list --details
 //! Strategy: KeepMostRecent: 10
 //! Location: `$HOME/.local/state/tmux-backup`
+//! Auto-save: 3 seconds ago
 //!
 //!      NAME                             AGE         STATUS       FILESIZE    VERSION  CONTENT
 //!  11. backup-20220907T224553.156103.tar.zst   2 days      purgeable    644.17 kB   1.0      16 sessions 43 windows 79 panes
@@ -75,12 +77,27 @@
 //!
 //! Both of these bindings will print the same report as above in the tmux status bar.
 //!
+//! ### Create a rolling autosave
+//!
+//! `autosave` writes the same archive content as `save`, but atomically replaces the single
+//! `autosave.tar.zst` file. It is shown separately in the catalog and never participates in
+//! retention or compaction. Use an external scheduler to run it periodically:
+//!
+//! ```shell
+//! tmux-backup autosave --ignore-last-lines 1 --to-tmux errors
+//! ```
+//!
+//! When launched outside tmux, such as from a scheduler, autosave selects the most recently active
+//! attached client. `--to-tmux errors` additionally displays failures in that client's status bar;
+//! use `--to-tmux all` to display successful autosaves too. Scheduler setup is intentionally out
+//! of scope for this project.
+//!
 //! ### Restore from a backup
 //!
 //! Typing `tmux-backup restore` in your shell outside of tmux will
 //!
 //! - start a tmux server if none is running
-//! - restore all sessions from the latest backup
+//! - restore all sessions from the newest ordinary backup or autosave
 //! - but you still have to `tmux attach -t <your-last-session>`
 //!
 //! The same command typed in a shell inside tmux will erase session `0` (the default start
@@ -100,13 +117,24 @@
 //! brew install graelo/homebrew-tap/tmux-backup  # will also install shell completions
 //! ```
 //!
-//! On linux
+//! On linux, grab the standalone binary for your architecture from the
+//! [latest release](https://github.com/graelo/tmux-backup/releases/latest)
+//! (`x86_64-unknown-linux-musl` or `aarch64-unknown-linux-musl`):
 //!
 //! ```shell
-//! curl \
-//!     https://github.com/graelo/tmux-backup/releases/download/v0.4.0/tmux-backup-x86_64-unknown-linux-gnu.tar.xz \
-//!     | tar xf - > /usr/local/bin/tmux-backup
+//! curl -L -o /usr/local/bin/tmux-backup \
+//!     https://github.com/graelo/tmux-backup/releases/latest/download/tmux-backup-x86_64-unknown-linux-musl
 //! chmod +x /usr/local/bin/tmux-backup
+//! ```
+//!
+//! Or download the archive — it bundles the binary together with the README
+//! and license files. Pick the version explicitly:
+//!
+//! ```shell
+//! VERSION=v0.5.18  # adjust to the desired release
+//! curl -L https://github.com/graelo/tmux-backup/releases/download/"${VERSION}"/tmux-backup-"${VERSION}"-x86_64-unknown-linux-musl.tar.xz \
+//!     | tar -xJ
+//! sudo install -m 755 tmux-backup-"${VERSION}"-x86_64-unknown-linux-musl/tmux-backup /usr/local/bin/
 //! ```
 //!
 //! On linux, to install completions, type
@@ -114,6 +142,25 @@
 //! ```shell
 //! tmux-backup generate-completion zsh|bash|fish > /path/to/your/completions/folder
 //! ```
+//!
+//! ### Verifying release artifacts
+//!
+//! Every release artifact ships a build provenance attestation signed by
+//! GitHub Actions. Verify a download before installing with the
+//! [GitHub CLI](https://cli.github.com/):
+//!
+//! ```shell
+//! ## Standalone binary
+//! gh attestation verify tmux-backup-x86_64-unknown-linux-musl \
+//!     --repo graelo/tmux-backup
+//!
+//! ## Archive
+//! gh attestation verify tmux-backup-v0.5.18-x86_64-unknown-linux-musl.tar.xz \
+//!     --repo graelo/tmux-backup
+//! ```
+//!
+//! Both `.zip` and `.tar.xz` archives plus the standalone binaries for every
+//! target are covered.
 //!
 //! ### Installing the tmux plugin hook
 //!
