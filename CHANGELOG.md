@@ -13,6 +13,8 @@ and this project adheres to
 - Consolidate local verification in the `Makefile`: `make check` is the
   pre-push gate, `make check-all` is the pre-PR gate, and `make coverage`
   generates an HTML coverage report
+- Reduce the crate documentation to a short README pointer; the full end-user
+  documentation now lives only in `README.md`
 
 ## [0.6.0] - 2026-08-09
 

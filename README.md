@@ -6,8 +6,6 @@
 [![rust 2024 edition](https://img.shields.io/badge/edition-2024-blue.svg)](https://doc.rust-lang.org/edition-guide/rust-2024/index.html)
 [![build status](https://github.com/graelo/tmux-backup/actions/workflows/ci-essentials.yml/badge.svg)](https://github.com/graelo/tmux-backup/actions/workflows/ci-essentials.yml)
 
-<!-- cargo-sync-readme start -->
-
 A backup & restore solution for Tmux sessions.
 
 Version requirement: _rustc 1.95+_
@@ -241,5 +239,3 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall
 be dual licensed as above, without any additional terms or conditions.
-
-<!-- cargo-sync-readme end -->
