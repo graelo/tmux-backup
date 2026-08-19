@@ -57,12 +57,12 @@ the script).
 
 ### 3. Register it with Launchd
 
-| Action | Command |
-| ---------- | --------- |
-| Start/Load | launchctl load ~/Library/LaunchAgents/com.user.tmux-periodic.plist |
-| Stop/Unload | launchctl unload ~/Library/LaunchAgents/com.user.tmux-periodic.plist |
-| Force Run Now | launchctl start com.user.tmux-periodic |
-| Check Logs | tail -f /tmp/com.user.tmux-periodic.err |
+| Action        | Command                                                              |
+| ------------- | -------------------------------------------------------------------- |
+| Start/Load    | launchctl load ~/Library/LaunchAgents/com.user.tmux-periodic.plist   |
+| Stop/Unload   | launchctl unload ~/Library/LaunchAgents/com.user.tmux-periodic.plist |
+| Force Run Now | launchctl start com.user.tmux-periodic                               |
+| Check Logs    | tail -f /tmp/com.user.tmux-periodic.err                              |
 
 ## On Linux
 

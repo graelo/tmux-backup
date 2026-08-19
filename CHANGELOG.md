@@ -8,14 +8,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- Consolidate local verification in the `Makefile`: `make check` is the
+  pre-push gate, `make check-all` is the pre-PR gate, and `make coverage`
+  generates an HTML coverage report
+
 ## [0.6.0] - 2026-08-09
 
 ### Added
 
-- `autosave` command for scheduler-driven rolling recovery archives, atomically replacing
-  `autosave.tar.zst` with optional Tmux error reporting
-- Catalog status for the separate autosave archive; it is excluded from retention and compaction,
-  and default restore selects the newer ordinary backup or autosave
+- `autosave` command for scheduler-driven rolling recovery archives,
+    atomically replacing `autosave.tar.zst` with optional Tmux error reporting
+- Catalog status for the separate autosave archive; it is excluded from
+    retention and compaction, and default restore selects the newer ordinary
+    backup or autosave
 
 ## [0.5.20] - 2026-05-21
 
