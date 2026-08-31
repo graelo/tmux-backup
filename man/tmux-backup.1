@@ -1,0 +1,275 @@
+.TH TMUX-BACKUP 1 "2026-08-31" "tmux-backup 0.6.0" "User Commands"
+.SH NAME
+tmux-backup \- save and restore tmux sessions
+.SH SYNOPSIS
+.B tmux-backup
+.RI [ OPTIONS ]
+.I COMMAND
+.SH DESCRIPTION
+.B tmux-backup
+saves and restores tmux sessions, windows, panes, layouts, and pane history.
+Backups are stored as compressed archives in a catalog directory.
+.PP
+The
+.B save
+command creates a timestamped backup, while
+.B autosave
+atomically replaces a rolling recovery archive.
+The
+.B restore
+command restores the latest available archive unless a filepath is given.
+.PP
+The
+.B init
+command prints the default tmux plugin configuration to stdout.
+.SH OPTIONS
+.TP
+.BR \-d ", " \-\-dirpath " " \fIDIRPATH\fR
+Location of the backup catalog.
+If omitted, use
+.BI $XDG_STATE_HOME /tmux-backup
+or, when that variable is unset,
+.BI $HOME /.local/state/tmux-backup .
+.TP
+.BR \-h ", " \-\-help
+Print help.
+.TP
+.BR \-V ", " \-\-version
+Print version information.
+.SH COMMANDS
+.SS save
+Save the tmux sessions to a new timestamped backup file.
+The archive contains session, window, and pane geometry and content.
+.TP
+.BR \-s ", " \-\-strategy " " \fISTRATEGY\fR
+Backup retention strategy:
+.B most-recent
+(default) or
+.B classic .
+The most-recent strategy keeps the number of backups specified by
+.BR \-n .
+The classic strategy keeps the latest backup per hour for the past 24 hours,
+per day for the past 7 days, per week for the past 4 weeks, and per month for
+the current year.
+.TP
+.BR \-n ", " \-\-num-backups " " \fINUMBER\fR
+Number of recent backups retained by the
+.B most-recent
+strategy.
+Default: 10.
+.TP
+.BR \-\-to-tmux
+Print the one-line result in the tmux status bar instead of stdout.
+Use this when invoking the command from a tmux key binding.
+.TP
+.BR \-\-compact
+Delete purgeable backups after saving.
+.TP
+.BR \-i ", " \-\-ignore-last-lines " " \fINUMBER\fR
+Ignore this many trailing lines when capturing a pane whose active command is
+.BR zsh ,
+.BR bash ,
+or
+.BR fish .
+This avoids restoring a duplicate shell prompt.
+Default: 0.
+.SS autosave
+Save a rolling autosave archive for recovery.
+This always replaces
+.I autosave.tar.zst
+in the backup directory and is excluded from retention and compaction.
+It is intended for an external scheduler.
+.TP
+.BI \-\-to-tmux " " \fIMODE\fR
+Report autosave failures in both stderr and the tmux status bar when
+.I MODE
+is
+.BR errors .
+With
+.BR all ,
+report successful saves in the status bar as well.
+Without this option, or with
+.BR errors
+when a save succeeds, print the successful-save report to stdout.
+.TP
+.BR \-i ", " \-\-ignore-last-lines " " \fINUMBER\fR
+Ignore this many trailing lines when capturing a pane whose active command is a
+shell.
+Default: 0.
+.PP
+When run outside tmux, autosave selects the most recently active attached tmux
+client.  This makes it suitable for cron, launchd, and other schedulers.
+.SS restore
+Restore sessions, windows, and panes from a backup.
+If
+.I BACKUP_FILEPATH
+is omitted, restore the newest ordinary backup or autosave in the catalog.
+.TP
+.BR \-s ", " \-\-strategy " " \fISTRATEGY\fR
+Retention strategy for the catalog:
+.B most-recent
+(default) or
+.BR classic .
+It does not affect selection of the newest archive or restoration of an
+explicit filepath.
+.TP
+.BR \-n ", " \-\-num-backups " " \fINUMBER\fR
+Number of recent backups used by the
+.B most-recent
+strategy.
+Default: 10.
+.TP
+.BR \-\-to-tmux
+Print the one-line result in the tmux status bar instead of stdout.
+.TP
+.BI \fIBACKUP_FILEPATH\fR
+Path to the backup file to restore.
+.SS catalog
+Manage and inspect the backup catalog.
+The catalog accepts the same
+.BR \-s / \-\-strategy
+and
+.BR \-n / \-\-num-backups
+options as
+.BR save .
+.TP
+.B catalog list
+Print a table of backups, age, and status.
+.TP
+.BR \-\-details
+Add the number of sessions, windows, and panes and the archive format version.
+This requires partially reading each archive.
+.TP
+.BI \-\-only=\fISTATUS\fR
+List only
+.B retainable
+or
+.B purgeable
+backups.
+This also enables
+.BR \-\-filepaths .
+.TP
+.BR \-\-filepaths
+Print absolute backup filepaths instead of the table format.
+.TP
+.B catalog compact
+Apply the catalog retention strategy and delete all purgeable backups.
+.SS describe
+Describe the content of a backup archive.
+.TP
+.BI \fIBACKUP_FILEPATH\fR
+Path to the backup file.
+.SS generate-completion
+Print a shell completion script to stdout.
+.TP
+.BI \fISHELL\fR
+Shell to generate completions for:
+.BR bash ,
+.BR elvish ,
+.BR fish ,
+.BR powershell ,
+or
+.BR zsh .
+.SS init
+Print the default tmux plugin configuration to stdout.
+Use this once when installing the plugin, for example:
+.PP
+.RS
+.nf
+tmux-backup init > ~/.tmux/plugins/tmux-backup/tmux-backup.tmux
+.fi
+.RE
+.SH TMUX PLUGIN
+The plugin defines a key table accessed by the prefix key followed by
+.BR b .
+The default bindings are:
+.PP
+.TS
+tab(;);
+lb l
+l l.
+Key;Action
+b;save a backup without compacting
+s;save a backup and compact the catalog
+r;restore the latest backup
+l;show the catalog
+L;show the detailed catalog
+.TE
+.PP
+The key table and bindings can be customized in
+.I ~/.tmux.conf .
+The plugin provides these options:
+.PP
+.TS
+tab(;);
+lb lb l
+l l l.
+Option;Default;Purpose
+@backup-keytable;tmuxbackup;Key table containing the bindings
+@backup-keyswitch;b;Key used after the tmux prefix
+@backup-strategy;-s most-recent -n 10;Arguments passed to catalog, save, and restore
+.TE
+.PP
+For a scheduler configuration, see
+.I AUTOSAVE.md
+in the project repository.
+.SH FILES
+.TP
+.I $XDG_STATE_HOME/tmux-backup/
+Default backup directory when
+.B XDG_STATE_HOME
+is set.
+.TP
+.I $HOME/.local/state/tmux-backup/
+Fallback backup directory.
+.TP
+.I backup-YYYYMMDDTHHMMSS.ffffff.tar.zst
+Timestamped ordinary backup archive.
+.TP
+.I autosave.tar.zst
+Rolling autosave archive.
+.SH EXIT STATUS
+.TP
+.B 0
+The command completed successfully.
+.TP
+.B non-zero
+An error occurred while reading, writing, saving, restoring, or managing the
+catalog.
+.SH EXAMPLES
+Save a backup and remove purgeable backups:
+.PP
+.RS
+.nf
+tmux-backup save --compact
+.fi
+.RE
+.PP
+Create a scheduler-safe rolling autosave:
+.PP
+.RS
+.nf
+tmux-backup autosave --ignore-last-lines 1 --to-tmux errors
+.fi
+.RE
+.PP
+List detailed backup information:
+.PP
+.RS
+.nf
+tmux-backup catalog list --details
+.fi
+.RE
+.PP
+Restore a specific archive:
+.PP
+.RS
+.nf
+tmux-backup restore /path/to/backup.tar.zst
+.fi
+.RE
+.SH SEE ALSO
+.BR tmux (1),
+.BR tmux-resurrect (1)
+.SH AUTHORS
+graelo <https://github.com/graelo/tmux-backup>
