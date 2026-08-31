@@ -216,7 +216,9 @@ loaded.
 For local verification, read the [`Makefile`](Makefile) for the canonical task
 definitions, or run `make help` to list them: run `make check` before pushing
 and `make check-all` before opening a pull request. Use `make coverage` to
-generate an HTML coverage report.
+generate an HTML coverage report. The command reference is available in
+[`man/tmux-backup.1`](man/tmux-backup.1); see
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for manpage maintenance.
 
 ## Caveats
 

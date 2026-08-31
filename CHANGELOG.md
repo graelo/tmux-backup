@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- Add a `tmux-backup(1)` manpage and `make man` validation target
+
 ### Changed
 
 - Consolidate local verification in the `Makefile`: `make check` is the
