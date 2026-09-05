@@ -33,7 +33,8 @@ async-fs = "2.2"
 futures = "0.3"
 smol = "2.0"
 
-tmux-lib = { version = "0.5" }
+# 0.6.0 is not published yet: the API break is being validated here first.
+tmux-lib = { path = "../tmux-lib" }
 
 chrono = "0.4.44"
 serde = { version = "1.0", features = ["derive"] }

@@ -12,8 +12,24 @@ and this project adheres to
 
 - Add a `tmux-backup(1)` manpage and `make man` validation target
 
+### Fixed
+
+- Autosave reports reached the wrong tmux client whenever a second client was
+  attached. They were addressed with `display-message -t`, which is a target
+  *pane*; selecting a client needs `-c`
+- Autosave read the selected client through a hand-written tmux format that
+  no longer matched what tmux-lib parses, so it failed outright
+
 ### Changed
 
+- Migrate to the synchronous tmux-lib API: every tmux call is now a method on
+  a `Tmux` handle created once per run, bridged to the async runtime with
+  `smol::unblock`. Pane captures keep their per-pane parallelism, and each
+  session restore now runs as one blocking sequence rather than task-hopping
+  between tmux calls
+- Stop invoking tmux directly. Naming the current client, listing clients and
+  displaying a message to a chosen client are tmux-lib operations now, so this
+  crate spawns no tmux process of its own
 - Consolidate local verification in the `Makefile`: `make check` is the
   pre-push gate, `make check-all` is the pre-PR gate, and `make coverage`
   generates an HTML coverage report
