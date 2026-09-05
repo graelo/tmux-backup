@@ -4,7 +4,7 @@
 #   act push -W .github/workflows/ci-essentials.yml -j test
 #   act push -W .github/workflows/ci-essentials.yml -j changes
 
-name: 'CI: Essentials'
+name: "CI: Essentials"
 on:
   push:
     branches:
@@ -115,7 +115,7 @@ jobs:
     if: needs.changes.outputs.cargo_lock == 'true'
     permissions:
       contents: read
-    uses: ./.github/workflows/_cargo-audit.yml
+    uses: $/.github/workflows/_cargo-audit.yml
 
   ci-security:
     needs: changes
@@ -124,4 +124,4 @@ jobs:
       security-events: write
       contents: read
       actions: read
-    uses: ./.github/workflows/_ci-security.yml
+    uses: $/.github/workflows/_ci-security.yml
