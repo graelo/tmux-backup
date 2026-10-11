@@ -22,6 +22,7 @@ and this project adheres to
 
 ### Changed
 
+- Update `tmux-lib` to 0.7, which requires tmux 3.4 or later
 - `save` and `autosave` run over one tmux control connection rather than
   forking a tmux client per command and per pane, falling back to forking
   when no control client can attach. **Breaking:** `save` takes the client to
