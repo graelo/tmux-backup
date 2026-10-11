@@ -32,7 +32,7 @@ fn is_inside_tmux() -> bool {
 pub async fn restore<P: AsRef<Path>>(tmux: &Tmux, backup_filepath: P) -> Result<v1::Overview> {
     // Prepare the temp directory with the content of the backup.
     let temp_dir = TempDir::new()?;
-    v1::unpack(backup_filepath.as_ref(), temp_dir.path()).await?;
+    v1::unpack(backup_filepath.as_ref(), temp_dir.path())?;
     let panes_content_dir = temp_dir.path().join("panes-content");
 
     // Start tmux if needed.
@@ -45,7 +45,7 @@ pub async fn restore<P: AsRef<Path>>(tmux: &Tmux, backup_filepath: P) -> Result<
     let default_command = tmux.default_command()?;
 
     // Restore sessions, windows and panes.
-    let metadata = v1::Metadata::read_file(backup_filepath).await?;
+    let metadata = v1::Metadata::read_file(backup_filepath)?;
 
     let existing_sessions_names: HashSet<_> = tmux
         .available_sessions()?

@@ -4,15 +4,11 @@ use std::borrow::Cow;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
-use std::{env, iter};
+use std::{env, fs, iter, thread};
 
-use async_fs as fs;
 use chrono::{DateTime, Local, NaiveDateTime};
-use futures::future::join_all;
-use futures::stream::StreamExt;
 use regex::Regex;
 use si_scale::helpers::bytes2;
-use smol;
 
 use crate::{
     Result,
@@ -48,12 +44,12 @@ impl Catalog {
     /// - The folder is created if missing.
     /// - The catalog only manages backup files such as `backup-20220804T221153.tar.zst`, other
     ///   files are simply ignored (and in principle, should not be present).
-    pub async fn new<P: AsRef<Path>>(dirpath: P, strategy: Strategy) -> Result<Catalog> {
+    pub fn new<P: AsRef<Path>>(dirpath: P, strategy: Strategy) -> Result<Catalog> {
         let dirpath = dirpath.as_ref();
-        fs::create_dir_all(dirpath).await?;
+        fs::create_dir_all(dirpath)?;
 
-        let backup_files = Self::parse_backup_filenames(dirpath).await?;
-        let autosave = Self::parse_autosave(dirpath).await?;
+        let backup_files = Self::parse_backup_filenames(dirpath)?;
+        let autosave = Self::parse_autosave(dirpath)?;
 
         let catalog = Catalog {
             dirpath: dirpath.to_path_buf(),
@@ -68,9 +64,9 @@ impl Catalog {
     /// Update the catalog's list of backups with the current content of `dirpath`.
     ///
     /// This returns a new catalog with the updated content.
-    pub async fn refresh(self) -> Result<Catalog> {
-        let backups = Self::parse_backup_filenames(self.dirpath.as_path()).await?;
-        let autosave = Self::parse_autosave(self.dirpath.as_path()).await?;
+    pub fn refresh(self) -> Result<Catalog> {
+        let backups = Self::parse_backup_filenames(self.dirpath.as_path())?;
+        let autosave = Self::parse_autosave(self.dirpath.as_path())?;
         Ok(Catalog {
             dirpath: self.dirpath,
             strategy: self.strategy,
@@ -80,9 +76,9 @@ impl Catalog {
     }
 
     /// Update the catalog's list of backups with the current content of `dirpath`.
-    pub async fn refresh_mut(&mut self) -> Result<()> {
-        self.backups = Self::parse_backup_filenames(self.dirpath.as_path()).await?;
-        self.autosave = Self::parse_autosave(self.dirpath.as_path()).await?;
+    pub fn refresh_mut(&mut self) -> Result<()> {
+        self.backups = Self::parse_backup_filenames(self.dirpath.as_path())?;
+        self.autosave = Self::parse_autosave(self.dirpath.as_path())?;
         Ok(())
     }
 
@@ -128,7 +124,7 @@ impl Catalog {
     /// # Important
     ///
     /// This will probably delete files in the `dirpath` folder.
-    pub async fn compact(&self) -> Result<usize> {
+    pub fn compact(&self) -> Result<usize> {
         let Plan {
             purgeable,
             retainable: _retainable,
@@ -137,7 +133,7 @@ impl Catalog {
 
         let n = purgeable.len();
         for backup in purgeable {
-            fs::remove_file(&backup.filepath).await?;
+            fs::remove_file(&backup.filepath)?;
         }
 
         Ok(n)
@@ -148,12 +144,9 @@ impl Catalog {
     /// # Important
     ///
     /// This will probably delete files in the `dirpath` folder.
-    pub async fn compact_mut(&mut self) {
-        self.compact()
-            .await
-            .expect("Error when compacting the catalog");
+    pub fn compact_mut(&mut self) {
+        self.compact().expect("Error when compacting the catalog");
         self.refresh_mut()
-            .await
             .expect("Error when refreshing the catalog");
     }
 
@@ -174,7 +167,7 @@ impl Catalog {
     ///
     /// If `only_status` is a `Some(..)`, this lists only the corresponding backup filepaths,
     /// acting as if `filepaths_flag` is `true`.
-    pub async fn list(
+    pub fn list(
         &self,
         details_flag: bool,
         only_status: Option<BackupStatus>,
@@ -201,7 +194,7 @@ impl Catalog {
                 }
             }
         } else {
-            self.print_table(details_flag).await;
+            self.print_table(details_flag);
         }
     }
 }
@@ -210,14 +203,13 @@ impl Catalog {
 
 impl Catalog {
     /// Return the list of `Backup` in `dirpath`.
-    async fn parse_backup_filenames<P: AsRef<Path>>(dirpath: P) -> Result<Vec<Backup>> {
+    fn parse_backup_filenames<P: AsRef<Path>>(dirpath: P) -> Result<Vec<Backup>> {
         let mut backups: Vec<Backup> = vec![];
 
         static BACKUP_RE: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(v1::backup_filepath_pattern()).unwrap());
 
-        let mut entries = fs::read_dir(dirpath.as_ref()).await?;
-        while let Some(entry) = entries.next().await {
+        for entry in fs::read_dir(dirpath.as_ref())? {
             let entry = entry?;
             let path = entry.path();
             if let Some(captures) = BACKUP_RE.captures(&path.to_string_lossy()) {
@@ -239,9 +231,9 @@ impl Catalog {
     }
 
     /// Return the rolling autosave archive, if present.
-    async fn parse_autosave<P: AsRef<Path>>(dirpath: P) -> Result<Option<Autosave>> {
+    fn parse_autosave<P: AsRef<Path>>(dirpath: P) -> Result<Option<Autosave>> {
         let filepath = v1::autosave_filepath(dirpath);
-        let metadata = match fs::metadata(&filepath).await {
+        let metadata = match fs::metadata(&filepath) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(error.into()),
@@ -258,7 +250,7 @@ impl Catalog {
         }))
     }
 
-    async fn print_table(&self, details_flag: bool) {
+    fn print_table(&self, details_flag: bool) {
         println!("Strategy: {}", self.strategy);
 
         // Try to strip the HOME prefix from self.dirpath, otherwise return self.dirpath.
@@ -301,14 +293,16 @@ impl Catalog {
             );
 
             // Read all metadata concurrently
-            let tasks: Vec<_> = statuses
-                .iter()
-                .map(|&(backup, _)| {
-                    let backup_filepath = backup.filepath.clone();
-                    smol::spawn(async move { v1::Metadata::read_file(backup_filepath).await })
-                })
-                .collect();
-            let metadatas: Result<Vec<_>> = join_all(tasks).await.into_iter().collect();
+            let metadatas: Result<Vec<_>> = thread::scope(|scope| {
+                let handles: Vec<_> = statuses
+                    .iter()
+                    .map(|&(backup, _)| scope.spawn(|| v1::Metadata::read_file(&backup.filepath)))
+                    .collect();
+                handles
+                    .into_iter()
+                    .map(|handle| handle.join().expect("metadata reader panicked"))
+                    .collect()
+            });
             let metadatas = metadatas.expect("Cannot read metadata files");
 
             // Build & print table rows
@@ -316,7 +310,7 @@ impl Catalog {
                 iter::zip(indices, iter::zip(statuses, metadatas))
             {
                 let filename = backup.filepath.file_name().unwrap().to_string_lossy();
-                let filesize = fs::metadata(backup.filepath.as_path()).await.unwrap().len();
+                let filesize = fs::metadata(backup.filepath.as_path()).unwrap().len();
                 let filesize = bytes2(filesize as f64);
 
                 let color = match status {
@@ -367,7 +361,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn catalog(dir: &TempDir) -> Catalog {
-        smol::block_on(Catalog::new(dir.path(), Strategy::most_recent(1))).unwrap()
+        Catalog::new(dir.path(), Strategy::most_recent(1)).unwrap()
     }
 
     #[test]

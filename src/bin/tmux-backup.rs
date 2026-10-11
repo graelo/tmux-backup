@@ -20,7 +20,7 @@ async fn init_catalog<P: AsRef<Path>>(
     backup_dirpath: P,
     strategy_config: StrategyConfig,
 ) -> Catalog {
-    match Catalog::new(&backup_dirpath.as_ref(), strategy_config.strategy()).await {
+    match Catalog::new(backup_dirpath.as_ref(), strategy_config.strategy()) {
         Ok(catalog) => catalog,
         Err(e) => {
             failure_message(
@@ -50,12 +50,8 @@ async fn run(config: Config) {
                     details_flag,
                     only_backup_status,
                     filepaths_flag,
-                } => {
-                    catalog
-                        .list(details_flag, only_backup_status, filepaths_flag)
-                        .await
-                }
-                CatalogSubcommand::Compact => match catalog.compact().await {
+                } => catalog.list(details_flag, only_backup_status, filepaths_flag),
+                CatalogSubcommand::Compact => match catalog.compact() {
                     Ok(n) => {
                         let message = format!("✅ deleted {n} outdated backups");
                         success_message(message, Output::Stdout, &tmux)
@@ -69,9 +65,7 @@ async fn run(config: Config) {
             }
         }
 
-        Command::Describe { backup_filepath } => {
-            v1::print_description(backup_filepath).await.unwrap()
-        }
+        Command::Describe { backup_filepath } => v1::print_description(backup_filepath).unwrap(),
 
         Command::Save {
             strategy,
@@ -88,10 +82,8 @@ async fn run(config: Config) {
                         // the catalog's dirpath is writable.
                         catalog
                             .refresh()
-                            .await
                             .expect("Success saving but could not refresh")
                             .compact()
-                            .await
                             .expect("Success saving but could not compact");
                     }
                     let message = format!(
