@@ -1,8 +1,8 @@
 //! Main runner
 
+use std::fs;
 use std::path::Path;
 
-use async_fs as fs;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
@@ -15,7 +15,7 @@ use tmux_backup::{
     tmux::Tmux,
 };
 
-async fn init_catalog<P: AsRef<Path>>(
+fn init_catalog<P: AsRef<Path>>(
     tmux: &Tmux,
     backup_dirpath: P,
     strategy_config: StrategyConfig,
@@ -36,14 +36,14 @@ async fn init_catalog<P: AsRef<Path>>(
     }
 }
 
-async fn run(config: Config) {
+fn run(config: Config) {
     // One handle for the whole run: tmux-backup always talks to the default
     // server, and the handle is cheap to clone into the tasks that need it.
     let tmux = Tmux::spawning();
 
     match config.command {
         Command::Catalog { strategy, command } => {
-            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy).await;
+            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy);
 
             match command {
                 CatalogSubcommand::List {
@@ -73,7 +73,7 @@ async fn run(config: Config) {
             compact,
             num_lines_to_drop,
         } => {
-            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy).await;
+            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy);
 
             match save(&tmux, &catalog.dirpath, num_lines_to_drop as usize) {
                 Ok((backup_filepath, archive_overview)) => {
@@ -114,7 +114,7 @@ async fn run(config: Config) {
                 }
             };
 
-            if let Err(e) = fs::create_dir_all(&config.backup_dirpath).await {
+            if let Err(e) = fs::create_dir_all(&config.backup_dirpath) {
                 autosave_failure(
                     format!("🛑 Could not create autosave directory: {e}"),
                     to_tmux,
@@ -153,7 +153,7 @@ async fn run(config: Config) {
             to_tmux,
             backup_filepath,
         } => {
-            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy).await;
+            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy);
 
             // Either the provided filepath, or newest ordinary backup/autosave, or failure.
             let backup_to_restore = {
@@ -203,7 +203,7 @@ async fn run(config: Config) {
 
 fn main() {
     let config = Config::parse();
-    smol::block_on(run(config));
+    run(config);
 }
 
 enum Output {

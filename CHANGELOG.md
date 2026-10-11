@@ -22,11 +22,15 @@ and this project adheres to
 
 ### Changed
 
+- **Breaking:** drop the async runtime. `save`, `autosave`, `restore` and the
+  `Catalog` methods are plain functions, and the `smol`, `async-fs` and
+  `futures` dependencies are gone, taking 33 crates out of the build. The
+  concurrency is unchanged: the metadata query overlaps the pane captures, and
+  each pane is captured, and each session restored, on its own thread
 - Migrate to the synchronous tmux-lib API: every tmux call is now a method on
-  a `Tmux` handle created once per run, bridged to the async runtime with
-  `smol::unblock`. Pane captures keep their per-pane parallelism, and each
-  session restore now runs as one blocking sequence rather than task-hopping
-  between tmux calls
+  a `Tmux` handle created once per run. Pane captures keep their per-pane
+  parallelism, and each session restore now runs as one blocking sequence
+  rather than task-hopping between tmux calls
 - Stop invoking tmux directly. Naming the current client, listing clients and
   displaying a message to a chosen client are tmux-lib operations now, so this
   crate spawns no tmux process of its own

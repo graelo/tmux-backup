@@ -29,10 +29,6 @@ itertools = "0.15"  # waiting for https://doc.rust-lang.org/std/primitive.slice.
 regex = "1.12"
 si-scale = "0.3"
 
-async-fs = "2.2"
-futures = "0.3"
-smol = "2.0"
-
 # 0.6.0 is not published yet: the API break is being validated here first.
 tmux-lib = { path = "../tmux-lib" }
 
