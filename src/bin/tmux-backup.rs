@@ -75,7 +75,29 @@ fn run(config: Config) {
         } => {
             let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy);
 
-            match save(&tmux, &catalog.dirpath, num_lines_to_drop as usize) {
+            // Outside a tmux client there is no client to describe, and a
+            // backup taken from a scheduler is still a valid backup.
+            let client = match tmux.current_client() {
+                Ok(client) => client.unwrap_or_default(),
+                Err(e) => {
+                    failure_message(
+                        format!("🛑 Could not describe the tmux client: {e}"),
+                        to_tmux,
+                        &tmux,
+                    );
+                    return;
+                }
+            };
+
+            // Bound first, so the control client has detached before any
+            // message below goes to tmux.
+            let saved = save(
+                &capturing(&tmux),
+                client,
+                &catalog.dirpath,
+                num_lines_to_drop as usize,
+            );
+            match saved {
                 Ok((backup_filepath, archive_overview)) => {
                     if compact {
                         // In practice this should never fail: write to the catalog already ensures
@@ -124,12 +146,13 @@ fn run(config: Config) {
                 return;
             }
 
-            match autosave(
-                &tmux,
+            let saved = autosave(
+                &capturing(&tmux),
                 &config.backup_dirpath,
                 num_lines_to_drop as usize,
                 context.clone(),
-            ) {
+            );
+            match saved {
                 Ok((backup_filepath, archive_overview)) => autosave_success(
                     format!(
                         "✅ {archive_overview}, auto-saved to `{}`",
@@ -199,6 +222,16 @@ fn run(config: Config) {
             println!("{text}");
         }
     }
+}
+
+/// The handle a save runs on: one control connection, or `tmux` when no
+/// control client can attach.
+///
+/// Call it only once the client has been resolved: while the control client
+/// is attached, tmux may name it as the current client. It detaches when the
+/// returned handle is dropped.
+fn capturing(tmux: &Tmux) -> Tmux {
+    Tmux::control().unwrap_or_else(|_| tmux.clone())
 }
 
 fn main() {

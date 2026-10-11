@@ -15,7 +15,8 @@ use tmux_lib::utils;
 /// we can optionally drop the last N lines to avoid capturing the shell prompt.
 const DETECTED_SHELLS: &[&str] = &["zsh", "bash", "fish"];
 
-/// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`.
+/// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`,
+/// recording `client` as the one to switch back to on restore.
 ///
 /// After saving, this function returns the path to the backup and the number of
 /// sessions, windows and panes.
@@ -23,10 +24,14 @@ const DETECTED_SHELLS: &[&str] = &["zsh", "bash", "fish"];
 /// # Notes
 ///
 /// - The `backup_dirpath` folder is assumed to exist (done during catalog initialization).
+/// - `client` is taken rather than looked up: on a control handle, tmux would
+///   name the control client itself. Resolve it on a spawning handle, before
+///   attaching, with `current_client`.
 /// - Backups have a name similar to `backup-20220731T222948.tar.zst`.
 ///
 pub fn save<P: AsRef<Path>>(
     tmux: &Tmux,
+    client: tmux::client::Client,
     backup_dirpath: P,
     num_lines_to_drop: usize,
 ) -> Result<(PathBuf, v1::Overview)> {
@@ -38,7 +43,7 @@ pub fn save<P: AsRef<Path>>(
     // Query sessions & windows on their own thread, so that the pane captures
     // overlap with it.
     let (metadata, panes) = thread::scope(|scope| {
-        let metadata = scope.spawn(|| v1::Metadata::new(tmux));
+        let metadata = scope.spawn(move || v1::Metadata::new_with_client(tmux, client));
         let panes = save_panes(tmux, &temp_panes_content_dir, num_lines_to_drop);
         (metadata.join().expect("metadata query panicked"), panes)
     });
@@ -114,9 +119,9 @@ fn save_panes_content(
     destination_dir: &Path,
     num_lines_to_drop: usize,
 ) -> Result<()> {
-    // One spawned tmux per pane, in parallel. tmux-lib measured this
-    // against a single control connection and kept the fan-out; see
-    // its design notes on the capture transport.
+    // One thread per pane. On a control handle the captures take turns on the
+    // connection, which tmux-lib measured faster than a client per pane; the
+    // threads still overlap the trimming and the file writes.
     thread::scope(|scope| {
         let handles: Vec<_> = panes
             .iter()

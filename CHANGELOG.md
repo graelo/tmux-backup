@@ -22,6 +22,11 @@ and this project adheres to
 
 ### Changed
 
+- `save` and `autosave` run over one tmux control connection rather than
+  forking a tmux client per command and per pane, falling back to forking
+  when no control client can attach. **Breaking:** `save` takes the client to
+  record, which the caller resolves before attaching, because tmux may name
+  an attached control client as the current one
 - **Breaking:** drop the async runtime. `save`, `autosave`, `restore` and the
   `Catalog` methods are plain functions, and the `smol`, `async-fs` and
   `futures` dependencies are gone, taking 33 crates out of the build. The
