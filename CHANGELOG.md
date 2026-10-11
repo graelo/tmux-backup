@@ -45,6 +45,13 @@ and this project adheres to
 - Reduce the crate documentation to a short README pointer; the full end-user
   documentation now lives only in `README.md`
 
+### Documentation
+
+- A backup taken on tmux 3.8 cannot be restored on an earlier tmux. tmux 3.8
+  records every window's layout in a new format that earlier versions reject,
+  so the restore fails with `invalid layout`, after creating the sessions and
+  their panes but before arranging them
+
 ## [0.6.0] - 2026-08-09
 
 ### Added
