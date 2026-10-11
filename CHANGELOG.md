@@ -53,6 +53,11 @@ and this project adheres to
   `cache: false` (explicit `actions/cache` steps keep doing the caching), drop
   the now-unneeded zizmor `superfluous-actions` suppressions, and trust the
   Homebrew tap before tapping it in the release workflow
+- Drop the dead `[build-dependencies]` (`clap`, `clap_complete` — completion
+  generation moved into the binary long ago) and the `homepage` field
+  redundant with `repository`: nightly cargo warns about both
+  (`cargo::unused_dependencies`, `cargo::redundant_homepage`), which the
+  toolchain action's `build-warnings: deny` turns into CI failures
 
 ### Documentation
 
