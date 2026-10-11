@@ -1,14 +1,13 @@
 //! Create a rolling tmux autosave archive suitable for an external scheduler.
 
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::thread;
 
-use async_fs as fs;
-use smol;
 use tempfile::{NamedTempFile, TempDir};
 
 use crate::{
-    Result, actions::save::save_panes_content, error::Error, management::archive::v1, tmux,
-    tmux::Tmux,
+    Result, actions::save::save_panes, error::Error, management::archive::v1, tmux, tmux::Tmux,
 };
 
 /// Client information used to create a headless autosave and report it to Tmux.
@@ -63,7 +62,7 @@ pub fn display_message(tmux: &Tmux, context: &AutosaveContext, message: &str) {
 ///
 /// The archive is first fully created in a temporary file in `backup_dirpath`, then atomically
 /// replaced at `autosave.tar.zst`.
-pub async fn autosave<P: AsRef<Path>>(
+pub fn autosave<P: AsRef<Path>>(
     tmux: &Tmux,
     backup_dirpath: P,
     num_lines_to_drop: usize,
@@ -71,47 +70,25 @@ pub async fn autosave<P: AsRef<Path>>(
 ) -> Result<(PathBuf, v1::Overview)> {
     let backup_dirpath = backup_dirpath.as_ref();
     let temp_dir = TempDir::new()?;
+    let temp_panes_content_dir = temp_dir.path().join(v1::PANES_DIR_NAME);
+    fs::create_dir_all(&temp_panes_content_dir)?;
 
-    let metadata_task: smol::Task<Result<(PathBuf, PathBuf, u16, u16)>> = {
-        let temp_dirpath = temp_dir.path().to_path_buf();
+    // Query sessions & windows on their own thread, so that the pane captures
+    // overlap with it.
+    let (metadata, panes) = thread::scope(|scope| {
         let client = context.client;
-        let handle = tmux.clone();
+        let metadata = scope.spawn(move || v1::Metadata::new_with_client(tmux, client));
+        let panes = save_panes(tmux, &temp_panes_content_dir, num_lines_to_drop);
+        (metadata.join().expect("metadata query panicked"), panes)
+    });
+    let num_panes = panes?;
+    let metadata = metadata?;
 
-        smol::spawn(async move {
-            let temp_version_filepath = temp_dirpath.join(v1::VERSION_FILENAME);
-            fs::write(&temp_version_filepath, v1::FORMAT_VERSION).await?;
+    let temp_version_filepath = temp_dir.path().join(v1::VERSION_FILENAME);
+    fs::write(&temp_version_filepath, v1::FORMAT_VERSION)?;
 
-            let metadata =
-                smol::unblock(move || v1::Metadata::new_with_client(&handle, client)).await?;
-            let json = serde_json::to_string(&metadata)?;
-
-            let temp_metadata_filepath = temp_dirpath.join(v1::METADATA_FILENAME);
-            fs::write(temp_metadata_filepath.as_path(), json).await?;
-
-            Ok((
-                temp_version_filepath,
-                temp_metadata_filepath,
-                metadata.sessions.len() as u16,
-                metadata.windows.len() as u16,
-            ))
-        })
-    };
-
-    let (temp_panes_content_dir, num_panes) = {
-        let temp_panes_content_dir = temp_dir.path().join(v1::PANES_DIR_NAME);
-        fs::create_dir_all(&temp_panes_content_dir).await?;
-
-        let panes = {
-            let tmux = tmux.clone();
-            smol::unblock(move || tmux.available_panes()).await?
-        };
-        let num_panes = panes.len() as u16;
-        save_panes_content(tmux, panes, &temp_panes_content_dir, num_lines_to_drop).await?;
-
-        (temp_panes_content_dir, num_panes)
-    };
-    let (temp_version_filepath, temp_metadata_filepath, num_sessions, num_windows) =
-        metadata_task.await?;
+    let temp_metadata_filepath = temp_dir.path().join(v1::METADATA_FILENAME);
+    fs::write(&temp_metadata_filepath, serde_json::to_string(&metadata)?)?;
 
     let autosave_filepath = v1::autosave_filepath(backup_dirpath);
     let temp_archive = NamedTempFile::new_in(backup_dirpath)?;
@@ -128,8 +105,8 @@ pub async fn autosave<P: AsRef<Path>>(
 
     let overview = v1::Overview {
         version: v1::FORMAT_VERSION.to_string(),
-        num_sessions,
-        num_windows,
+        num_sessions: metadata.sessions.len() as u16,
+        num_windows: metadata.windows.len() as u16,
         num_panes,
     };
 

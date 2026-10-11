@@ -75,7 +75,7 @@ async fn run(config: Config) {
         } => {
             let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy).await;
 
-            match save(&tmux, &catalog.dirpath, num_lines_to_drop as usize).await {
+            match save(&tmux, &catalog.dirpath, num_lines_to_drop as usize) {
                 Ok((backup_filepath, archive_overview)) => {
                     if compact {
                         // In practice this should never fail: write to the catalog already ensures
@@ -129,9 +129,7 @@ async fn run(config: Config) {
                 &config.backup_dirpath,
                 num_lines_to_drop as usize,
                 context.clone(),
-            )
-            .await
-            {
+            ) {
                 Ok((backup_filepath, archive_overview)) => autosave_success(
                     format!(
                         "✅ {archive_overview}, auto-saved to `{}`",
@@ -172,7 +170,7 @@ async fn run(config: Config) {
                     return;
                 }
             };
-            match restore(&tmux, backup_to_restore).await {
+            match restore(&tmux, backup_to_restore) {
                 Ok(overview) => {
                     let message = format!(
                         "✅ restored {overview} from `{}`",

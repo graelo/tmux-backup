@@ -4,10 +4,9 @@ use std::{
     collections::HashSet,
     iter::zip,
     path::{Path, PathBuf},
+    thread,
 };
 
-use futures::future::join_all;
-use smol;
 use tempfile::TempDir;
 
 use crate::{
@@ -29,7 +28,7 @@ fn is_inside_tmux() -> bool {
 }
 
 /// Restore all sessions, windows & panes from the backup file.
-pub async fn restore<P: AsRef<Path>>(tmux: &Tmux, backup_filepath: P) -> Result<v1::Overview> {
+pub fn restore<P: AsRef<Path>>(tmux: &Tmux, backup_filepath: P) -> Result<v1::Overview> {
     // Prepare the temp directory with the content of the backup.
     let temp_dir = TempDir::new()?;
     v1::unpack(backup_filepath.as_ref(), temp_dir.path())?;
@@ -53,44 +52,42 @@ pub async fn restore<P: AsRef<Path>>(tmux: &Tmux, backup_filepath: P) -> Result<
         .map(|s| s.name)
         .collect();
 
-    let mut handles = vec![];
+    // Sessions are restored in parallel, each as one sequence of tmux calls on
+    // its own thread.
+    thread::scope(|scope| {
+        let mut handles = vec![];
 
-    for session in &metadata.sessions {
-        if existing_sessions_names.contains(&session.name) {
-            eprintln!("skip creating existing session {}", session.name);
-            continue;
+        for session in &metadata.sessions {
+            if existing_sessions_names.contains(&session.name) {
+                eprintln!("skip creating existing session {}", session.name);
+                continue;
+            }
+
+            let session = session.clone();
+            let related_windows = metadata.windows_related_to(&session);
+            let related_panes: Vec<Vec<Pane>> = related_windows
+                .iter()
+                .map(|w| metadata.panes_related_to(w).into_iter().cloned().collect())
+                .collect();
+            let panes_content_dirpath = panes_content_dir.clone();
+            let default_command = default_command.as_str();
+
+            handles.push(scope.spawn(move || {
+                restore_session(
+                    tmux,
+                    session,
+                    related_windows,
+                    related_panes,
+                    panes_content_dirpath,
+                    default_command,
+                )
+            }));
         }
 
-        let session = session.clone();
-        let related_windows = metadata.windows_related_to(&session);
-        let related_panes: Vec<Vec<Pane>> = related_windows
-            .iter()
-            .map(|w| metadata.panes_related_to(w).into_iter().cloned().collect())
-            .collect();
-        let panes_content_dirpath = panes_content_dir.clone();
-        let default_command = default_command.clone();
-        let tmux = tmux.clone();
-
-        // Restoring one session is a long sequence of blocking tmux calls.
-        // Run the whole sequence off the executor rather than bridging each
-        // call, keeping the per-session parallelism this always had.
-        let handle = smol::unblock(move || {
-            restore_session(
-                &tmux,
-                session,
-                related_windows,
-                related_panes,
-                panes_content_dirpath,
-                &default_command,
-            )
-        });
-        handles.push(handle);
-    }
-
-    join_all(handles)
-        .await
-        .into_iter()
-        .collect::<Result<()>>()?;
+        handles
+            .into_iter()
+            .try_for_each(|handle| handle.join().expect("session restore panicked"))
+    })?;
 
     // Delete the temp restore directory.
     temp_dir.close()?;
