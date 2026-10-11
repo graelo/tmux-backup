@@ -46,6 +46,14 @@ and this project adheres to
 - Reduce the crate documentation to a short README pointer; the full end-user
   documentation now lives only in `README.md`
 
+### Security
+
+- Align CI with github-actions-playbook v1.9: switch the Rust toolchain
+  install to the pinned `actions-rust-lang/setup-rust-toolchain` v2.0.0 with
+  `cache: false` (explicit `actions/cache` steps keep doing the caching), drop
+  the now-unneeded zizmor `superfluous-actions` suppressions, and trust the
+  Homebrew tap before tapping it in the release workflow
+
 ### Documentation
 
 - A backup taken on tmux 3.8 cannot be restored on an earlier tmux. tmux 3.8
