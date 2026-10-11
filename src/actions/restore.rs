@@ -99,10 +99,15 @@ pub fn restore<P: AsRef<Path>>(tmux: &Tmux, backup_filepath: P) -> Result<v1::Ov
     // Kill the session used to start the server.
     if not_in_tmux {
         tmux.kill_session(PLACEHOLDER_SESSION_NAME)?;
-        println!(
-            "Attach to your last session with `tmux attach -t {}`",
-            metadata.client.session_name
-        );
+        // A backup taken outside a tmux client names no session.
+        if metadata.client.session_name.is_empty() {
+            println!("Attach with `tmux attach`");
+        } else {
+            println!(
+                "Attach to your last session with `tmux attach -t {}`",
+                metadata.client.session_name
+            );
+        }
 
         // Return an overview of the archived tmux environment, which is identical, in principle,
         // with the new one. We cannot do more because the client metadata cannot be fetched.
