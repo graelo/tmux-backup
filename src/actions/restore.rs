@@ -4,17 +4,16 @@ use std::{
     collections::HashSet,
     iter::zip,
     path::{Path, PathBuf},
+    thread,
 };
 
-use futures::future::join_all;
-use smol;
 use tempfile::TempDir;
 
 use crate::{
     Result,
     error::Error,
     management::archive::v1,
-    tmux::{self, pane::Pane, session::Session, window::Window},
+    tmux::{self, Tmux, pane::Pane, session::Session, window::Window},
 };
 
 /// Name of the placeholder session.
@@ -29,85 +28,92 @@ fn is_inside_tmux() -> bool {
 }
 
 /// Restore all sessions, windows & panes from the backup file.
-pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview> {
+pub fn restore<P: AsRef<Path>>(tmux: &Tmux, backup_filepath: P) -> Result<v1::Overview> {
     // Prepare the temp directory with the content of the backup.
     let temp_dir = TempDir::new()?;
-    v1::unpack(backup_filepath.as_ref(), temp_dir.path()).await?;
+    v1::unpack(backup_filepath.as_ref(), temp_dir.path())?;
     let panes_content_dir = temp_dir.path().join("panes-content");
 
     // Start tmux if needed.
     let not_in_tmux = !is_inside_tmux();
     if not_in_tmux {
-        tmux::server::start(PLACEHOLDER_SESSION_NAME).await?;
+        tmux.start_server(PLACEHOLDER_SESSION_NAME)?;
     }
 
     // Get the default command used to start panes.
-    let default_command = tmux::server::default_command().await?;
+    let default_command = tmux.default_command()?;
 
     // Restore sessions, windows and panes.
-    let metadata = v1::Metadata::read_file(backup_filepath).await?;
+    let metadata = v1::Metadata::read_file(backup_filepath)?;
 
-    let existing_sessions_names: HashSet<_> = tmux::session::available_sessions()
-        .await?
+    let existing_sessions_names: HashSet<_> = tmux
+        .available_sessions()?
         .into_iter()
         .map(|s| s.name)
         .collect();
 
-    let mut handles = vec![];
+    // Sessions are restored in parallel, each as one sequence of tmux calls on
+    // its own thread.
+    thread::scope(|scope| {
+        let mut handles = vec![];
 
-    for session in &metadata.sessions {
-        if existing_sessions_names.contains(&session.name) {
-            eprintln!("skip creating existing session {}", session.name);
-            continue;
+        for session in &metadata.sessions {
+            if existing_sessions_names.contains(&session.name) {
+                eprintln!("skip creating existing session {}", session.name);
+                continue;
+            }
+
+            let session = session.clone();
+            let related_windows = metadata.windows_related_to(&session);
+            let related_panes: Vec<Vec<Pane>> = related_windows
+                .iter()
+                .map(|w| metadata.panes_related_to(w).into_iter().cloned().collect())
+                .collect();
+            let panes_content_dirpath = panes_content_dir.clone();
+            let default_command = default_command.as_str();
+
+            handles.push(scope.spawn(move || {
+                restore_session(
+                    tmux,
+                    session,
+                    related_windows,
+                    related_panes,
+                    panes_content_dirpath,
+                    default_command,
+                )
+            }));
         }
 
-        let session = session.clone();
-        let related_windows = metadata.windows_related_to(&session);
-        let related_panes: Vec<Vec<Pane>> = related_windows
-            .iter()
-            .map(|w| metadata.panes_related_to(w).into_iter().cloned().collect())
-            .collect();
-        let panes_content_dirpath = panes_content_dir.clone();
-        let default_command = default_command.clone();
-
-        let handle = smol::spawn(async move {
-            restore_session(
-                session,
-                related_windows,
-                related_panes,
-                panes_content_dirpath,
-                &default_command,
-            )
-            .await
-        });
-        handles.push(handle);
-    }
-
-    join_all(handles)
-        .await
-        .into_iter()
-        .collect::<Result<()>>()?;
+        handles
+            .into_iter()
+            .try_for_each(|handle| handle.join().expect("session restore panicked"))
+    })?;
 
     // Delete the temp restore directory.
     temp_dir.close()?;
 
     // Set the client last and current session.
-    tmux::client::switch_client(&metadata.client.last_session_name).await?;
-    tmux::client::switch_client(&metadata.client.session_name).await?;
+    tmux.switch_client(&metadata.client.last_session_name)?;
+    tmux.switch_client(&metadata.client.session_name)?;
 
     // Kill the session used to start the server.
     if not_in_tmux {
-        tmux::server::kill_session(PLACEHOLDER_SESSION_NAME).await?;
-        println!(
-            "Attach to your last session with `tmux attach -t {}`",
-            metadata.client.session_name
-        );
+        tmux.kill_session(PLACEHOLDER_SESSION_NAME)?;
+        // A backup taken outside a tmux client names no session.
+        if metadata.client.session_name.is_empty() {
+            println!("Attach with `tmux attach`");
+        } else {
+            println!(
+                "Attach to your last session with `tmux attach -t {}`",
+                metadata.client.session_name
+            );
+        }
 
         // Return an overview of the archived tmux environment, which is identical, in principle,
         // with the new one. We cannot do more because the client metadata cannot be fetched.
         Ok(metadata.overview())
     } else {
-        if tmux::server::kill_session("0").await.is_err() {
+        if tmux.kill_session("0").is_err() {
             let message = "
             Unusual start conditions:
             - you started from outside tmux but no existing session named `0` was found
@@ -117,7 +123,7 @@ pub async fn restore<P: AsRef<Path>>(backup_filepath: P) -> Result<v1::Overview>
         }
 
         // Return an overview of the restored tmux environment.
-        let metadata = v1::Metadata::new().await?;
+        let metadata = v1::Metadata::new(tmux)?;
         Ok(metadata.overview())
     }
 }
@@ -140,7 +146,8 @@ struct Pair {
 ///
 /// This strategy is faster than creating a placeholder window and removing it at the end (checked
 /// multiple times).
-async fn restore_session(
+fn restore_session(
+    tmux: &Tmux,
     mut session: Session,
     session_windows: Vec<Window>,
     panes_per_window: Vec<Vec<Pane>>,
@@ -162,20 +169,14 @@ async fn restore_session(
 
         let (new_window_id, new_pane_id) = {
             if index == 0 {
-                let (new_session_id, new_window_id, new_pane_id) = tmux::session::new_session(
-                    &session,
-                    src_window,
-                    first_pane,
-                    Some(&pane_command),
-                )
-                .await?;
+                let (new_session_id, new_window_id, new_pane_id) =
+                    tmux.new_session(&session, src_window, first_pane, Some(&pane_command))?;
                 // Update session with the newly created session ID so that
                 // subsequent new_window() calls target the correct session.
                 session.id = new_session_id;
                 (new_window_id, new_pane_id)
             } else {
-                tmux::window::new_window(&session, src_window, first_pane, Some(&pane_command))
-                    .await?
+                tmux.new_window(&session, src_window, first_pane, Some(&pane_command))?
             }
         };
 
@@ -195,8 +196,7 @@ async fn restore_session(
                 default_command
             );
 
-            let new_pane_id =
-                tmux::pane::new_pane(pane, Some(&pane_command), &new_window_id).await?;
+            let new_pane_id = tmux.new_pane(pane, Some(&pane_command), &new_window_id)?;
             pairs.push(Pair {
                 source: pane.clone(),
                 target: new_pane_id,
@@ -204,16 +204,16 @@ async fn restore_session(
         }
 
         // 1d. Set the layout
-        tmux::window::set_layout(&src_window.layout, &new_window_id).await?;
+        tmux.set_layout(&src_window.layout, &new_window_id)?;
 
         if src_window.is_active {
-            tmux::window::select_window(&new_window_id).await?;
+            tmux.select_window(&new_window_id)?;
         }
     }
 
     for pair in &pairs {
         if pair.source.is_active {
-            tmux::pane::select_pane(&pair.target).await?;
+            tmux.select_pane(&pair.target)?;
         }
     }
 

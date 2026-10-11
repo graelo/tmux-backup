@@ -8,7 +8,7 @@
 
 A backup & restore solution for Tmux sessions.
 
-Version requirement: _rustc 1.95+_
+Version requirements: _rustc 1.95+_, _tmux 3.4+_
 
 ## Features
 

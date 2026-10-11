@@ -12,13 +12,46 @@ and this project adheres to
 
 - Add a `tmux-backup(1)` manpage and `make man` validation target
 
+### Fixed
+
+- Autosave reports reached the wrong tmux client whenever a second client was
+  attached. They were addressed with `display-message -t`, which is a target
+  *pane*; selecting a client needs `-c`
+- Autosave read the selected client through a hand-written tmux format that
+  no longer matched what tmux-lib parses, so it failed outright
+
 ### Changed
 
+- Update `tmux-lib` to 0.7, which requires tmux 3.4 or later
+- `save` and `autosave` run over one tmux control connection rather than
+  forking a tmux client per command and per pane, falling back to forking
+  when no control client can attach. **Breaking:** `save` takes the client to
+  record, which the caller resolves before attaching, because tmux may name
+  an attached control client as the current one
+- **Breaking:** drop the async runtime. `save`, `autosave`, `restore` and the
+  `Catalog` methods are plain functions, and the `smol`, `async-fs` and
+  `futures` dependencies are gone, taking 33 crates out of the build. The
+  concurrency is unchanged: the metadata query overlaps the pane captures, and
+  each pane is captured, and each session restored, on its own thread
+- Migrate to the synchronous tmux-lib API: every tmux call is now a method on
+  a `Tmux` handle created once per run. Pane captures keep their per-pane
+  parallelism, and each session restore now runs as one blocking sequence
+  rather than task-hopping between tmux calls
+- Stop invoking tmux directly. Naming the current client, listing clients and
+  displaying a message to a chosen client are tmux-lib operations now, so this
+  crate spawns no tmux process of its own
 - Consolidate local verification in the `Makefile`: `make check` is the
   pre-push gate, `make check-all` is the pre-PR gate, and `make coverage`
   generates an HTML coverage report
 - Reduce the crate documentation to a short README pointer; the full end-user
   documentation now lives only in `README.md`
+
+### Documentation
+
+- A backup taken on tmux 3.8 cannot be restored on an earlier tmux. tmux 3.8
+  records every window's layout in a new format that earlier versions reject,
+  so the restore fails with `invalid layout`, after creating the sessions and
+  their panes but before arranging them
 
 ## [0.6.0] - 2026-08-09
 

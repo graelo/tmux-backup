@@ -1,8 +1,8 @@
 //! Main runner
 
+use std::fs;
 use std::path::Path;
 
-use async_fs as fs;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
@@ -12,14 +12,15 @@ use tmux_backup::{
     },
     config::{AutosaveTmuxOutput, CatalogSubcommand, Command, Config, StrategyConfig},
     management::{archive::v1, catalog::Catalog},
-    tmux,
+    tmux::Tmux,
 };
 
-async fn init_catalog<P: AsRef<Path>>(
+fn init_catalog<P: AsRef<Path>>(
+    tmux: &Tmux,
     backup_dirpath: P,
     strategy_config: StrategyConfig,
 ) -> Catalog {
-    match Catalog::new(&backup_dirpath.as_ref(), strategy_config.strategy()).await {
+    match Catalog::new(backup_dirpath.as_ref(), strategy_config.strategy()) {
         Ok(catalog) => catalog,
         Err(e) => {
             failure_message(
@@ -28,43 +29,43 @@ async fn init_catalog<P: AsRef<Path>>(
                     backup_dirpath.as_ref().to_string_lossy()
                 ),
                 Output::Both,
+                tmux,
             );
             std::process::exit(1);
         }
     }
 }
 
-async fn run(config: Config) {
+fn run(config: Config) {
+    // One handle for the whole run: tmux-backup always talks to the default
+    // server, and the handle is cheap to clone into the tasks that need it.
+    let tmux = Tmux::spawning();
+
     match config.command {
         Command::Catalog { strategy, command } => {
-            let catalog = init_catalog(&config.backup_dirpath, strategy).await;
+            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy);
 
             match command {
                 CatalogSubcommand::List {
                     details_flag,
                     only_backup_status,
                     filepaths_flag,
-                } => {
-                    catalog
-                        .list(details_flag, only_backup_status, filepaths_flag)
-                        .await
-                }
-                CatalogSubcommand::Compact => match catalog.compact().await {
+                } => catalog.list(details_flag, only_backup_status, filepaths_flag),
+                CatalogSubcommand::Compact => match catalog.compact() {
                     Ok(n) => {
                         let message = format!("✅ deleted {n} outdated backups");
-                        success_message(message, Output::Stdout)
+                        success_message(message, Output::Stdout, &tmux)
                     }
                     Err(e) => failure_message(
                         format!("🛑 Could not compact backups: {e}"),
                         Output::Stdout,
+                        &tmux,
                     ),
                 },
             }
         }
 
-        Command::Describe { backup_filepath } => {
-            v1::print_description(backup_filepath).await.unwrap()
-        }
+        Command::Describe { backup_filepath } => v1::print_description(backup_filepath).unwrap(),
 
         Command::Save {
             strategy,
@@ -72,29 +73,49 @@ async fn run(config: Config) {
             compact,
             num_lines_to_drop,
         } => {
-            let catalog = init_catalog(&config.backup_dirpath, strategy).await;
+            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy);
 
-            match save(&catalog.dirpath, num_lines_to_drop as usize).await {
+            // Outside a tmux client there is no client to describe, and a
+            // backup taken from a scheduler is still a valid backup.
+            let client = match tmux.current_client() {
+                Ok(client) => client.unwrap_or_default(),
+                Err(e) => {
+                    failure_message(
+                        format!("🛑 Could not describe the tmux client: {e}"),
+                        to_tmux,
+                        &tmux,
+                    );
+                    return;
+                }
+            };
+
+            // Bound first, so the control client has detached before any
+            // message below goes to tmux.
+            let saved = save(
+                &capturing(&tmux),
+                client,
+                &catalog.dirpath,
+                num_lines_to_drop as usize,
+            );
+            match saved {
                 Ok((backup_filepath, archive_overview)) => {
                     if compact {
                         // In practice this should never fail: write to the catalog already ensures
                         // the catalog's dirpath is writable.
                         catalog
                             .refresh()
-                            .await
                             .expect("Success saving but could not refresh")
                             .compact()
-                            .await
                             .expect("Success saving but could not compact");
                     }
                     let message = format!(
                         "✅ {archive_overview}, persisted to `{}`",
                         backup_filepath.to_string_lossy()
                     );
-                    success_message(message, to_tmux);
+                    success_message(message, to_tmux, &tmux);
                 }
                 Err(e) => {
-                    failure_message(format!("🛑 Could not save sessions: {e}"), to_tmux);
+                    failure_message(format!("🛑 Could not save sessions: {e}"), to_tmux, &tmux);
                 }
             };
         }
@@ -103,33 +124,35 @@ async fn run(config: Config) {
             to_tmux,
             num_lines_to_drop,
         } => {
-            let context = match autosave_context(to_tmux.is_some()).await {
+            let context = match autosave_context(&tmux, to_tmux.is_some()) {
                 Ok(context) => context,
                 Err(e) => {
                     failure_message(
                         format!("🛑 Could not prepare autosave: {e}"),
                         Output::Stdout,
+                        &tmux,
                     );
                     return;
                 }
             };
 
-            if let Err(e) = fs::create_dir_all(&config.backup_dirpath).await {
+            if let Err(e) = fs::create_dir_all(&config.backup_dirpath) {
                 autosave_failure(
                     format!("🛑 Could not create autosave directory: {e}"),
                     to_tmux,
                     &context,
+                    &tmux,
                 );
                 return;
             }
 
-            match autosave(
+            let saved = autosave(
+                &capturing(&tmux),
                 &config.backup_dirpath,
                 num_lines_to_drop as usize,
                 context.clone(),
-            )
-            .await
-            {
+            );
+            match saved {
                 Ok((backup_filepath, archive_overview)) => autosave_success(
                     format!(
                         "✅ {archive_overview}, auto-saved to `{}`",
@@ -137,11 +160,13 @@ async fn run(config: Config) {
                     ),
                     to_tmux,
                     &context,
+                    &tmux,
                 ),
                 Err(e) => autosave_failure(
                     format!("🛑 Could not autosave sessions: {e}"),
                     to_tmux,
                     &context,
+                    &tmux,
                 ),
             }
         }
@@ -151,7 +176,7 @@ async fn run(config: Config) {
             to_tmux,
             backup_filepath,
         } => {
-            let catalog = init_catalog(&config.backup_dirpath, strategy).await;
+            let catalog = init_catalog(&tmux, &config.backup_dirpath, strategy);
 
             // Either the provided filepath, or newest ordinary backup/autosave, or failure.
             let backup_to_restore = {
@@ -160,20 +185,28 @@ async fn run(config: Config) {
                 } else if let Some(backup_filepath) = catalog.latest_for_restore() {
                     backup_filepath
                 } else {
-                    failure_message("🛑 No available backup to restore".to_string(), to_tmux);
+                    failure_message(
+                        "🛑 No available backup to restore".to_string(),
+                        to_tmux,
+                        &tmux,
+                    );
                     return;
                 }
             };
-            match restore(backup_to_restore).await {
+            match restore(&tmux, backup_to_restore) {
                 Ok(overview) => {
                     let message = format!(
                         "✅ restored {overview} from `{}`",
                         backup_to_restore.to_string_lossy()
                     );
-                    success_message(message, to_tmux)
+                    success_message(message, to_tmux, &tmux)
                 }
                 Err(e) => {
-                    failure_message(format!("🛑 Could not restore sessions: {e}"), to_tmux);
+                    failure_message(
+                        format!("🛑 Could not restore sessions: {e}"),
+                        to_tmux,
+                        &tmux,
+                    );
                 }
             }
         }
@@ -191,9 +224,19 @@ async fn run(config: Config) {
     }
 }
 
+/// The handle a save runs on: one control connection, or `tmux` when no
+/// control client can attach.
+///
+/// Call it only once the client has been resolved: while the control client
+/// is attached, tmux may name it as the current client. It detaches when the
+/// returned handle is dropped.
+fn capturing(tmux: &Tmux) -> Tmux {
+    Tmux::control().unwrap_or_else(|_| tmux.clone())
+}
+
 fn main() {
     let config = Config::parse();
-    smol::block_on(run(config));
+    run(config);
 }
 
 enum Output {
@@ -216,9 +259,10 @@ fn autosave_success(
     message: String,
     to_tmux: Option<AutosaveTmuxOutput>,
     context: &AutosaveContext,
+    tmux: &Tmux,
 ) {
     match to_tmux {
-        Some(AutosaveTmuxOutput::All) => display_autosave_message(context, &message),
+        Some(AutosaveTmuxOutput::All) => display_autosave_message(tmux, context, &message),
         None | Some(AutosaveTmuxOutput::Errors) => println!("{message}"),
     }
 }
@@ -227,32 +271,41 @@ fn autosave_failure(
     message: String,
     to_tmux: Option<AutosaveTmuxOutput>,
     context: &AutosaveContext,
+    tmux: &Tmux,
 ) {
     eprintln!("{message}");
     if to_tmux.is_some() {
-        display_autosave_message(context, &message);
+        display_autosave_message(tmux, context, &message);
     }
     std::process::exit(1);
 }
 
-fn success_message<O: Into<Output>>(message: String, output: O) {
+fn success_message<O: Into<Output>>(message: String, output: O, tmux: &Tmux) {
+    // Reporting into tmux is best effort: the message is already the outcome
+    // being reported, so a failure to display it must not replace it.
     match output.into() {
-        Output::ToTmux => tmux::display_message(&message),
+        Output::ToTmux => report_to_tmux(tmux, &message),
         Output::Stdout => println!("{message}"),
         Output::Both => {
             println!("{message}");
-            tmux::display_message(&message)
+            report_to_tmux(tmux, &message);
         }
     }
 }
 
-fn failure_message<O: Into<Output>>(message: String, output: O) {
+fn report_to_tmux(tmux: &Tmux, message: &str) {
+    if let Err(e) = tmux.display_message(message) {
+        eprintln!("could not display the message in tmux: {e}");
+    }
+}
+
+fn failure_message<O: Into<Output>>(message: String, output: O, tmux: &Tmux) {
     match output.into() {
-        Output::ToTmux => tmux::display_message(&message),
+        Output::ToTmux => report_to_tmux(tmux, &message),
         Output::Stdout => eprintln!("{message}"),
         Output::Both => {
             eprintln!("{message}");
-            tmux::display_message(&message)
+            report_to_tmux(tmux, &message);
         }
     };
     std::process::exit(1);

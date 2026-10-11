@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, error::Error, tmux};
+use crate::{Result, error::Error, tmux, tmux::Tmux};
 
 /// Version of the archive format.
 pub const FORMAT_VERSION: &str = "1.0";
@@ -52,20 +52,26 @@ pub struct Metadata {
 
 impl Metadata {
     /// Query Tmux and return a new `Metadata` for the current client.
-    pub async fn new() -> Result<Self> {
-        let client = tmux::client::current().await?;
-        Self::new_with_client(client).await
+    ///
+    /// This blocks on four tmux invocations; run it on its own thread when
+    /// there is other work to overlap with.
+    pub fn new(tmux: &Tmux) -> Result<Self> {
+        // Outside a tmux client there is no client to describe, and a backup
+        // taken from a scheduler is still a valid backup. The empty client
+        // restores as "switch to nothing", which is what it means.
+        let client = tmux.current_client()?.unwrap_or_default();
+        Self::new_with_client(tmux, client)
     }
 
     /// Query Tmux and return new metadata for `client`.
     ///
     /// This is used by autosaves started outside a Tmux client, where the caller has selected a
     /// client explicitly.
-    pub async fn new_with_client(client: tmux::client::Client) -> Result<Self> {
+    pub fn new_with_client(tmux: &Tmux, client: tmux::client::Client) -> Result<Self> {
         let version = FORMAT_VERSION.to_string();
-        let sessions = tmux::session::available_sessions().await?;
-        let windows = tmux::window::available_windows().await?;
-        let panes = tmux::pane::available_panes().await?;
+        let sessions = tmux.available_sessions()?;
+        let windows = tmux.available_windows()?;
+        let panes = tmux.available_panes()?;
 
         Ok(Self {
             version,
@@ -77,7 +83,7 @@ impl Metadata {
     }
 
     /// Open the archive file at `backup_filepath` and read the version string and tmux metadata.
-    pub async fn read_file<P: AsRef<Path>>(backup_filepath: P) -> Result<Self> {
+    pub fn read_file<P: AsRef<Path>>(backup_filepath: P) -> Result<Self> {
         let archive = std::fs::File::open(backup_filepath.as_ref())?;
         let dec = zstd::stream::read::Decoder::new(archive)?;
         let mut tar = tar::Archive::new(dec);
@@ -179,7 +185,7 @@ impl fmt::Display for Overview {
 }
 
 /// Print a full description of the archive, with session and window names.
-pub async fn print_description<P>(_backup_filepath: P) -> Result<()>
+pub fn print_description<P>(_backup_filepath: P) -> Result<()>
 where
     P: AsRef<Path>,
 {
@@ -262,7 +268,7 @@ pub fn create_from_file<P: AsRef<Path>>(
 /// Unpack a backup at `backup_filepath` into `dest_dirpath`.
 ///
 /// This is used to unpack the archive into `/tmp/` and access the panes-content.
-pub async fn unpack<P: AsRef<Path>>(
+pub fn unpack<P: AsRef<Path>>(
     backup_filepath: P,
     dest_dirpath: P,
 ) -> std::result::Result<(), std::io::Error> {

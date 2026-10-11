@@ -1,13 +1,12 @@
 //! Retrieve session information and panes content save to a backup.
 
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::thread;
 
-use async_fs as fs;
-use futures::future::join_all;
-use smol;
 use tempfile::TempDir;
 
-use crate::{Result, management::archive::v1, tmux};
+use crate::{Result, management::archive::v1, tmux, tmux::Tmux};
 use tmux_lib::utils;
 
 /// Shell commands that are recognized for prompt line dropping.
@@ -16,7 +15,8 @@ use tmux_lib::utils;
 /// we can optionally drop the last N lines to avoid capturing the shell prompt.
 const DETECTED_SHELLS: &[&str] = &["zsh", "bash", "fish"];
 
-/// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`.
+/// Save the tmux sessions, windows and panes into a backup at `backup_dirpath`,
+/// recording `client` as the one to switch back to on restore.
 ///
 /// After saving, this function returns the path to the backup and the number of
 /// sessions, windows and panes.
@@ -24,52 +24,38 @@ const DETECTED_SHELLS: &[&str] = &["zsh", "bash", "fish"];
 /// # Notes
 ///
 /// - The `backup_dirpath` folder is assumed to exist (done during catalog initialization).
+/// - `client` is taken rather than looked up: on a control handle, tmux would
+///   name the control client itself. Resolve it on a spawning handle, before
+///   attaching, with `current_client`.
 /// - Backups have a name similar to `backup-20220731T222948.tar.zst`.
 ///
-pub async fn save<P: AsRef<Path>>(
+pub fn save<P: AsRef<Path>>(
+    tmux: &Tmux,
+    client: tmux::client::Client,
     backup_dirpath: P,
     num_lines_to_drop: usize,
 ) -> Result<(PathBuf, v1::Overview)> {
     // Prepare the temp directory.
     let temp_dir = TempDir::new()?;
+    let temp_panes_content_dir = temp_dir.path().join(v1::PANES_DIR_NAME);
+    fs::create_dir_all(&temp_panes_content_dir)?;
 
-    // Save sessions & windows into `metadata.json` in the temp folder.
-    let metadata_task: smol::Task<Result<(PathBuf, PathBuf, u16, u16)>> = {
-        let temp_dirpath = temp_dir.path().to_path_buf();
+    // Query sessions & windows on their own thread, so that the pane captures
+    // overlap with it.
+    let (metadata, panes) = thread::scope(|scope| {
+        let metadata = scope.spawn(move || v1::Metadata::new_with_client(tmux, client));
+        let panes = save_panes(tmux, &temp_panes_content_dir, num_lines_to_drop);
+        (metadata.join().expect("metadata query panicked"), panes)
+    });
+    let num_panes = panes?;
+    let metadata = metadata?;
 
-        smol::spawn(async move {
-            let temp_version_filepath = temp_dirpath.join(v1::VERSION_FILENAME);
-            fs::write(&temp_version_filepath, v1::FORMAT_VERSION).await?;
+    // Save the format version & metadata into the temp folder.
+    let temp_version_filepath = temp_dir.path().join(v1::VERSION_FILENAME);
+    fs::write(&temp_version_filepath, v1::FORMAT_VERSION)?;
 
-            let metadata = v1::Metadata::new().await?;
-
-            let json = serde_json::to_string(&metadata)?;
-
-            let temp_metadata_filepath = temp_dirpath.join(v1::METADATA_FILENAME);
-            fs::write(temp_metadata_filepath.as_path(), json).await?;
-
-            Ok((
-                temp_version_filepath,
-                temp_metadata_filepath,
-                metadata.sessions.len() as u16,
-                metadata.windows.len() as u16,
-            ))
-        })
-    };
-
-    // Save pane contents in the temp folder.
-    let (temp_panes_content_dir, num_panes) = {
-        let temp_panes_content_dir = temp_dir.path().join(v1::PANES_DIR_NAME);
-        fs::create_dir_all(&temp_panes_content_dir).await?;
-
-        let panes = tmux::pane::available_panes().await?;
-        let num_panes = panes.len() as u16;
-        save_panes_content(panes, &temp_panes_content_dir, num_lines_to_drop).await?;
-
-        (temp_panes_content_dir, num_panes)
-    };
-    let (temp_version_filepath, temp_metadata_filepath, num_sessions, num_windows) =
-        metadata_task.await?;
+    let temp_metadata_filepath = temp_dir.path().join(v1::METADATA_FILENAME);
+    fs::write(&temp_metadata_filepath, serde_json::to_string(&metadata)?)?;
 
     // Tar-compress content of temp folder into a new backup file in `backup_dirpath`.
     let new_backup_filepath = v1::new_backup_filepath(backup_dirpath.as_ref());
@@ -86,12 +72,25 @@ pub async fn save<P: AsRef<Path>>(
 
     let overview = v1::Overview {
         version: v1::FORMAT_VERSION.to_string(),
-        num_sessions,
-        num_windows,
+        num_sessions: metadata.sessions.len() as u16,
+        num_windows: metadata.windows.len() as u16,
         num_panes,
     };
 
     Ok((new_backup_filepath, overview))
+}
+
+/// List the panes and save the content of each into `destination_dir`, returning how many there
+/// were.
+pub(crate) fn save_panes(
+    tmux: &Tmux,
+    destination_dir: &Path,
+    num_lines_to_drop: usize,
+) -> Result<u16> {
+    let panes = tmux.available_panes()?;
+    let num_panes = panes.len() as u16;
+    save_panes_content(tmux, &panes, destination_dir, num_lines_to_drop)?;
+    Ok(num_panes)
 }
 
 /// Determine if the given command is a recognized shell.
@@ -114,33 +113,44 @@ fn lines_to_drop_for_pane(pane_command: &str, num_lines_to_drop: usize) -> usize
 }
 
 /// For each provided pane, retrieve the content and save it into `destination_dir`.
-pub(crate) async fn save_panes_content<P: AsRef<Path>>(
-    panes: Vec<tmux::pane::Pane>,
-    destination_dir: P,
+fn save_panes_content(
+    tmux: &Tmux,
+    panes: &[tmux::pane::Pane],
+    destination_dir: &Path,
     num_lines_to_drop: usize,
 ) -> Result<()> {
-    let mut handles = Vec::new();
+    // One thread per pane. On a control handle the captures take turns on the
+    // connection, which tmux-lib measured faster than a client per pane; the
+    // threads still overlap the trimming and the file writes.
+    thread::scope(|scope| {
+        let handles: Vec<_> = panes
+            .iter()
+            .map(|pane| {
+                scope.spawn(move || {
+                    save_pane_content(tmux, pane, destination_dir, num_lines_to_drop)
+                })
+            })
+            .collect();
 
-    for pane in panes {
-        let dest_dir = destination_dir.as_ref().to_path_buf();
-        let drop_n_last_lines = lines_to_drop_for_pane(&pane.command, num_lines_to_drop);
+        handles
+            .into_iter()
+            .try_for_each(|handle| handle.join().expect("pane capture panicked"))
+    })
+}
 
-        let handle = smol::spawn(async move {
-            let stdout = pane.capture().await?;
-            let cleaned_buffer = cleanup_captured_buffer(&stdout, drop_n_last_lines);
+/// Retrieve the content of `pane` and save it into `destination_dir`.
+fn save_pane_content(
+    tmux: &Tmux,
+    pane: &tmux::pane::Pane,
+    destination_dir: &Path,
+    num_lines_to_drop: usize,
+) -> Result<()> {
+    let drop_n_last_lines = lines_to_drop_for_pane(&pane.command, num_lines_to_drop);
+    let stdout = tmux.capture_pane(&pane.id)?;
+    let cleaned_buffer = cleanup_captured_buffer(&stdout, drop_n_last_lines);
 
-            let filename = format!("pane-{}.txt", pane.id);
-            let filepath = dest_dir.join(filename);
-            fs::write(filepath, cleaned_buffer).await?;
-            Ok(())
-        });
-        handles.push(handle);
-    }
-
-    join_all(handles)
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>>>()?;
+    let filepath = destination_dir.join(format!("pane-{}.txt", pane.id));
+    fs::write(filepath, cleaned_buffer)?;
     Ok(())
 }
 
