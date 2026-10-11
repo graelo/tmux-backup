@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-11
+
 ### Added
 
 - Add a `tmux-backup(1)` manpage and `make man` validation target
@@ -424,7 +426,8 @@ Initial public release.
 - Strategy configuration via environment variables
 - `show_options()` and `session_path` capture through tmux
 
-[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/graelo/tmux-backup/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/graelo/tmux-backup/compare/v0.5.20...v0.6.0
 [0.5.20]: https://github.com/graelo/tmux-backup/compare/v0.5.19...v0.5.20
 [0.5.19]: https://github.com/graelo/tmux-backup/compare/v0.5.18...v0.5.19
