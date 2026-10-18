@@ -107,7 +107,8 @@ setup_binding () {
 setup_binding_w_popup () {
     key=$1
     command="$2"
-    tmux bind-key -T "${keytable}" "${key}" display-popup -E "tmux new-session -A -s tmux-backup '${BINARY} ${command} ; echo Press any key... && read -k1 -s'"
+    tmux bind-key -T "${keytable}" "${key}" \
+      display-popup -k -w 50% -h 50% -T "tmux-backup" "${BINARY} ${command} ; echo Press any key..."
 }
 
 # prefix + b + b only saves a new backup without compacting the catalog
