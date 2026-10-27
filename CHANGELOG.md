@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-27
+
+### Added
+
+- The catalog binding opens a simple `display-popup` (50% width and height,
+  closing on any key press) instead of a full session inside the popup
+
+### Changed
+
+- Update patch-level dependencies
+
 ### Security
 
 - Update the zstd stack (`zstd` 0.14.3, `zstd-safe` 8.2.0, `zstd-sys` 2.1.2)
@@ -435,7 +446,8 @@ Initial public release.
 - Strategy configuration via environment variables
 - `show_options()` and `session_path` capture through tmux
 
-[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/graelo/tmux-backup/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/graelo/tmux-backup/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/graelo/tmux-backup/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/graelo/tmux-backup/compare/v0.5.20...v0.6.0
 [0.5.20]: https://github.com/graelo/tmux-backup/compare/v0.5.19...v0.5.20
