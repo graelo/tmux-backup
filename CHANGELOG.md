@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Security
+
+- Update the zstd stack (`zstd` 0.14.3, `zstd-safe` 8.2.0, `zstd-sys` 2.1.2)
+  to resolve RUSTSEC-2026-0391 (data leak on a reused zstd context),
+  RUSTSEC-2026-0398 (out-of-bounds `Vec` length in `Seekable::decompress`),
+  RUSTSEC-2026-0403 (uninitialized memory exposed when decompression of a
+  legacy frame fails) and RUSTSEC-2026-0410 (memory corruption in the
+  wasm32 allocator shim)
+
 ## [0.7.0] - 2026-10-11
 
 ### Added
