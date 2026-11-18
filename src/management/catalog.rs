@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::{env, fs, iter, thread};
 
-use chrono::{DateTime, Local, NaiveDateTime};
+use jiff::{Timestamp, ZonedDateTime, civil::DateTime, tz::TimeZone};
 use regex::Regex;
 use si_scale::helpers::bytes2;
 
@@ -214,9 +214,7 @@ impl Catalog {
             let path = entry.path();
             if let Some(captures) = BACKUP_RE.captures(&path.to_string_lossy()) {
                 let date_str = &captures[1];
-                if let Ok(creation_date) =
-                    NaiveDateTime::parse_from_str(date_str, "%Y%m%dT%H%M%S%.f")
-                {
+                if let Ok(creation_date) = DateTime::strptime("%Y%m%dT%H%M%S%.6f", date_str) {
                     backups.push(Backup {
                         filepath: path,
                         creation_date,
@@ -243,7 +241,9 @@ impl Catalog {
             return Ok(None);
         }
 
-        let modified_at = DateTime::<Local>::from(metadata.modified()?).naive_local();
+        let modified_at = Timestamp::try_from(metadata.modified()?)?
+            .to_zoned_datetime(TimeZone::system())
+            .datetime();
         Ok(Some(Autosave {
             filepath,
             modified_at,
@@ -265,7 +265,7 @@ impl Catalog {
         };
         println!("Location: `{}`", location.to_string_lossy());
 
-        let now = Local::now().naive_local();
+        let now = ZonedDateTime::now().datetime();
         match &self.autosave {
             Some(autosave) => println!("Auto-save: {} ago", autosave.age(now)),
             None => println!("Auto-save: none"),
@@ -357,7 +357,6 @@ impl Catalog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Timelike;
     use tempfile::TempDir;
 
     fn catalog(dir: &TempDir) -> Catalog {
@@ -429,7 +428,7 @@ mod tests {
         let catalog = catalog(&dir);
 
         assert_eq!(
-            catalog.latest().unwrap().creation_date.nanosecond(),
+            catalog.latest().unwrap().creation_date.subsec_nanosecond(),
             123_456_000
         );
     }

@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Security
+
+- Replace the unmaintained `chrono` crate with `jiff` to resolve
+  RUSTSEC-2026-0543. Backup filenames keep their six-digit local-time
+  timestamp, so existing archives stay readable, and age reports and
+  compaction windows keep their local-time semantics
+
+### Changed
+
+- **Breaking (internal)**: `Backup::creation_date`, `Autosave::modified_at` and
+  the `age` methods now use `jiff::civil::DateTime` instead of chrono's
+  `NaiveDateTime`, and `Error` gains a `Time` variant
+
 ## [0.8.0] - 2026-10-27
 
 ### Added
