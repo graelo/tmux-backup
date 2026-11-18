@@ -5,7 +5,7 @@ use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use chrono::Local;
+use jiff::ZonedDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::{Result, error::Error, tmux, tmux::Tmux};
@@ -217,7 +217,10 @@ pub fn new_backup_filepath<P>(dirpath: P) -> PathBuf
 where
     P: AsRef<Path>,
 {
-    let timestamp_frag = Local::now().format("%Y%m%dT%H%M%S%.6f").to_string();
+    let timestamp_frag = ZonedDateTime::now()
+        .datetime()
+        .strftime("%Y%m%dT%H%M%S%.6f")
+        .to_string();
     let backup_filename = format!("backup-{timestamp_frag}.tar.zst");
     dirpath.as_ref().join(backup_filename)
 }

@@ -3,8 +3,8 @@
 use std::fmt;
 use std::path::PathBuf;
 
-use chrono::{Duration, NaiveDateTime};
 use clap::ValueEnum;
+use jiff::civil::DateTime;
 
 /// Quick access, high-level representation of a backup.
 ///
@@ -19,14 +19,14 @@ pub struct Backup {
     pub filepath: PathBuf,
 
     /// Backup date.
-    pub creation_date: NaiveDateTime,
+    pub creation_date: DateTime,
 }
 
 impl Backup {
     /// Return a string representing the duration since the backup file was created.
     ///
     // This function can only receive properly formatted files
-    pub fn age(&self, now: NaiveDateTime) -> String {
+    pub fn age(&self, now: DateTime) -> String {
         format_age(self.creation_date, now)
     }
 }
@@ -38,22 +38,21 @@ pub struct Autosave {
     pub filepath: PathBuf,
 
     /// Last modification time of the autosave archive.
-    pub modified_at: NaiveDateTime,
+    pub modified_at: DateTime,
 }
 
 impl Autosave {
     /// Return a string representing the duration since the autosave was last written.
-    pub fn age(&self, now: NaiveDateTime) -> String {
+    pub fn age(&self, now: DateTime) -> String {
         format_age(self.modified_at, now)
     }
 }
 
-fn format_age(creation_date: NaiveDateTime, now: NaiveDateTime) -> String {
-    let duration = now.signed_duration_since(creation_date);
-    let duration_secs = duration.num_seconds();
+fn format_age(creation_date: DateTime, now: DateTime) -> String {
+    let duration_secs = now.duration_since(creation_date).as_secs();
 
     // Month scale -> "n months ago"
-    let month = Duration::weeks(4).num_seconds();
+    let month = 4 * WEEK_SECS;
     if duration_secs >= 2 * month {
         return format!("{} months", duration_secs / month);
     }
@@ -62,7 +61,7 @@ fn format_age(creation_date: NaiveDateTime, now: NaiveDateTime) -> String {
     }
 
     // Week scale -> "n weeks ago"
-    let week = Duration::weeks(1).num_seconds();
+    let week = WEEK_SECS;
     if duration_secs >= 2 * week {
         return format!("{} weeks", duration_secs / week);
     }
@@ -71,7 +70,7 @@ fn format_age(creation_date: NaiveDateTime, now: NaiveDateTime) -> String {
     }
 
     // Day scale -> "n days ago"
-    let day = Duration::days(1).num_seconds();
+    let day = DAY_SECS;
     if duration_secs >= 2 * day {
         return format!("{} days", duration_secs / day);
     }
@@ -80,7 +79,7 @@ fn format_age(creation_date: NaiveDateTime, now: NaiveDateTime) -> String {
     }
 
     // Hour scale -> "n hours ago"
-    let hour = Duration::hours(1).num_seconds();
+    let hour = HOUR_SECS;
     if duration_secs >= 2 * hour {
         return format!("{} hours", duration_secs / hour);
     }
@@ -89,7 +88,7 @@ fn format_age(creation_date: NaiveDateTime, now: NaiveDateTime) -> String {
     }
 
     // Minute scale -> "n minutes ago"
-    let minute = Duration::minutes(1).num_seconds();
+    let minute = MINUTE_SECS;
     if duration_secs >= 2 * minute {
         return format!("{} minutes", duration_secs / minute);
     }
@@ -99,6 +98,18 @@ fn format_age(creation_date: NaiveDateTime, now: NaiveDateTime) -> String {
 
     format!("{duration_secs} seconds")
 }
+
+/// Number of seconds in one minute.
+const MINUTE_SECS: i64 = 60;
+
+/// Number of seconds in one hour.
+const HOUR_SECS: i64 = 60 * MINUTE_SECS;
+
+/// Number of seconds in one day.
+const DAY_SECS: i64 = 24 * HOUR_SECS;
+
+/// Number of seconds in one week.
+const WEEK_SECS: i64 = 7 * DAY_SECS;
 
 /// Which subset of backups to print.
 #[derive(Debug, Clone, ValueEnum)]
@@ -122,24 +133,18 @@ impl fmt::Display for BackupStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::NaiveDate;
+    use jiff::civil::date;
 
     /// Helper to create a backup with a given datetime for testing.
-    fn backup_at(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> Backup {
+    fn backup_at(year: i16, month: i8, day: i8, hour: i8, min: i8, sec: i8) -> Backup {
         Backup {
             filepath: PathBuf::from("/tmp/backup.tar.zst"),
-            creation_date: NaiveDate::from_ymd_opt(year, month, day)
-                .unwrap()
-                .and_hms_opt(hour, min, sec)
-                .unwrap(),
+            creation_date: datetime(year, month, day, hour, min, sec),
         }
     }
 
-    fn datetime(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> NaiveDateTime {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .unwrap()
-            .and_hms_opt(hour, min, sec)
-            .unwrap()
+    fn datetime(year: i16, month: i8, day: i8, hour: i8, min: i8, sec: i8) -> DateTime {
+        date(year, month, day).at(hour, min, sec, 0)
     }
 
     mod age_formatting {
@@ -151,6 +156,24 @@ mod tests {
             let now = datetime(2024, 6, 15, 10, 30, 45);
 
             assert_eq!(backup.age(now), "45 seconds");
+        }
+
+        #[test]
+        fn long_spans_keep_whole_second_truncation() {
+            // 112 days (four 28-day "months") minus one nanosecond: a floating-point total
+            // would round this up to the next whole second and report 4 months.
+            let backup = backup_at(2024, 1, 1, 0, 0, 0);
+            let now = date(2024, 4, 21).at(23, 59, 59, 999_999_999);
+
+            assert_eq!(backup.age(now), "3 months");
+        }
+
+        #[test]
+        fn subsecond_durations_are_truncated_to_whole_seconds() {
+            let backup = backup_at(2024, 6, 15, 10, 30, 0);
+            let now = date(2024, 6, 15).at(10, 30, 59, 900_000_000);
+
+            assert_eq!(backup.age(now), "59 seconds");
         }
 
         #[test]

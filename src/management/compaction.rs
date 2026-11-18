@@ -2,11 +2,22 @@
 
 use std::fmt;
 
-use chrono::{Datelike, Timelike};
-use chrono::{Duration, Local};
 use itertools::Itertools;
+use jiff::{
+    ToSpan, ZonedDateTime,
+    civil::{Date, DateTime},
+};
 
 use super::backup::{Backup, BackupStatus};
+
+/// Grouping key for the ISO week of a backup date.
+///
+/// The weekday is deliberately left out: backups taken on different days of the same ISO week
+/// belong to the same retention group.
+fn iso_week_key(date: Date) -> (i16, i8) {
+    let week = date.iso_week_date();
+    (week.year(), week.week())
+}
 
 /// Backups compaction strategy.
 ///
@@ -55,6 +66,14 @@ impl Strategy {
     /// only the most recent backup is kept.
     ///
     pub fn plan<'a>(&self, backups: &'a [Backup]) -> Plan<'a> {
+        self.plan_at(backups, ZonedDateTime::now().datetime())
+    }
+
+    /// Determine which backup files should be kept, relative to the given `now`.
+    ///
+    /// Taking the reference time as a parameter keeps the classic strategy deterministic and
+    /// testable; [`Strategy::plan`] passes the current local time.
+    fn plan_at<'a>(&self, backups: &'a [Backup], now: DateTime) -> Plan<'a> {
         match self {
             Strategy::KeepMostRecent { k } => {
                 let k = std::cmp::min(backups.len(), *k);
@@ -81,11 +100,10 @@ impl Strategy {
             }
 
             Strategy::Classic => {
-                let now = Local::now().naive_local();
-                let _24h_ago = now - Duration::days(1);
-                let _7d_ago = now - Duration::days(7);
-                let _4w_ago = now - Duration::weeks(4);
-                let _year_ago = now - Duration::days(365);
+                let _24h_ago = now - 24.hours();
+                let _7d_ago = now - 7.days();
+                let _4w_ago = now - 4.weeks();
+                let _year_ago = now - 365.days();
 
                 // Last 24 h, grouped by hour
                 let last_24h_per_hour: Vec<_> = backups
@@ -111,7 +129,7 @@ impl Strategy {
                 let last_4w_per_isoweek: Vec<_> = backups
                     .iter()
                     .filter(|&b| _7d_ago > b.creation_date && b.creation_date >= _4w_ago)
-                    .chunk_by(|&b| b.creation_date.iso_week())
+                    .chunk_by(|&b| iso_week_key(b.creation_date.date()))
                     .into_iter()
                     .map(|(_key, group)| group.collect::<Vec<_>>())
                     .filter_map(|group| group.last().cloned())
@@ -192,19 +210,21 @@ pub struct Plan<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use std::path::PathBuf;
 
+    /// Build a civil datetime for the given date/time.
+    fn datetime(year: i16, month: i8, day: i8, hour: i8, min: i8, sec: i8) -> DateTime {
+        date(year, month, day).at(hour, min, sec, 0)
+    }
+
     /// Create a backup at the given date/time. The path encodes the datetime for easy debugging.
-    fn backup_at(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> Backup {
-        let dt = NaiveDate::from_ymd_opt(year, month, day)
-            .unwrap()
-            .and_hms_opt(hour, min, sec)
-            .unwrap();
+    fn backup_at(year: i16, month: i8, day: i8, hour: i8, min: i8, sec: i8) -> Backup {
+        let dt = datetime(year, month, day, hour, min, sec);
         Backup {
             filepath: PathBuf::from(format!(
                 "/backups/backup-{}.tar.zst",
-                dt.format("%Y%m%dT%H%M%S")
+                dt.strftime("%Y%m%dT%H%M%S")
             )),
             creation_date: dt,
         }
@@ -216,7 +236,7 @@ mod tests {
             .map(|i| {
                 let hour = i % 24;
                 let day = 1 + (i / 24);
-                backup_at(2024, 6, day as u32, hour as u32, 0, 0)
+                backup_at(2024, 6, day as i8, hour as i8, 0, 0)
             })
             .collect()
     }
@@ -368,6 +388,48 @@ mod tests {
         }
     }
 
+    mod iso_week_grouping {
+        use super::*;
+
+        #[test]
+        fn same_iso_week_ignores_the_weekday() {
+            // Monday 1 Jan and Tuesday 2 Jan 2024 are both in 2024-W01.
+            assert_eq!(
+                iso_week_key(date(2024, 1, 1)),
+                iso_week_key(date(2024, 1, 2))
+            );
+        }
+
+        #[test]
+        fn separates_different_iso_weeks() {
+            // Sunday 7 Jan 2024 closes 2024-W01, Monday 8 Jan opens 2024-W02.
+            assert_ne!(
+                iso_week_key(date(2024, 1, 7)),
+                iso_week_key(date(2024, 1, 8))
+            );
+        }
+
+        #[test]
+        fn keeps_the_53rd_week_of_a_long_iso_year() {
+            // 2020 has 53 ISO weeks: Monday 28 Dec and Thursday 31 Dec are both 2020-W53.
+            assert_eq!(iso_week_key(date(2020, 12, 31)), (2020, 53));
+            assert_eq!(
+                iso_week_key(date(2020, 12, 28)),
+                iso_week_key(date(2020, 12, 31))
+            );
+        }
+
+        #[test]
+        fn uses_the_iso_week_year_across_new_year() {
+            // Monday 29 Dec 2025 and Thursday 1 Jan 2026 are both in 2026-W01.
+            assert_eq!(iso_week_key(date(2025, 12, 29)), (2026, 1));
+            assert_eq!(
+                iso_week_key(date(2025, 12, 29)),
+                iso_week_key(date(2026, 1, 1))
+            );
+        }
+    }
+
     mod strategy_constructors {
         use super::*;
 
@@ -381,16 +443,110 @@ mod tests {
         }
     }
 
-    // Note: The Classic strategy uses `Local::now()` internally, making it
-    // non-deterministic and difficult to unit test reliably. To properly test
-    // Classic, consider refactoring `plan()` to accept a `now` parameter,
-    // or create an integration test with a controlled time environment.
-    //
-    // The Classic strategy logic groups backups by:
-    // - Hour (last 24h)
-    // - Day (last 7 days, excluding last 24h)
-    // - Week (last 4 weeks, excluding last 7 days)
-    // - Month (last year, excluding last 4 weeks)
-    //
-    // Each group keeps only the most recent backup within that time window.
+    mod classic_strategy {
+        use super::*;
+
+        /// Reference time shared by the classic strategy tests: Saturday 15 June 2024, 12:30.
+        fn now() -> DateTime {
+            datetime(2024, 6, 15, 12, 30, 0)
+        }
+
+        fn retained(plan: &Plan<'_>) -> Vec<DateTime> {
+            plan.retainable.iter().map(|b| b.creation_date).collect()
+        }
+
+        fn purged(plan: &Plan<'_>) -> Vec<DateTime> {
+            plan.purgeable.iter().map(|b| b.creation_date).collect()
+        }
+
+        #[test]
+        fn keeps_the_latest_backup_of_each_hour() {
+            let backups = vec![
+                backup_at(2024, 6, 15, 11, 5, 0),
+                backup_at(2024, 6, 15, 11, 45, 0),
+                backup_at(2024, 6, 15, 12, 5, 0),
+            ];
+
+            let plan = Strategy::Classic.plan_at(&backups, now());
+
+            assert_eq!(
+                retained(&plan),
+                vec![
+                    datetime(2024, 6, 15, 11, 45, 0),
+                    datetime(2024, 6, 15, 12, 5, 0)
+                ]
+            );
+            assert_eq!(purged(&plan), vec![datetime(2024, 6, 15, 11, 5, 0)]);
+        }
+
+        #[test]
+        fn keeps_the_latest_backup_of_each_day() {
+            // Between 24 hours and 7 days, grouped by day of the month.
+            let backups = vec![
+                backup_at(2024, 6, 13, 5, 0, 0),
+                backup_at(2024, 6, 13, 22, 0, 0),
+            ];
+
+            let plan = Strategy::Classic.plan_at(&backups, now());
+
+            assert_eq!(retained(&plan), vec![datetime(2024, 6, 13, 22, 0, 0)]);
+            assert_eq!(purged(&plan), vec![datetime(2024, 6, 13, 5, 0, 0)]);
+        }
+
+        #[test]
+        fn keeps_one_backup_per_iso_week_whatever_the_weekday() {
+            // Monday 3 and Wednesday 5 June 2024 are both in ISO week 2024-W23, and sit
+            // between 7 days and 4 weeks before the reference time.
+            let backups = vec![
+                backup_at(2024, 6, 3, 9, 0, 0),
+                backup_at(2024, 6, 5, 9, 0, 0),
+            ];
+
+            let plan = Strategy::Classic.plan_at(&backups, now());
+
+            assert_eq!(retained(&plan), vec![datetime(2024, 6, 5, 9, 0, 0)]);
+            assert_eq!(purged(&plan), vec![datetime(2024, 6, 3, 9, 0, 0)]);
+        }
+
+        #[test]
+        fn keeps_the_latest_backup_of_each_month() {
+            // May backups, both older than 4 weeks but within the last year.
+            let backups = vec![
+                backup_at(2024, 5, 1, 9, 0, 0),
+                backup_at(2024, 5, 10, 9, 0, 0),
+            ];
+
+            let plan = Strategy::Classic.plan_at(&backups, now());
+
+            assert_eq!(retained(&plan), vec![datetime(2024, 5, 10, 9, 0, 0)]);
+            assert_eq!(purged(&plan), vec![datetime(2024, 5, 1, 9, 0, 0)]);
+        }
+
+        #[test]
+        fn purges_backups_older_than_a_year() {
+            let backups = vec![backup_at(2023, 1, 1, 9, 0, 0)];
+
+            let plan = Strategy::Classic.plan_at(&backups, now());
+
+            assert!(plan.retainable.is_empty());
+            assert_eq!(purged(&plan), vec![datetime(2023, 1, 1, 9, 0, 0)]);
+        }
+
+        #[test]
+        fn keeps_the_latest_backup_of_every_window() {
+            // One backup per partition: hour, day, week, month.
+            let backups = vec![
+                backup_at(2024, 5, 10, 9, 0, 0),
+                backup_at(2024, 6, 4, 9, 0, 0),
+                backup_at(2024, 6, 13, 9, 0, 0),
+                backup_at(2024, 6, 15, 12, 20, 0),
+            ];
+
+            let plan = Strategy::Classic.plan_at(&backups, now());
+
+            assert_eq!(plan.purgeable.len(), 0);
+            assert_eq!(plan.retainable.len(), backups.len());
+            assert_eq!(plan.statuses.len(), backups.len());
+        }
+    }
 }

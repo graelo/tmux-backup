@@ -38,6 +38,14 @@ pub enum Error {
         source: serde_json::Error,
     },
 
+    /// Time conversion error.
+    #[error("time error: `{source}`")]
+    Time {
+        #[from]
+        /// Source error.
+        source: jiff::Error,
+    },
+
     /// Some IO error.
     #[error("failed with io: `{source}`")]
     Io {
